@@ -20,8 +20,10 @@ export async function POST(req: NextRequest) {
       inviteLink
     });
 
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Unfract <onboarding@resend.dev>';
+
     const data = await resend.emails.send({
-      from: 'Unfract <onboarding@resend.dev>', // Modificare con un'email verificata in produzione
+      from: fromEmail,
       to: email,
       subject: `Invito a partecipare all'organizzazione ${orgName}`,
       html: htmlContent,
