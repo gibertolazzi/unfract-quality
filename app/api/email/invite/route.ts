@@ -27,9 +27,14 @@ export async function POST(req: NextRequest) {
       html: htmlContent,
     });
 
+    if (data.error) {
+      console.error('Errore da Resend:', data.error);
+      return NextResponse.json({ error: data.error.message }, { status: 400 });
+    }
+
     return NextResponse.json({ success: true, data });
   } catch (error: any) {
-    console.error('Errore invio email invito:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('Errore invio email invito (Eccezione):', error);
+    return NextResponse.json({ error: error.message || "Errore sconosciuto" }, { status: 500 });
   }
 }

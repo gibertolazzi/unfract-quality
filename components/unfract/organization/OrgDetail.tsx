@@ -117,14 +117,15 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       });
 
       if (!response.ok) {
-        throw new Error("Errore durante l'invio dell'email.");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Errore durante l'invio dell'email.");
       }
 
       setInviteEmail('');
       alert('Invito inviato con successo!');
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("C'è stato un problema durante l'invio dell'invito.");
+      alert(`Errore: ${err.message}`);
     } finally {
       setIsSendingInvite(false);
     }
