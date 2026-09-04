@@ -8,11 +8,11 @@ export function LoginScreen() {
   return (
     <div className="fixed inset-0 bg-[#0B0B0B] flex items-center justify-center overflow-hidden z-[100]">
       {/* Background SVGs with animations */}
-      <div className="absolute inset-0 z-0 pointer-events-none flex items-end justify-center opacity-70 overflow-hidden">
-        <div className="relative w-full max-w-[1512px] h-full flex items-end justify-center animate-pulse-slow">
+      <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center opacity-70 overflow-hidden">
+        <div className="relative w-full h-full flex items-center justify-center animate-pulse-slow">
           {/* Blue SVG */}
-          <div className="absolute bottom-[-200px] left-1/2 -translate-x-1/2 animate-float-slow">
-            <svg width="1512" height="647" viewBox="0 0 1512 647" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div className="absolute w-[200vw] md:w-[150vw] min-w-[1500px] flex justify-center items-center scale-150 translate-y-1/4 animate-float-slow">
+            <svg className="w-full h-auto" viewBox="0 0 1512 647" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax slice">
               <g filter="url(#filter0_f_311_286)">
                 <path d="M-410 868H1642.5L1606.5 200L1106.34 542.113C1106.34 542.113 992.005 357.633 880.913 324.377C714.608 274.593 483.432 542.113 483.432 542.113C483.432 542.113 315.391 346.905 178.507 342.084C13.3548 336.269 -178.091 605.073 -178.091 605.073L-381.491 245L-410 868Z" fill="#006AFF" fillOpacity="0.31"/>
               </g>
@@ -26,8 +26,8 @@ export function LoginScreen() {
             </svg>
           </div>
           {/* White/Light SVG */}
-          <div className="absolute bottom-[-200px] left-1/2 -translate-x-1/2 animate-float-delayed">
-            <svg width="1512" height="364" viewBox="0 0 1512 364" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <div className="absolute w-[200vw] md:w-[150vw] min-w-[1500px] flex justify-center items-center scale-150 translate-y-1/4 animate-float-delayed">
+            <svg className="w-full h-auto" viewBox="0 0 1512 364" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMax slice">
               <g filter="url(#filter0_f_311_287)">
                 <path d="M-410 868H1642.5L1606.5 200L1106.34 542.113C1106.34 542.113 992.005 357.633 880.913 324.377C714.608 274.593 483.432 542.113 483.432 542.113C483.432 542.113 315.391 346.905 178.507 342.084C13.3548 336.269 -178.091 605.073 -178.091 605.073L-381.491 245L-410 868Z" fill="white" fillOpacity="0.31"/>
               </g>
