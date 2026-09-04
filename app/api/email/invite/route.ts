@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
       inviteLink
     });
 
-    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Unfract <onboarding@resend.dev>';
+    const fromEmail = process.env.RESEND_FROM_EMAIL || 'Unfract <hello@unfract.com>';
 
     const data = await resend.emails.send({
       from: fromEmail,
