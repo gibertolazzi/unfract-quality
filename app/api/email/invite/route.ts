@@ -1,0 +1,35 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { Resend } from 'resend';
+import { getOrgInviteEmailHtml } from '@/lib/emailTemplates';
+
+// Inizializza Resend con la chiave API (deve essere configurata nelle variabili d'ambiente)
+const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789');
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { email, inviterName, orgName, inviteLink } = body;
+
+    if (!email || !inviterName || !orgName || !inviteLink) {
+      return NextResponse.json({ error: 'Campi mancanti' }, { status: 400 });
+    }
+
+    const htmlContent = getOrgInviteEmailHtml({
+      inviterName,
+      orgName,
+      inviteLink
+    });
+
+    const data = await resend.emails.send({
+      from: 'Unfract <onboarding@resend.dev>', // Modificare con un'email verificata in produzione
+      to: email,
+      subject: `Invito a partecipare all'organizzazione ${orgName}`,
+      html: htmlContent,
+    });
+
+    return NextResponse.json({ success: true, data });
+  } catch (error: any) {
+    console.error('Errore invio email invito:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}

@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: #0B0B0B;
+  color: white;
+}
+
+/* Editor Styles */
+.editor-block ul {
+  list-style-type: disc;
+  margin-left: 1.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+.editor-block ol {
+  list-style-type: decimal;
+  margin-left: 1.5rem;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+.editor-block a {
+  color: #00A6FF;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.editor-block blockquote {
+  border-left: 3px solid #00A6FF;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: normal;
+}
+.editor-block img {
+  max-width: 100%;
+  border-radius: 8px;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
