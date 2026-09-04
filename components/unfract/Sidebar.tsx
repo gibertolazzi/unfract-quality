@@ -215,26 +215,19 @@ export function Sidebar() {
           </div>
         </div>
 
-        {!loading && (
-          user ? (
-            <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl border border-white/10">
-              <div className="flex items-center gap-3 truncate">
-                <img src={user.photoURL || ''} alt="Profile" className="w-8 h-8 rounded-full shrink-0" />
-                <div className="flex flex-col truncate">
-                  <span className="text-xs font-semibold text-white truncate">{user.displayName}</span>
-                  <span className="text-[10px] text-white/50 truncate">{user.email}</span>
-                </div>
+        {!loading && user && (
+          <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl border border-white/10">
+            <div className="flex items-center gap-3 truncate">
+              <img src={user.photoURL || ''} alt="Profile" className="w-8 h-8 rounded-full shrink-0" />
+              <div className="flex flex-col truncate">
+                <span className="text-xs font-semibold text-white truncate">{user.displayName}</span>
+                <span className="text-[10px] text-white/50 truncate">{user.email}</span>
               </div>
-              <button onClick={logout} className="shrink-0 text-white/50 hover:text-white transition-colors ml-2">
-                <LogOut size={16} />
-              </button>
             </div>
-          ) : (
-            <button onClick={loginWithGoogle} className="flex items-center justify-center gap-2 px-4 py-3 bg-white text-black rounded-2xl hover:bg-gray-200 transition-colors">
-              <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
-              <span className="text-sm font-bold">Accedi con Google</span>
+            <button onClick={logout} className="shrink-0 text-white/50 hover:text-white transition-colors ml-2">
+              <LogOut size={16} />
             </button>
-          )
+          </div>
         )}
       </div>
       {isCreateModalOpen && (

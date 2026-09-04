@@ -4,9 +4,13 @@ import React from "react";
 import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/unfract/Sidebar";
 import { TopBar } from "@/components/unfract/TopBar";
+import { useAuth } from "@/contexts/AuthContext";
+import { LoginScreen } from "@/components/unfract/LoginScreen";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
+  
   const isPublicRoute = pathname?.startsWith('/book');
 
   if (isPublicRoute) {
@@ -17,6 +21,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     );
+  }
+
+  // If not a public route and user is not logged in, show LoginScreen
+  if (!user) {
+    return <LoginScreen />;
   }
 
   return (
