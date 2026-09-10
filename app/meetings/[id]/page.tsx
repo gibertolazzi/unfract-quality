@@ -10,6 +10,7 @@ import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } 
 import { db } from '@/lib/firebase';
 import { TaskModal } from '@/components/unfract/TaskModal';
 import { useProject } from '@/contexts/ProjectContext';
+import { TranscriptModal } from '@/components/unfract/meetings/TranscriptModal';
 
 export default function MeetingDetailPage({ params }: { params: { id: string } }) {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
@@ -19,6 +20,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
   const [epics, setEpics] = useState<any[]>([]);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [editingTaskIdx, setEditingTaskIdx] = useState<number | null>(null);
+  const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
 
   const { user, loading: authLoading } = useAuth();
   const { activeProjectId } = useProject();
@@ -300,11 +302,22 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
 
         {/* Riga 3: Trascrizione */}
         <div className="bg-[#111] border border-white/5 rounded-2xl p-6">
-          <h2 className="text-xl font-medium text-white mb-4 flex items-center gap-2">
-            <FileText size={20} className="text-white/50" /> Trascrizione Completa
-          </h2>
-          <div className="text-white/50 leading-relaxed text-[14px] h-[300px] overflow-y-auto custom-scrollbar italic pr-4">
-            {meeting.transcript}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-medium text-white flex items-center gap-2">
+              <FileText size={20} className="text-white/50" /> Trascrizione Completa
+            </h2>
+            {meeting.transcript && (
+              <button 
+                onClick={() => setIsTranscriptModalOpen(true)}
+                className="text-sm text-[#006AFF] hover:underline"
+              >
+                Espandi
+              </button>
+            )}
+          </div>
+          <div className="text-white/50 leading-relaxed text-[14px] h-[300px] overflow-y-auto custom-scrollbar italic pr-4 whitespace-pre-wrap">
+            {typeof meeting.transcript === 'string' ? meeting.transcript : JSON.stringify(meeting.transcript)}
+            {!meeting.transcript && "Trascrizione non disponibile."}
           </div>
         </div>
 
@@ -320,6 +333,14 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           columns={columns} 
           epics={epics} 
           onSaveLocal={saveEditingLocal}
+        />
+      )}
+
+      {isTranscriptModalOpen && meeting.transcript && (
+        <TranscriptModal 
+          transcript={typeof meeting.transcript === 'string' ? meeting.transcript : JSON.stringify(meeting.transcript)}
+          title={meeting.title}
+          onClose={() => setIsTranscriptModalOpen(false)}
         />
       )}
     </div>

@@ -24,7 +24,7 @@ export async function getMeetings(projectId: string): Promise<Meeting[]> {
         summary: data.summary || '',
         decisions: data.decisions || [],
         tasks: data.tasks || [],
-        transcript: data.transcript || '',
+        transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
         createdAt: data.createdAt,
         projectId: data.projectId
       } as Meeting & { projectId?: string };
@@ -51,7 +51,7 @@ export async function getMeetingById(id: string): Promise<(Meeting & { projectId
       summary: data.summary || '',
       decisions: data.decisions || [],
       tasks: data.tasks || [],
-      transcript: data.transcript || '',
+      transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
       createdAt: data.createdAt,
       projectId: data.projectId
     } as Meeting & { projectId?: string };
