@@ -15,6 +15,7 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const [emailMentioned, setEmailMentioned] = useState(settings?.emailMentioned ?? true);
   
   const [groupFrequency, setGroupFrequency] = useState(settings?.groupFrequency || '3min');
+  const [defaultMeetingLink, setDefaultMeetingLink] = useState(settings?.defaultMeetingLink || '');
 
   // Debounce settings updates
   useEffect(() => {
@@ -26,11 +27,12 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
         emailRequester,
         emailChanges,
         emailMentioned,
-        groupFrequency
+        groupFrequency,
+        defaultMeetingLink
       });
     }, 500);
     return () => clearTimeout(timeoutId);
-  }, [timezone, language, emailAssignee, emailRequester, emailChanges, emailMentioned, groupFrequency]);
+  }, [timezone, language, emailAssignee, emailRequester, emailChanges, emailMentioned, groupFrequency, defaultMeetingLink]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -40,7 +42,7 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/5">
           <h2 className="text-lg font-semibold text-white/90">Impostazioni Profilo</h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
+          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
             <X size={20} />
           </button>
         </div>
@@ -49,7 +51,7 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
           
           {/* General Settings */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider">Generale</h3>
+            <h3 className="text-sm font-medium text-[#858585] uppercase tracking-wider">Generale</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
@@ -85,13 +87,36 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
 
           <div className="w-full h-px bg-white/5" />
 
+          {/* Meeting Settings */}
+          <div className="flex flex-col gap-4">
+            <h3 className="text-sm font-medium text-[#858585] uppercase tracking-wider flex items-center gap-2">
+               Videoconferenze
+            </h3>
+            
+            <div className="flex flex-col gap-2">
+              <label className="text-sm text-white/70">Link Riunione Predefinito (Zoom, Teams, Meet)</label>
+              <input 
+                type="url"
+                value={defaultMeetingLink}
+                onChange={e => setDefaultMeetingLink(e.target.value)}
+                placeholder="es. https://meet.google.com/abc-defg-hij"
+                className="bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-[#006AFF] transition-colors"
+              />
+              <p className="text-xs text-[#858585] mt-1">
+                Questo link verrà usato come impostazione predefinita quando crei un nuovo evento nel calendario e scegli di aggiungere un link di videoconferenza.
+              </p>
+            </div>
+          </div>
+
+          <div className="w-full h-px bg-white/5" />
+
           {/* Email Preferences */}
           <div className="flex flex-col gap-6">
             <div className="flex flex-col gap-1">
-              <h3 className="text-sm font-medium text-white/50 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-sm font-medium text-[#858585] uppercase tracking-wider flex items-center gap-2">
                 <Mail size={14} /> Preferenze e-mail
               </h3>
-              <p className="text-[13px] text-white/40 leading-relaxed">
+              <p className="text-[13px] text-[#858585] leading-relaxed">
                 Segnalaci quale tipo di aggiornamenti tramite e-mail desideri ricevere e con quale frequenza dovremmo inviarti le notifiche e-mail per le attività dei ticket.
               </p>
             </div>
@@ -146,7 +171,7 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
 
             <div className="flex flex-col gap-3 bg-white/[0.02] border border-white/5 p-4 rounded-xl">
               <h4 className="text-sm font-medium text-white/80 flex items-center gap-2"><BellRing size={14}/> Raggruppa le e-mail di notifica</h4>
-              <p className="text-[13px] text-white/50 leading-relaxed mb-1">
+              <p className="text-[13px] text-[#858585] leading-relaxed mb-1">
                 Raggrupperemo le notifiche relative agli stessi ticket in un'unica e-mail. Con quale frequenza desidera riceverla?
               </p>
               <select 

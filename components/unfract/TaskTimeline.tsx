@@ -117,7 +117,7 @@ export function TaskTimeline({
               <div key={epic.id} className="flex flex-col bg-[#111] border border-white/5 rounded-2xl overflow-hidden p-3 gap-3">
                 <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleEpic(epic.id)}>
                   <div className="flex items-center gap-2">
-                    {isExpanded ? <ChevronDown size={16} className="text-white/50" /> : <ChevronRight size={16} className="text-white/50" />}
+                    {isExpanded ? <ChevronDown size={16} className="text-[#858585]" /> : <ChevronRight size={16} className="text-[#858585]" />}
                     <span className="text-sm font-medium text-white">{epic.title}</span>
                   </div>
                   <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: epic.color }}></div>
@@ -131,7 +131,7 @@ export function TaskTimeline({
                 {/* Tasks List */}
                 {isExpanded && (
                   <div className="flex flex-col gap-2 mt-2">
-                    {epicTasks.length === 0 && <span className="text-xs text-white/30 italic px-2">Nessuna task in questo Epic</span>}
+                    {epicTasks.length === 0 && <span className="text-xs text-[#858585] italic px-2">Nessuna task in questo Epic</span>}
                     {epicTasks.map(t => {
                       const isDone = columns.find(c => c.id === t.columnId)?.title.toLowerCase() === 'done';
                       const pStyle = getPriorityStyle(t.priority);
@@ -149,7 +149,7 @@ export function TaskTimeline({
                             >
                               {isDone && <CheckCircle2 size={10} className="text-white" />}
                             </button>
-                            <span className={`text-xs ${isDone ? 'text-white/40 line-through' : 'text-white/80'}`}>{t.title || 'Untitled'}</span>
+                            <span className={`text-xs ${isDone ? 'text-[#858585] line-through' : 'text-white/80'}`}>{t.title || 'Untitled'}</span>
                           </div>
                           
                           <span className={`text-[9px] px-2 py-0.5 rounded-full border ${pStyle.border} ${pStyle.bg} ${pStyle.color} font-medium tracking-wide uppercase ml-2 shrink-0`}>
@@ -164,7 +164,7 @@ export function TaskTimeline({
             );
           })}
           
-          <button onClick={() => setShowEpicPrompt(true)} className="flex items-center gap-2 text-white/50 hover:text-white mt-2 px-2 transition-colors">
+          <button onClick={() => setShowEpicPrompt(true)} className="flex items-center gap-2 text-[#858585] hover:text-white mt-2 px-2 transition-colors">
             <PlusCircle size={16} />
             <span className="text-sm font-medium">Create Epic</span>
           </button>
@@ -179,7 +179,7 @@ export function TaskTimeline({
           {months.map((month, index) => {
             const isCurrent = index === currentMonthIndex;
             return (
-              <div key={month} className={`w-[200px] px-4 text-xs font-semibold border-l border-white/5 h-full flex items-center ${isCurrent ? 'text-[#006AFF] bg-[#006AFF]/5' : 'text-white/50'}`}>
+              <div key={month} className={`w-[200px] px-4 text-xs font-semibold border-l border-white/5 h-full flex items-center ${isCurrent ? 'text-[#006AFF] bg-[#006AFF]/5' : 'text-[#858585]'}`}>
                 {month}
               </div>
             );
@@ -227,7 +227,7 @@ export function TaskTimeline({
                     );
                   })}
                   {intervals.length === 0 && (
-                    <div className="absolute h-full flex items-center pl-4 text-xs text-white/20 italic">No tasks assigned</div>
+                    <div className="absolute h-full flex items-center pl-4 text-xs text-[#858585] italic">No tasks assigned</div>
                   )}
                 </div>
               );

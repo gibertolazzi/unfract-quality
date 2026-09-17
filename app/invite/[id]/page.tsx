@@ -79,7 +79,7 @@ export default function InvitePage() {
         ) : null}
         <p className="text-white/70 font-medium">{status}</p>
         {!user && !loading && (
-          <p className="text-sm text-white/40 mt-2">Torna alla home o ricarica dopo aver fatto l'accesso.</p>
+          <p className="text-sm text-[#858585] mt-2">Torna alla home o ricarica dopo aver fatto l'accesso.</p>
         )}
       </div>
     </div>

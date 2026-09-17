@@ -16,12 +16,12 @@ export function DocToolbar({
     <div className="sticky top-0 z-50 bg-[#0A0A0A] border-b border-white/10 p-2 flex items-center gap-1.5 mb-8 rounded-b-2xl shadow-xl overflow-x-auto custom-scrollbar whitespace-nowrap">
       
       <div className="flex items-center gap-1 bg-[#1A1A1A] rounded-lg px-2 py-1 mr-2">
-        <Type size={14} className="text-white/50" />
+        <Type size={14} className="text-[#858585]" />
         <span className="text-sm text-white/80 font-medium px-2 border-r border-white/10">Testo normale</span>
         <select 
           value={activeBlockType}
           onChange={(e) => onBlockTypeChange?.(e.target.value as any)}
-          className="bg-transparent text-white/50 text-xs outline-none cursor-pointer"
+          className="bg-transparent text-[#858585] text-xs outline-none cursor-pointer"
         >
           <option value="p">Paragrafo</option>
           <option value="h2">Titolo 1</option>

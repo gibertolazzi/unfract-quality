@@ -22,7 +22,7 @@ export function DeleteProjectModal({
       >
         <div className="flex items-center justify-between p-4 border-b border-white/5 bg-red-500/5">
           <h3 className="text-sm font-semibold text-red-500">Elimina Progetto</h3>
-          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -31,7 +31,7 @@ export function DeleteProjectModal({
           <p className="text-sm text-white/70 leading-relaxed">
             Questa azione è <strong className="text-white">irreversibile</strong>. Eliminerà permanentemente il progetto <strong className="text-white">{project.name}</strong>.
           </p>
-          <p className="text-xs text-white/50">
+          <p className="text-xs text-[#858585]">
             Per confermare, digita il nome del progetto di seguito:
           </p>
           

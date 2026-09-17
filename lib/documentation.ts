@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { Document, DocBlock } from '@/components/unfract/documentation/types';
 
 const COLLECTION_NAME = 'documentation';
@@ -33,6 +33,47 @@ export async function getDocuments(projectId: string): Promise<Document[]> {
   }
 }
 
+export function subscribeToDocuments(projectId: string, callback: (docs: Document[]) => void) {
+  if (!projectId) {
+    callback([]);
+    return () => {};
+  }
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('projectId', '==', projectId)
+  );
+  return onSnapshot(q, (snapshot) => {
+    let documents = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || 'Nuovo Documento',
+        manager: data.manager || 'Utente',
+        date: data.date || new Date().toLocaleDateString('it-IT'),
+        company: data.company || 'Unfract',
+        lastUpdate: data.lastUpdate || 'poco fa',
+        blocks: data.blocks || [],
+        history: data.history || [],
+        projectId: data.projectId,
+        updatedAt: data.updatedAt,
+        parentId: data.parentId || null
+      } as Document & { projectId?: string, updatedAt?: any };
+    });
+    
+    // Local sort to avoid requiring a composite index
+    documents.sort((a, b) => {
+      const timeA = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+      const timeB = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+      return timeB - timeA;
+    });
+    
+    callback(documents);
+  }, (error) => {
+    console.error("Error subscribing to documents:", error);
+    callback([]);
+  });
+}
+
 export async function getDocumentById(id: string): Promise<(Document & { projectId?: string }) | null> {
   console.log("Fetching document by ID:", id);
   try {
@@ -53,7 +94,8 @@ export async function getDocumentById(id: string): Promise<(Document & { project
       lastUpdate: data.lastUpdate || 'poco fa',
       blocks: data.blocks || [],
       history: data.history || [],
-      projectId: data.projectId
+      projectId: data.projectId,
+      parentId: data.parentId || null
     } as Document & { projectId?: string };
   } catch (error) {
     console.error("Error fetching document by ID:", error);
@@ -61,11 +103,12 @@ export async function getDocumentById(id: string): Promise<(Document & { project
   }
 }
 
-export async function createDocument(projectId: string, managerName: string = 'Utente'): Promise<string | null> {
+export async function createDocument(projectId: string, managerName: string = 'Utente', parentId?: string): Promise<string | null> {
   try {
     if (!projectId) throw new Error("projectId is required");
     const docData = {
       projectId,
+      parentId: parentId || null,
       title: 'Nuovo Documento',
       manager: managerName,
       date: new Date().toLocaleDateString('it-IT'),

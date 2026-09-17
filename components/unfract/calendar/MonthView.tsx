@@ -1,6 +1,6 @@
 import React from 'react';
 import { CalendarEvent } from './types';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isSameDay } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isSameDay, isToday } from 'date-fns';
 import { it } from 'date-fns/locale';
 
 interface MonthViewProps {
@@ -12,11 +12,11 @@ interface MonthViewProps {
 
 const daysOfWeek = [
   { label: 'Sun', color: 'text-[#006AFF]' },
-  { label: 'Mon', color: 'text-white/50' },
-  { label: 'Tue', color: 'text-white/50' },
-  { label: 'Wed', color: 'text-white/50' },
-  { label: 'Thu', color: 'text-white/50' },
-  { label: 'Fri', color: 'text-white/50' },
+  { label: 'Mon', color: 'text-[#858585]' },
+  { label: 'Tue', color: 'text-[#858585]' },
+  { label: 'Wed', color: 'text-[#858585]' },
+  { label: 'Thu', color: 'text-[#858585]' },
+  { label: 'Fri', color: 'text-[#858585]' },
   { label: 'Sat', color: 'text-[#006AFF]' }
 ];
 
@@ -51,11 +51,13 @@ export function MonthView({ currentDate, events, onEventClick, onDayClick }: Mon
               onClick={() => onDayClick(day)}
               className={`flex flex-col p-2 min-h-[120px] cursor-pointer hover:bg-white/5 transition-colors ${!isLastCol ? 'border-r border-white/5' : ''} ${!isLastRow ? 'border-b border-white/5' : ''}`}
             >
-              <span className={`text-[13px] font-semibold mb-1 ${!isCurrentMonth ? 'text-white/40' : 'text-white'}`}>
-                {format(day, 'd')}
-              </span>
+              <div className="flex justify-between items-start mb-1">
+                <span className={`flex items-center justify-center text-[13px] font-semibold w-6 h-6 rounded-full ${isToday(day) ? 'bg-[#006AFF] text-white' : (!isCurrentMonth ? 'text-[#858585]' : 'text-white')}`}>
+                  {format(day, 'd')}
+                </span>
+              </div>
               
-              <div className="flex flex-col gap-1 mt-1 flex-1 overflow-y-auto custom-scrollbar">
+              <div className="flex flex-col gap-1 flex-1 overflow-y-auto custom-scrollbar">
                 {dayEvents.map(ev => (
                   <div 
                     key={ev.id} 

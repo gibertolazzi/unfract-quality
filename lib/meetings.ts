@@ -1,5 +1,5 @@
 import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { Meeting } from '@/components/unfract/meetings/types';
 
 const COLLECTION_NAME = 'meetings';
@@ -33,6 +33,47 @@ export async function getMeetings(projectId: string): Promise<Meeting[]> {
     console.error("Error fetching meetings:", error);
     return [];
   }
+}
+
+export function subscribeToMeetings(projectId: string, callback: (meetings: Meeting[]) => void) {
+  if (!projectId) {
+    callback([]);
+    return () => {};
+  }
+  const q = query(
+    collection(db, COLLECTION_NAME),
+    where('projectId', '==', projectId)
+  );
+  return onSnapshot(q, (snapshot) => {
+    const meetings = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        title: data.title || 'Meeting Senza Titolo',
+        date: data.date || new Date().toLocaleDateString('it-IT'),
+        duration: data.duration || '0 min',
+        manager: data.manager || 'Utente',
+        summary: data.summary || '',
+        decisions: data.decisions || [],
+        tasks: data.tasks || [],
+        transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
+        createdAt: data.createdAt,
+        projectId: data.projectId
+      } as Meeting & { projectId?: string };
+    });
+    
+    // Local sort to avoid requiring a composite index in Firestore
+    meetings.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+      const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+      return timeB - timeA;
+    });
+    
+    callback(meetings);
+  }, (error) => {
+    console.error("Error subscribing to meetings:", error);
+    callback([]);
+  });
 }
 
 export async function getMeetingById(id: string): Promise<(Meeting & { projectId?: string }) | null> {

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { DocList } from '@/components/unfract/documentation/DocList';
-import { getDocuments } from '@/lib/documentation';
+import { subscribeToDocuments } from '@/lib/documentation';
 import { Document } from '@/components/unfract/documentation/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -22,14 +22,25 @@ export default function DocumentationPage() {
       return;
     }
     
-    getDocuments(activeProjectId).then(docs => {
-      setDocuments(docs);
-      setIsLoading(false);
+    setIsLoading(true);
+    let isSubscribed = true;
+    const unsubscribe = subscribeToDocuments(activeProjectId, (docs) => {
+      if (isSubscribed) {
+        setDocuments(docs);
+        setIsLoading(false);
+      }
     });
+
+    return () => {
+      isSubscribed = false;
+      setTimeout(() => {
+        if (unsubscribe) unsubscribe();
+      }, 100);
+    };
   }, [user, authLoading, activeProjectId]);
 
   if (authLoading || isLoading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-white/50" /></div>;
+    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-[#858585]" /></div>;
   }
 
   return (

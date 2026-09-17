@@ -2,12 +2,93 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronUp, Home, CheckCircle2, Calendar, Hash, FileVideo, Users, LogOut, Check, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Home, CheckCircle2, Calendar, Hash, FileVideo, Users, LogOut, Check, Plus, Trash2, MessageCircle, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject, Project } from "@/contexts/ProjectContext";
 import { DeleteProjectModal } from "./DeleteProjectModal";
 import { CreateProjectModal } from "./CreateProjectModal";
 import { useState, useRef, useEffect } from "react";
+import { subscribeToDocuments, createDocument } from "@/lib/documentation";
+import { Document } from "@/components/unfract/documentation/types";
+import { useRouter } from "next/navigation";
+
+type DocNode = Document & { children: DocNode[] };
+
+function buildTree(documents: Document[]): DocNode[] {
+  const map = new Map<string, DocNode>();
+  const roots: DocNode[] = [];
+  
+  documents.forEach(doc => {
+    map.set(doc.id, { ...doc, children: [] });
+  });
+  
+  documents.forEach(doc => {
+    if (doc.parentId && map.has(doc.parentId)) {
+      map.get(doc.parentId)!.children.push(map.get(doc.id)!);
+    } else {
+      roots.push(map.get(doc.id)!);
+    }
+  });
+  
+  return roots;
+}
+
+const DocTreeItem = ({ doc, activePath, depth, onAddChild }: { doc: DocNode, activePath: string, depth: number, onAddChild: (parentId: string) => void }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const isActive = activePath === `/documentation/${doc.id}`;
+  
+  return (
+    <div className="flex flex-col">
+      <div 
+        className={`group flex items-center gap-1.5 py-1.5 pr-2 rounded-lg transition-colors cursor-pointer ${
+          isActive ? "text-white bg-white/10 font-medium" : "text-[#858585] hover:text-white hover:bg-white/5"
+        }`}
+        style={{ paddingLeft: `${depth * 12 + 8}px` }}
+      >
+        <div 
+          className="shrink-0 w-4 h-4 flex items-center justify-center cursor-pointer hover:bg-white/10 rounded"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (doc.children.length > 0) setIsExpanded(!isExpanded);
+          }}
+        >
+          {doc.children.length > 0 ? (
+            <ChevronDown size={14} className={`transition-transform duration-200 ${!isExpanded ? '-rotate-90' : ''}`} />
+          ) : (
+            <div className="w-1 h-1 rounded-full bg-white/20" />
+          )}
+        </div>
+        <Link
+          href={`/documentation/${doc.id}`}
+          className="truncate flex-1 text-xs"
+        >
+          {doc.title}
+        </Link>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onAddChild(doc.id);
+            setIsExpanded(true); 
+          }}
+          className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-[#858585] hover:text-white transition-all shrink-0"
+          title="Aggiungi sotto-documento"
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+      
+      {isExpanded && doc.children.length > 0 && (
+        <div className="flex flex-col mt-0.5">
+          {doc.children.map(child => (
+            <DocTreeItem key={child.id} doc={child} activePath={activePath} depth={depth + 1} onAddChild={onAddChild} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const NAV_ITEMS = [
   { id: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
@@ -16,10 +97,13 @@ const NAV_ITEMS = [
   { id: "documentation", label: "Documentation", Icon: Hash, href: "/documentation" },
   { id: "meetings", label: "Meetings", Icon: FileVideo, href: "/meetings" },
   { id: "organization", label: "Organization", Icon: Users, href: "/organization" },
+  { id: "chat", label: "Chat", Icon: MessageCircle, href: "/chat" },
+  { id: "ai-hub", label: "AI Hub", Icon: Sparkles, href: "/ai-hub" },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loginWithGoogle, logout, loading } = useAuth();
   
   const { 
@@ -37,8 +121,81 @@ export function Sidebar() {
   const [editValue, setEditValue] = useState("");
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  
+  const [docs, setDocs] = useState<Document[]>([]);
+  const [isDocsExpanded, setIsDocsExpanded] = useState(false);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('unfract-sidebar-order');
+    if (saved) {
+      try {
+        const order = JSON.parse(saved);
+        const reordered = order.map((id: string) => NAV_ITEMS.find(i => i.id === id)).filter(Boolean);
+        const missing = NAV_ITEMS.filter(i => !order.includes(i.id));
+        setNavItems([...reordered, ...missing]);
+      } catch (e) {}
+    }
+  }, []);
+
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedItemId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== dragOverItemId) {
+      setDragOverItemId(id);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent, id: string) => {
+    if (dragOverItemId === id) {
+      setDragOverItemId(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    setDragOverItemId(null);
+    if (!draggedItemId || draggedItemId === targetId) return;
+
+    const draggedIndex = navItems.findIndex(i => i.id === draggedItemId);
+    const targetIndex = navItems.findIndex(i => i.id === targetId);
+
+    const newItems = [...navItems];
+    const [draggedItem] = newItems.splice(draggedIndex, 1);
+    newItems.splice(targetIndex, 0, draggedItem);
+
+    setNavItems(newItems);
+    localStorage.setItem('unfract-sidebar-order', JSON.stringify(newItems.map(i => i.id)));
+    setDraggedItemId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItemId(null);
+    setDragOverItemId(null);
+  };
+
+  useEffect(() => {
+    if (!activeProjectId) {
+      setDocs([]);
+      return;
+    }
+    const unsubscribe = subscribeToDocuments(activeProjectId, (newDocs) => {
+      setDocs(newDocs);
+    });
+    return () => unsubscribe();
+  }, [activeProjectId]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -75,6 +232,16 @@ export function Sidebar() {
     setIsDropdownOpen(false);
     setIsCreateModalOpen(true);
   };
+
+  const handleAddChildDocument = async (parentId: string) => {
+    if (!activeProjectId || !user) return;
+    const newId = await createDocument(activeProjectId, user.displayName || "Utente", parentId);
+    if (newId) {
+      router.push(`/documentation/${newId}?edit=true`);
+    }
+  };
+
+  const docTreeRoots = buildTree(docs);
 
   return (
     <div className="w-[240px] h-full bg-[#080808] text-white p-6 flex flex-col hidden md:flex border-r border-white/5 transition-all duration-300">
@@ -122,7 +289,7 @@ export function Sidebar() {
               handleRenameSubmit();
             }
           }}>
-            <ChevronDown size={16} className={`text-white/50 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown size={16} className={`text-[#858585] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
           </div>
         </div>
 
@@ -180,26 +347,79 @@ export function Sidebar() {
       )}
       
       {/* Nav */}
-      <nav className="flex flex-col gap-2 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-4">
-        {NAV_ITEMS.map((item) => {
+      <nav className="flex flex-col gap-1 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-4">
+        {navItems.map((item) => {
           const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+          const isDocMenu = item.id === "documentation";
+
           return (
-            <Link
-              key={item.id}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 cursor-pointer rounded-full transition-all overflow-hidden ${
-                isActive
-                  ? "bg-[#006AFF]/40 text-white shadow-sm"
-                  : "text-[#808080] hover:text-white hover:bg-white/5"
-              }`}
+            <div 
+              key={item.id} 
+              className={`flex flex-col transition-opacity ${draggedItemId === item.id ? 'opacity-30' : 'opacity-100'}`}
+              draggable
+              onDragStart={(e) => handleDragStart(e, item.id)}
+              onDragOver={(e) => handleDragOver(e, item.id)}
+              onDragLeave={(e) => handleDragLeave(e, item.id)}
+              onDrop={(e) => handleDrop(e, item.id)}
+              onDragEnd={handleDragEnd}
             >
-              <div className="shrink-0">
-                <item.Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+              <div
+                className={`flex items-center justify-between px-3 py-2 cursor-pointer rounded-xl transition-all overflow-hidden ${
+                  dragOverItemId === item.id && draggedItemId !== item.id
+                    ? 'ring-2 ring-[#006AFF] bg-[#006AFF]/10'
+                    : isActive
+                    ? "bg-[#006AFF]/40 text-white shadow-sm"
+                    : "text-[#808080] hover:text-white hover:bg-white/5"
+                }`}
+              >
+                <Link
+                  href={item.href}
+                  className="flex items-center gap-3 flex-1 overflow-hidden"
+                  onClick={() => {
+                    if (isDocMenu && !isDocsExpanded) setIsDocsExpanded(true);
+                  }}
+                >
+                  <div className="shrink-0">
+                    <item.Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                  </div>
+                  <span className={`text-sm truncate font-normal`}>
+                    {item.label}
+                  </span>
+                </Link>
+
+                {isDocMenu && (
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDocsExpanded(!isDocsExpanded);
+                    }}
+                    className="shrink-0 ml-2 p-1 rounded-full hover:bg-white/10 text-[#858585] transition-colors"
+                  >
+                    <ChevronDown size={14} className={`transition-transform duration-200 ${isDocsExpanded ? 'rotate-180' : ''}`} />
+                  </button>
+                )}
               </div>
-              <span className={`text-sm truncate font-normal`}>
-                {item.label}
-              </span>
-            </Link>
+
+              {/* Sub-menu for Documentation */}
+              {isDocMenu && isDocsExpanded && (
+                <div className="flex flex-col mt-1 ml-6 border-l border-white/10 gap-0.5 overflow-hidden transition-all duration-300">
+                  {docTreeRoots.length === 0 ? (
+                    <span className="text-xs text-[#858585] py-2 pl-4">Nessun documento</span>
+                  ) : (
+                    docTreeRoots.map(doc => (
+                      <DocTreeItem 
+                        key={doc.id} 
+                        doc={doc} 
+                        activePath={pathname || ""} 
+                        depth={0} 
+                        onAddChild={handleAddChildDocument} 
+                      />
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           );
         })}
       </nav>
@@ -221,10 +441,10 @@ export function Sidebar() {
               <img src={user.photoURL || ''} alt="Profile" className="w-8 h-8 rounded-full shrink-0" />
               <div className="flex flex-col truncate">
                 <span className="text-xs font-semibold text-white truncate">{user.displayName}</span>
-                <span className="text-[10px] text-white/50 truncate">{user.email}</span>
+                <span className="text-[10px] text-[#858585] truncate">{user.email}</span>
               </div>
             </div>
-            <button onClick={logout} className="shrink-0 text-white/50 hover:text-white transition-colors ml-2">
+            <button onClick={logout} className="shrink-0 text-[#858585] hover:text-white transition-colors ml-2">
               <LogOut size={16} />
             </button>
           </div>

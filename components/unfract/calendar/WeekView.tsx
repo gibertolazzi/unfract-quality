@@ -23,8 +23,8 @@ export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }:
         <div className="w-16 shrink-0 border-r border-white/5" /> {/* Time column header */}
         {days.map((day, i) => (
           <div key={i} className={`flex-1 text-center py-3 border-white/5 ${i !== days.length - 1 ? 'border-r' : ''}`}>
-            <div className="text-xs text-white/50 font-medium uppercase">{format(day, 'EEE')}</div>
-            <div className={`text-lg font-semibold mt-1 ${isToday(day) ? 'text-[#006AFF]' : 'text-white'}`}>
+            <div className="text-xs text-[#858585] font-medium uppercase">{format(day, 'EEE')}</div>
+            <div className={`mx-auto w-8 h-8 flex items-center justify-center rounded-full text-lg font-semibold mt-1 ${isToday(day) ? 'bg-[#006AFF] text-white' : 'text-white'}`}>
               {format(day, 'd')}
             </div>
           </div>
@@ -36,7 +36,7 @@ export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }:
         {/* Time Column */}
         <div className="w-16 shrink-0 border-r border-white/5 flex flex-col">
           {HOURS.map(hour => (
-            <div key={hour} className="h-20 flex items-start justify-center text-xs text-white/40 pt-2 border-b border-white/5">
+            <div key={hour} className="h-20 flex items-start justify-center text-xs text-[#858585] pt-2 border-b border-white/5">
               {hour.toString().padStart(2, '0')}:00
             </div>
           ))}

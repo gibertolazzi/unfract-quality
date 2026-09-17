@@ -7,6 +7,7 @@ import { Organization } from '@/components/unfract/organization/types';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useRouter } from 'next/navigation';
 
 export default function OrganizationPage() {
@@ -14,6 +15,7 @@ export default function OrganizationPage() {
   const router = useRouter();
   const [orgs, setOrgs] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const toast = useToast();
   
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newOrgName, setNewOrgName] = useState('');
@@ -78,13 +80,14 @@ export default function OrganizationPage() {
       router.push(`/organization/${docRef.id}`);
     } catch (error) {
       console.error("Error creating organization:", error);
-      alert("Errore durante la creazione dell'organizzazione.");
+      toast.error("Errore durante la creazione dell'organizzazione.");
+    } finally {
+      setIsCreating(false);
     }
-    setIsCreating(false);
   };
 
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-white/50" /></div>;
+    return <div className="flex h-full items-center justify-center"><Loader2 className="animate-spin text-[#858585]" /></div>;
   }
 
   return (
@@ -93,7 +96,7 @@ export default function OrganizationPage() {
       <div className="flex items-center justify-between mb-8 mt-2">
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Organizzazioni</h1>
-          <p className="text-white/50 text-sm mt-1">Gestisci i tuoi team e i progetti condivisi</p>
+          <p className="text-[#858585] text-sm mt-1">Gestisci i tuoi team e i progetti condivisi</p>
         </div>
         <button 
           onClick={() => setIsCreateModalOpen(true)}
@@ -106,7 +109,7 @@ export default function OrganizationPage() {
 
       {/* List */}
       {orgs.length === 0 ? (
-        <div className="text-center text-white/50 mt-20">
+        <div className="text-center text-[#858585] mt-20">
           <p>Nessuna organizzazione trovata. Creane una nuova!</p>
         </div>
       ) : (
@@ -121,7 +124,7 @@ export default function OrganizationPage() {
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#0A0A0A] border border-white/10 rounded-[24px] p-8 max-w-md w-full shadow-2xl relative">
-            <button onClick={() => setIsCreateModalOpen(false)} className="absolute top-6 right-6 text-white/50 hover:text-white">
+            <button onClick={() => setIsCreateModalOpen(false)} className="absolute top-6 right-6 text-[#858585] hover:text-white">
               <X size={20} />
             </button>
             <h2 className="text-2xl font-semibold text-white mb-6">Crea Organizzazione</h2>

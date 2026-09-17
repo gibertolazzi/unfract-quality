@@ -22,10 +22,10 @@ export function OrgCard({ org }: { org: Organization }) {
           </div>
           <div className="flex flex-col gap-0.5">
             <h3 className="text-[15px] font-semibold text-white tracking-tight">{org.name}</h3>
-            <span className="text-[13px] text-white/50">{org.memberCount} members</span>
+            <span className="text-[13px] text-[#858585]">{org.memberCount} members</span>
           </div>
         </div>
-        <button className="w-8 h-8 rounded-full flex items-center justify-center text-white/50 hover:bg-white/10 hover:text-white transition-colors">
+        <button className="w-8 h-8 rounded-full flex items-center justify-center text-[#858585] hover:bg-white/10 hover:text-white transition-colors">
           <MoreVertical size={18} />
         </button>
       </div>

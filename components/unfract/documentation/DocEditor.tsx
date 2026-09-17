@@ -8,6 +8,8 @@ import { HistoryModal } from './HistoryModal';
 import { CommentPanel } from './CommentPanel';
 import { updateDocument, duplicateDocument, deleteDocument } from '@/lib/documentation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { DocToolbar } from './DocToolbar';
 import { SlashMenu } from './SlashMenu';
 import { CustomPrompt } from '../CustomPrompt';
@@ -28,6 +30,8 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
   const [hoveredBlockId, setHoveredBlockId] = useState<string | null>(null);
   const [slashMenu, setSlashMenu] = useState<{ blockId: string; top: number; left: number } | null>(null);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const toast = useToast();
+  const dialog = useDialog();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -107,8 +111,8 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       }
       document.execCommand('insertImage', false, url);
     } catch (error: any) {
-      console.error("Error uploading image:", error);
-      alert(`Errore durante il caricamento dell'immagine: ${error.message || 'Errore sconosciuto. Assicurati che lo Storage sia attivo nel progetto Firebase.'}`);
+      console.error("Upload error:", error);
+      toast.error(`Errore durante il caricamento dell'immagine: ${error.message || 'Errore sconosciuto. Assicurati che lo Storage sia attivo nel progetto Firebase.'}`);
     } finally {
       if (e.target) e.target.value = '';
       setSavedSelection(null);
@@ -217,7 +221,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       setIsSaving(false);
       
       if (!success) {
-        alert("Errore durante il salvataggio.");
+        toast.error("Errore durante il salvataggio.");
         return;
       }
     }
@@ -226,11 +230,17 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
 
   const handleDuplicate = async () => {
     const authorName = user?.displayName || 'Utente';
-    const newId = await duplicateDocument(doc.id, authorName);
-    if (newId) {
-      router.push(`/documentation/${newId}`);
-    } else {
-      alert("Errore durante la duplicazione.");
+    try {
+      const newId = await duplicateDocument(doc.id, authorName);
+      if (newId) {
+        router.push(`/documentation/${newId}`);
+        toast.success("Documento duplicato!");
+      } else {
+        toast.error("Errore durante la duplicazione.");
+      }
+    } catch (error) {
+      console.error("Error duplicating doc:", error);
+      toast.error("Errore durante la duplicazione.");
     }
   };
 
@@ -245,13 +255,22 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
   };
 
   const handleDelete = async () => {
-    const success = await deleteDocument(doc.id);
-    if (success) {
-      router.push('/documentation');
-    } else {
-      alert("Errore durante l'eliminazione.");
-      setIsDeleteModalOpen(false);
+    const isConfirmed = await dialog.confirm({
+      title: "Elimina Documento",
+      message: "Sei sicuro di voler eliminare questo documento?",
+      isDestructive: true,
+      confirmText: "Elimina"
+    });
+    if (isConfirmed) {
+      const success = await deleteDocument(doc.id);
+      if (success) {
+        router.push('/documentation');
+        toast.success("Documento eliminato.");
+      } else {
+        toast.error("Errore durante l'eliminazione.");
+      }
     }
+    setIsDeleteModalOpen(false);
   };
 
   return (
@@ -284,7 +303,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
           <button 
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
-              alert("Link del documento copiato negli appunti!");
+              toast.success("Link del documento copiato negli appunti!");
             }}
             className="flex items-center gap-2 px-4 py-2 bg-[#0E0E0E] hover:bg-[#1A1A1A] border border-white/10 rounded-full text-sm font-medium text-white/70 transition-colors"
           >
@@ -293,7 +312,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
           <button 
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
-              alert("Link del documento copiato negli appunti!");
+              toast.success("Link del documento copiato negli appunti!");
             }}
             className="p-2.5 bg-[#0E0E0E] hover:bg-[#1A1A1A] border border-white/10 rounded-full text-white/70 transition-colors"
           >
@@ -329,7 +348,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
                   <Download size={14} /> Esporta
                 </button>
                 <button 
-                  onClick={() => { alert("Modalità presentazione non ancora implementata!"); setIsMoreMenuOpen(false); }}
+                  onClick={() => { toast.info("Modalità presentazione non ancora implementata!"); setIsMoreMenuOpen(false); }}
                   className="w-full text-left px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 transition-colors flex items-center gap-2"
                 >
                   <MonitorPlay size={14} /> Presenta
@@ -377,10 +396,10 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
             {doc.title}
           </h1>
         )}
-        <p className="text-white/40 text-[15px]">
+        <p className="text-[#858585] text-[15px]">
           Manager: {doc.manager} - {doc.date} - {doc.company}
         </p>
-        <p className="text-white/40 text-[15px]">
+        <p className="text-[#858585] text-[15px]">
           Last update: {doc.lastUpdate}
         </p>
       </div>
@@ -446,7 +465,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
                   {block.type === 'h2' && (
                     <div className="flex items-center gap-3 mt-6 mb-2">
                       <h2 className="text-[24px] font-medium text-white" dangerouslySetInnerHTML={{ __html: block.content || 'Titolo 1' }} />
-                      <button className="text-white/20 hover:text-white/60 transition-colors">
+                      <button className="text-[#858585] hover:text-white/60 transition-colors">
                         <LinkIcon size={16} />
                       </button>
                     </div>
@@ -467,7 +486,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
                 <>
                   <button 
                     onClick={() => addBlock(block.id)}
-                    className="p-1.5 bg-[#1A1A1A] border border-white/10 rounded-md text-white/50 hover:text-white transition-colors"
+                    className="p-1.5 bg-[#1A1A1A] border border-white/10 rounded-md text-[#858585] hover:text-white transition-colors"
                   >
                     <Plus size={14} />
                   </button>
@@ -481,7 +500,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
               ) : (
                 <button 
                   onClick={() => setActiveCommentBlockId(activeCommentBlockId === block.id ? null : block.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[12px] font-medium transition-colors shadow-lg ${activeCommentBlockId === block.id || (block.comments && block.comments.length > 0) ? 'bg-[#006AFF] border-transparent text-white' : 'bg-[#1A1A1A] border-white/10 text-white/50 hover:text-white'}`}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-full text-[12px] font-medium transition-colors shadow-lg ${activeCommentBlockId === block.id || (block.comments && block.comments.length > 0) ? 'bg-[#006AFF] border-transparent text-white' : 'bg-[#1A1A1A] border-white/10 text-[#858585] hover:text-white'}`}
                 >
                   <MessageSquare size={14} />
                   {block.comments && block.comments.length > 0 && (
@@ -501,7 +520,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
                 blocks: [{ id: '1', type: 'p', content: '', comments: [] }]
               }));
             }}
-            className="p-4 border border-dashed border-white/20 rounded-xl text-white/40 hover:text-white hover:border-white/40 transition-colors text-center"
+            className="p-4 border border-dashed border-white/20 rounded-xl text-[#858585] hover:text-white hover:border-white/40 transition-colors text-center"
           >
             Aggiungi il primo blocco
           </button>

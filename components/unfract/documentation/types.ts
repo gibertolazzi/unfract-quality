@@ -28,4 +28,5 @@ export interface Document {
   lastUpdate: string; 
   blocks: DocBlock[];
   history?: DocHistory[];
+  parentId?: string | null;
 }

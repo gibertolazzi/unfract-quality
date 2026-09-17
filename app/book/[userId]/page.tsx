@@ -98,7 +98,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
               </div>
             )}
             <div>
-              <div className="text-sm text-white/50 mb-1">Incontra</div>
+              <div className="text-sm text-[#858585] mb-1">Incontra</div>
               <h2 className="text-xl font-bold">{host.displayName}</h2>
             </div>
           </div>
@@ -114,14 +114,14 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
 
         <div className="flex flex-col gap-4 text-white/70">
           <div className="flex items-center gap-3">
-            <Clock size={20} className="text-white/40" />
+            <Clock size={20} className="text-[#858585]" />
             <span>30 minuti</span>
           </div>
           <div className="flex items-center gap-3">
-            <Video size={20} className="text-white/40" />
+            <Video size={20} className="text-[#858585]" />
             <span>Google Meet</span>
           </div>
-          <div className="mt-4 text-sm leading-relaxed text-white/50">
+          <div className="mt-4 text-sm leading-relaxed text-[#858585]">
             Seleziona un giorno e un orario per prenotare una call. I dettagli e il link di Google Meet verranno inviati via email.
           </div>
         </div>
@@ -174,7 +174,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
                     );
                   })
                 ) : (
-                  <div className="text-center text-white/50 py-10">
+                  <div className="text-center text-[#858585] py-10">
                     Nessun orario disponibile in questa data.
                   </div>
                 )}
@@ -191,14 +191,14 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
             </button>
 
             <h3 className="text-2xl font-bold mb-2">Conferma dettagli</h3>
-            <p className="text-white/50 mb-8 flex items-center gap-2">
+            <p className="text-[#858585] mb-8 flex items-center gap-2">
               <CalendarIcon size={16} />
               {format(new Date(selectedSlot), "EEEE d MMMM yyyy, 'alle' HH:mm", { locale: it })}
             </p>
 
             <div className="flex flex-col gap-6">
               <div>
-                <label className="block text-sm text-white/50 mb-2">Nome e Cognome *</label>
+                <label className="block text-sm text-[#858585] mb-2">Nome e Cognome *</label>
                 <input 
                   type="text" 
                   value={guestName}
@@ -209,7 +209,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
               </div>
               
               <div>
-                <label className="block text-sm text-white/50 mb-2">Email *</label>
+                <label className="block text-sm text-[#858585] mb-2">Email *</label>
                 <input 
                   type="email" 
                   value={guestEmail}

@@ -23,17 +23,17 @@ export function HistoryModal({ isOpen, onClose, history }: HistoryModalProps) {
 
         <div className="relative z-10 flex items-center justify-between p-6 border-b border-white/5">
           <h3 className="text-xl font-medium text-white flex items-center gap-2">
-            <Clock size={20} className="text-white/50" />
+            <Clock size={20} className="text-[#858585]" />
             Cronologia Modifiche
           </h3>
-          <button onClick={onClose} className="p-2 text-white/50 hover:text-white transition-colors hover:bg-white/5 rounded-full">
+          <button onClick={onClose} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full">
             <X size={20} />
           </button>
         </div>
 
         <div className="relative z-10 p-6 md:p-8 flex flex-col gap-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
           {history.length === 0 ? (
-            <div className="text-white/40 text-center py-8">
+            <div className="text-[#858585] text-center py-8">
               Nessuna modifica recente
             </div>
           ) : (
@@ -49,7 +49,7 @@ export function HistoryModal({ isOpen, onClose, history }: HistoryModalProps) {
                         <User size={10} className="text-white/70" />
                       </div>
                       <span className="text-[14px] font-medium text-white">{item.author}</span>
-                      <span className="text-[12px] text-white/40 ml-auto">{item.timestamp}</span>
+                      <span className="text-[12px] text-[#858585] ml-auto">{item.timestamp}</span>
                     </div>
                     <p className="text-[14px] text-white/70 mt-1">
                       {item.action}

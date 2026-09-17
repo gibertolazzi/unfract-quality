@@ -8,9 +8,12 @@ import { MonthView } from './calendar/MonthView';
 import { WeekView } from './calendar/WeekView';
 import { DayView } from './calendar/DayView';
 import { YearView } from './calendar/YearView';
-import { EventModal } from './EventModal';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { EventModal } from './EventModal';
 import { fetchCalendarEvents, createCalendarEvent } from '@/lib/googleCalendar';
+import { subscribeToEvents, saveEventToFirestore, deleteEventFromFirestore } from '@/lib/calendar';
 import { auth } from '@/lib/firebase';
 
 const initialEvents: CalendarEvent[] = [
@@ -37,12 +40,43 @@ const initialEvents: CalendarEvent[] = [
 ];
 
 export function CalendarBoard() {
-  const [currentDate, setCurrentDate] = useState<Date>(new Date(2026, 0, 1));
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarViewType>('month');
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [firestoreEvents, setFirestoreEvents] = useState<CalendarEvent[]>([]);
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [googleEvents, setGoogleEvents] = useState<CalendarEvent[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const { accessToken } = useAuth();
+
+  const events = React.useMemo(() => {
+    const allEvents = [...firestoreEvents];
+    googleEvents.forEach(ge => {
+      const isDuplicate = firestoreEvents.some(fe => 
+        fe.title === ge.title && 
+        fe.date.getTime() === ge.date.getTime() && 
+        fe.startTime === ge.startTime
+      );
+      if (!isDuplicate) {
+        allEvents.push(ge);
+      }
+    });
+    return allEvents;
+  }, [firestoreEvents, googleEvents]);
+  
+  const { accessToken, user } = useAuth();
+  const toast = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Subscribe to Firestore events
+  React.useEffect(() => {
+    if (!user) {
+      setFirestoreEvents([]);
+      return;
+    }
+    const unsubscribe = subscribeToEvents(user.uid, (newEvents) => {
+      setFirestoreEvents(newEvents);
+    });
+    return () => unsubscribe();
+  }, [user]);
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -101,7 +135,7 @@ export function CalendarBoard() {
       };
     });
     
-    setEvents(mappedEvents);
+    setGoogleEvents(mappedEvents);
     setIsSyncing(false);
   };
 
@@ -130,15 +164,14 @@ export function CalendarBoard() {
   };
 
   const handleSaveEvent = async (event: CalendarEvent) => {
-    // If not authenticated, just update local state
-    if (!accessToken) {
-      setEvents(prev => {
-        const exists = prev.find(e => e.id === event.id);
-        if (exists) return prev.map(e => e.id === event.id ? event : e);
-        return [...prev, event];
-      });
-      return;
-    }
+    if (!user) return; // Non dovrebbe succedere se sei loggato
+
+    // Salva sempre in Firestore
+    const newId = await saveEventToFirestore(user.uid, event);
+    event.id = newId;
+
+    // Se non ha il token google, abbiamo finito
+    if (!accessToken) return;
 
     try {
       // Create date objects for start and end
@@ -179,17 +212,22 @@ export function CalendarBoard() {
 
       await createCalendarEvent(accessToken, googleEventPayload);
       
-      // Reload events from Google to get the new event with accurate ID and Meet link
-      await loadGoogleEvents();
+      // We don't strictly need to reload if Firestore gives us everything, but it's good for getting Meet links
+      // You could also save the google event id/meetlink to Firestore here.
+      // await loadGoogleEvents();
 
     } catch (error) {
       console.error("Failed to create event:", error);
-      alert("Errore durante la creazione dell'evento.");
+      toast.error("Errore durante la creazione dell'evento.");
     }
   };
 
-  const handleDeleteEvent = (id: string) => {
-    setEvents(prev => prev.filter(e => e.id !== id));
+  const handleDeleteEvent = async (id: string) => {
+    if (!user) return;
+    await deleteEventFromFirestore(user.uid, id);
+    // Remove locally instantly for UX
+    setFirestoreEvents(prev => prev.filter(e => e.id !== id));
+    setGoogleEvents(prev => prev.filter(e => e.id !== id)); // Just in case it was a Google event we try to delete
   };
 
   return (
@@ -204,10 +242,10 @@ export function CalendarBoard() {
             Oggi
           </button>
           <div className="flex items-center gap-1">
-            <button onClick={handlePrevious} className="p-2 rounded-full hover:bg-white/5 text-white/50 hover:text-white transition-colors">
+            <button onClick={handlePrevious} className="p-2 rounded-full hover:bg-white/5 text-[#858585] hover:text-white transition-colors">
               <ChevronLeft size={20} />
             </button>
-            <button onClick={handleNext} className="p-2 rounded-full hover:bg-white/5 text-white/50 hover:text-white transition-colors">
+            <button onClick={handleNext} className="p-2 rounded-full hover:bg-white/5 text-[#858585] hover:text-white transition-colors">
               <ChevronRight size={20} />
             </button>
           </div>
@@ -221,7 +259,7 @@ export function CalendarBoard() {
               onClick={() => {
                 const url = `${window.location.origin}/book/${auth.currentUser?.uid}`;
                 navigator.clipboard.writeText(url);
-                alert('Link di prenotazione copiato negli appunti: ' + url);
+                toast.success('Link di prenotazione copiato negli appunti');
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors whitespace-nowrap"
             >
@@ -244,7 +282,7 @@ export function CalendarBoard() {
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors"
             >
               {view === 'day' ? 'Giorno' : view === 'week' ? 'Settimana' : view === 'month' ? 'Mese' : 'Anno'}
-              <ChevronDown size={16} className="text-white/50" />
+              <ChevronDown size={16} className="text-[#858585]" />
             </button>
             
             {isDropdownOpen && (

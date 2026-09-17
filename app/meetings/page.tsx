@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { MeetingList } from '@/components/unfract/meetings/MeetingList';
-import { getMeetings } from '@/lib/meetings';
+import { subscribeToMeetings } from '@/lib/meetings';
 import { Meeting } from '@/components/unfract/meetings/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -14,34 +14,39 @@ export default function MeetingsPage() {
   const { user, loading: authLoading } = useAuth();
   const { activeProjectId } = useProject();
 
-  const fetchMeetings = () => {
-    if (!activeProjectId) {
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user || !activeProjectId) {
       setMeetings([]);
       setIsLoading(false);
       return;
     }
-    getMeetings(activeProjectId).then(docs => {
-      setMeetings(docs);
-      setIsLoading(false);
+    
+    setIsLoading(true);
+    let isSubscribed = true;
+    const unsubscribe = subscribeToMeetings(activeProjectId, (docs) => {
+      if (isSubscribed) {
+        setMeetings(docs);
+        setIsLoading(false);
+      }
     });
-  };
 
-  useEffect(() => {
-    if (authLoading) return;
-    if (!user) {
-      setIsLoading(false);
-      return;
-    }
-    fetchMeetings();
+    return () => {
+      isSubscribed = false;
+      // Delay unsubscribe to avoid Firebase AbortError during React StrictMode double-render
+      setTimeout(() => {
+        if (unsubscribe) unsubscribe();
+      }, 100);
+    };
   }, [user, authLoading, activeProjectId]);
 
   if (authLoading || isLoading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-white/50" /></div>;
+    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-[#858585]" /></div>;
   }
 
   return (
     <div className="min-h-full">
-      <MeetingList meetings={meetings} onMeetingAdded={fetchMeetings} />
+      <MeetingList meetings={meetings} onMeetingAdded={() => {}} />
     </div>
   );
 }

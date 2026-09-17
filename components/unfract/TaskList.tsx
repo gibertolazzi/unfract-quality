@@ -66,7 +66,7 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                       (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
                     )}
                   </div>
-                  <span className="text-white/70 text-xs">{user?.displayName || "Utente"} <span className="text-white/40">(R)</span></span>
+                  <span className="text-white/70 text-xs">{user?.displayName || "Utente"} <span className="text-[#858585]">(R)</span></span>
                 </div>
                 
                 <div className="flex items-center gap-2">
@@ -77,7 +77,7 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                       (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
                     )}
                   </div>
-                  <span className="text-white/70 text-xs">{user?.displayName || "Utente"} <span className="text-white/40">(A)</span></span>
+                  <span className="text-white/70 text-xs">{user?.displayName || "Utente"} <span className="text-[#858585]">(A)</span></span>
                 </div>
               </div>
             </div>
@@ -99,7 +99,7 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                   <ChevronDown size={12} />
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-[11px] text-white/40">
+              <div className="flex items-center gap-4 text-[11px] text-[#858585]">
                 <span>Created: {task.createdAt ? formatDistanceToNow(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), { addSuffix: true }) : 'N/A'}</span>
                 <span>Updated: {task.updatedAt ? formatDistanceToNow(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), { addSuffix: true }) : 'N/A'}</span>
                 <span>Deadline: <strong className={`font-medium ${new Date(task.date) < new Date() && !isDone ? 'text-red-500' : 'text-white'}`}>{task.date || 'N/A'}</strong></span>

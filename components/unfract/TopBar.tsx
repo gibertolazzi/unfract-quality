@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Bell, Clock, Timer, Hourglass, Play, Pause, RotateCcw, Calendar, CheckSquare, Video, FileText, Loader2, Users, Circle, Settings } from 'lucide-react';
+import { Search, Bell, Clock, Timer, Hourglass, Play, Pause, RotateCcw, Calendar, CheckSquare, Video, FileText, Loader2, Users, Circle, Settings, Mic, Square, ExternalLink } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClock } from '@/contexts/ClockContext';
+import { useRecording } from '@/contexts/RecordingContext';
 import { collection, getDocs, query, where, onSnapshot, orderBy, doc, updateDoc, writeBatch, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { searchCalendarEvents } from '@/lib/googleCalendar';
@@ -40,6 +41,7 @@ export function TopBar() {
     chronoTime, chronoRunning, toggleChrono, resetChrono,
     timerTime, timerRunning, toggleTimer, resetTimer, setCustomTimer 
   } = useClock();
+  const { isRecording, isProcessing, elapsedTime, transcript, stopRecording, openPiP } = useRecording();
   
   const [isExpanded, setIsExpanded] = useState(false);
   const islandRef = useRef<HTMLDivElement>(null);
@@ -244,7 +246,7 @@ export function TopBar() {
   
   let islandContent = (
     <div className="flex items-center gap-2 text-white/70">
-      <Clock size={14} className="text-white/40" />
+      <Clock size={14} className="text-[#858585]" />
       <span className="text-[13px] font-medium tracking-wider tabular-nums">{time.substring(0, 5)}</span>
     </div>
   );
@@ -273,10 +275,25 @@ export function TopBar() {
     );
   }
 
+  if (isRecording || isProcessing) {
+    activeElements.push(
+      <div key="recording" className="flex items-center gap-2">
+        {isProcessing ? (
+          <Loader2 size={14} className="text-red-500 animate-spin" />
+        ) : (
+          <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+        )}
+        <span className="text-[13px] font-bold tracking-wider tabular-nums text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
+          {isProcessing ? 'Elaborazione' : formatSeconds(elapsedTime)}
+        </span>
+      </div>
+    );
+  }
+
   islandContent = (
     <div className="flex items-center gap-4 text-white/90">
       <div className="flex items-center gap-2">
-        <Clock size={14} className="text-white/40" />
+        <Clock size={14} className="text-[#858585]" />
         <span className="text-[13px] font-medium tracking-wider tabular-nums text-white/70">{time.substring(0, 5)}</span>
       </div>
       {activeElements.map((el, i) => (
@@ -294,11 +311,11 @@ export function TopBar() {
       {/* CENTER: Cerca (Allargata e allineata a sinistra) */}
       <div className="flex-1 flex justify-start relative" ref={searchRef}>
         <div className={`flex items-center gap-3 bg-[#0A0A0A] border transition-colors h-[44px] px-5 rounded-full w-full max-w-[600px] shadow-sm ${isSearchOpen ? 'border-[#006AFF]/50' : 'border-white/5 hover:border-white/10'}`}>
-          <Search size={16} className="text-white/40" />
+          <Search size={16} className="text-[#858585]" />
           <input 
             type="text" 
             placeholder="Cerca globalmente (Task, Meeting, Calendario...)" 
-            className="bg-transparent border-none outline-none text-[14px] text-white placeholder:text-white/40 w-full font-normal"
+            className="bg-transparent border-none outline-none text-[14px] text-white placeholder:text-[#858585] w-full font-normal"
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
@@ -306,7 +323,7 @@ export function TopBar() {
             }}
             onFocus={() => setIsSearchOpen(true)}
           />
-          {isSearching && <Loader2 size={16} className="text-white/40 animate-spin" />}
+          {isSearching && <Loader2 size={16} className="text-[#858585] animate-spin" />}
         </div>
         
         {/* Search Results Dropdown */}
@@ -314,9 +331,9 @@ export function TopBar() {
           <div className="absolute top-[60px] w-full max-w-[600px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 flex flex-col">
             <div className="max-h-[400px] overflow-y-auto p-2">
               {isSearching ? (
-                <div className="p-6 text-center text-white/50 text-sm">Ricerca in corso...</div>
+                <div className="p-6 text-center text-[#858585] text-sm">Ricerca in corso...</div>
               ) : searchResults.length === 0 ? (
-                <div className="p-6 text-center text-white/50 text-sm">Nessun risultato trovato per "{searchQuery}".</div>
+                <div className="p-6 text-center text-[#858585] text-sm">Nessun risultato trovato per "{searchQuery}".</div>
               ) : (
                 <div className="flex flex-col gap-1">
                   {searchResults.map((res, idx) => {
@@ -359,7 +376,7 @@ export function TopBar() {
                         </div>
                         <div className="flex flex-col overflow-hidden">
                           <span className="text-sm font-medium text-white truncate">{title}</span>
-                          <span className="text-[11px] text-white/50 truncate">{subtitle}</span>
+                          <span className="text-[11px] text-[#858585] truncate">{subtitle}</span>
                         </div>
                       </div>
                     );
@@ -369,7 +386,7 @@ export function TopBar() {
             </div>
             
             <div className="p-3 border-t border-white/5 bg-black/20">
-              <span className="text-[10px] text-white/30 uppercase tracking-wider font-semibold px-2">Cerca in Unfract</span>
+              <span className="text-[10px] text-[#858585] uppercase tracking-wider font-semibold px-2">Cerca in Unfract</span>
             </div>
           </div>
         )}
@@ -389,7 +406,7 @@ export function TopBar() {
           {/* Expanded Menu */}
           <div className={`absolute top-[54px] left-1/2 -translate-x-1/2 w-[240px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top flex flex-col p-4 gap-4 ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
             <div className="flex items-center justify-between">
-              <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Orologio</span>
+              <span className="text-[#858585] text-xs font-medium uppercase tracking-wider">Orologio</span>
               <span className="text-white font-medium text-sm tabular-nums">{time}</span>
             </div>
             
@@ -401,13 +418,13 @@ export function TopBar() {
                 {timerRunning || isTimerActive ? (
                   <Hourglass size={14} className="text-[#00D222]" />
                 ) : (
-                  <Circle size={14} className="text-white/40" />
+                  <Circle size={14} className="text-[#858585]" />
                 )}
                 
                 {!timerRunning && !isTimerActive ? (
                   <input
                     type="number"
-                    className="w-12 bg-transparent text-[15px] font-bold tracking-wider tabular-nums text-white/50 outline-none placeholder:text-white/30"
+                    className="w-12 bg-transparent text-[15px] font-bold tracking-wider tabular-nums text-[#858585] outline-none placeholder:text-[#858585]"
                     placeholder="25"
                     onBlur={(e) => {
                       const val = parseInt(e.target.value);
@@ -422,7 +439,7 @@ export function TopBar() {
                     }}
                   />
                 ) : (
-                  <span className={`text-[15px] font-bold tracking-wider tabular-nums ${timerRunning || isTimerActive ? "text-[#00D222] drop-shadow-[0_0_8px_rgba(0,210,34,0.4)]" : "text-white/50"}`}>
+                  <span className={`text-[15px] font-bold tracking-wider tabular-nums ${timerRunning || isTimerActive ? "text-[#00D222] drop-shadow-[0_0_8px_rgba(0,210,34,0.4)]" : "text-[#858585]"}`}>
                     {formatSeconds(timerTime)}
                   </span>
                 )}
@@ -432,7 +449,7 @@ export function TopBar() {
                   {timerRunning ? <Pause size={14} className="text-[#00D222]" /> : <Play size={14} className="text-white/70" fill="currentColor" />}
                 </button>
                 <button onClick={resetTimer} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                  <RotateCcw size={14} className="text-white/50 hover:text-white" />
+                  <RotateCcw size={14} className="text-[#858585] hover:text-white" />
                 </button>
               </div>
             </div>
@@ -443,9 +460,9 @@ export function TopBar() {
                 {chronoRunning || isChronoActive ? (
                   <Timer size={14} className="text-[#FFB800]" />
                 ) : (
-                  <Circle size={14} className="text-white/40" />
+                  <Circle size={14} className="text-[#858585]" />
                 )}
-                <span className={`text-[15px] font-bold tracking-wider tabular-nums ${chronoRunning || isChronoActive ? "text-[#FFB800] drop-shadow-[0_0_8px_rgba(255,184,0,0.4)]" : "text-white/50"}`}>
+                <span className={`text-[15px] font-bold tracking-wider tabular-nums ${chronoRunning || isChronoActive ? "text-[#FFB800] drop-shadow-[0_0_8px_rgba(255,184,0,0.4)]" : "text-[#858585]"}`}>
                   {formatSeconds(chronoTime)}
                 </span>
               </div>
@@ -454,10 +471,42 @@ export function TopBar() {
                   {chronoRunning ? <Pause size={14} className="text-[#FFB800]" /> : <Play size={14} className="text-white/70" fill="currentColor" />}
                 </button>
                 <button onClick={resetChrono} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                  <RotateCcw size={14} className="text-white/50 hover:text-white" />
+                  <RotateCcw size={14} className="text-[#858585] hover:text-white" />
                 </button>
               </div>
             </div>
+
+            {/* Expanded Recording */}
+            {(isRecording || isProcessing) && (
+              <>
+                <div className="w-full h-[1px] bg-white/10" />
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-red-500">
+                      {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Mic size={14} className="animate-pulse" />}
+                      <span className="text-[15px] font-bold tracking-wider tabular-nums drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
+                        {isProcessing ? 'Elaborazione' : formatSeconds(elapsedTime)}
+                      </span>
+                    </div>
+                    {isRecording && (
+                      <div className="flex items-center gap-1">
+                        <button onClick={openPiP} className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#858585] hover:text-white" title="Apri PiP">
+                          <ExternalLink size={14} />
+                        </button>
+                        <button onClick={stopRecording} className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#858585] hover:text-red-500" title="Termina">
+                          <Square size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {isRecording && (
+                    <div className="text-xs text-[#858585] italic truncate">
+                      {transcript ? `"${transcript.slice(-40)}"` : "In ascolto..."}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -488,7 +537,7 @@ export function TopBar() {
                 
                 <div className="max-h-[360px] overflow-y-auto p-2 flex flex-col gap-1">
                   {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-white/50 text-sm">Nessuna notifica</div>
+                    <div className="p-6 text-center text-[#858585] text-sm">Nessuna notifica</div>
                   ) : (
                     notifications.map((notif) => {
                       let Icon = Bell;
@@ -520,7 +569,7 @@ export function TopBar() {
                           <div className="flex flex-col gap-1 overflow-hidden">
                             <div className="flex items-center justify-between gap-2">
                               <span className={`text-sm truncate ${notif.read ? 'font-medium text-white/80' : 'font-semibold text-white'}`}>{notif.title}</span>
-                              <span className="text-[10px] text-white/40 whitespace-nowrap">{timeAgo}</span>
+                              <span className="text-[10px] text-[#858585] whitespace-nowrap">{timeAgo}</span>
                             </div>
                             <span className="text-xs text-white/60 leading-snug">{notif.description}</span>
                           </div>
@@ -549,7 +598,7 @@ export function TopBar() {
           
           <button 
             onClick={() => setIsSettingsOpen(true)}
-            className="text-white/50 hover:text-white transition-colors w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5"
+            className="text-[#858585] hover:text-white transition-colors w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5"
           >
             <Settings size={18} />
           </button>

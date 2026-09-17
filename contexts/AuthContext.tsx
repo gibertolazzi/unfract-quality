@@ -14,6 +14,7 @@ export interface UserSettings {
   emailChanges: boolean;
   emailMentioned: boolean;
   groupFrequency: string;
+  defaultMeetingLink?: string;
 }
 
 interface AuthContextType {
@@ -61,7 +62,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             emailRequester: false,
             emailChanges: false,
             emailMentioned: true,
-            groupFrequency: '3min'
+            groupFrequency: '3min',
+            defaultMeetingLink: data.settings?.defaultMeetingLink || ''
           });
         } else {
           setSettings({

@@ -28,14 +28,14 @@ export default function DocumentDetailPage({ params }: { params: { id: string } 
   }, [params.id, user, authLoading, router]);
 
   if (authLoading || isLoading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-white/50" /></div>;
+    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-[#858585]" /></div>;
   }
 
   if (!doc) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
         <h2 className="text-xl font-bold mb-2">Documento non trovato</h2>
-        <p className="text-white/50 mb-4">Assicurati di avere i permessi per vederlo.</p>
+        <p className="text-[#858585] mb-4">Assicurati di avere i permessi per vederlo.</p>
         <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 rounded-lg">Ricarica</button>
       </div>
     );

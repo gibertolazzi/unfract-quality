@@ -26,7 +26,7 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
       >
         <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/5">
           <h2 className="text-lg font-semibold text-white/90">Nuovo Progetto</h2>
-          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
+          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
             <X size={20} />
           </button>
         </div>
@@ -52,7 +52,7 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
             </label>
             <div className="flex flex-col gap-2 max-h-40 overflow-y-auto custom-scrollbar p-2 bg-white/5 border border-white/10 rounded-xl">
               {organizations.length === 0 ? (
-                <span className="text-white/50 text-xs italic p-2">Nessuna organizzazione disponibile.</span>
+                <span className="text-[#858585] text-xs italic p-2">Nessuna organizzazione disponibile.</span>
               ) : (
                 organizations.map(org => (
                   <label key={org.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">

@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Calendar as CalendarIcon, X, Send, Trash2, CheckCircle2 } from 'lucide-react';
-import { db } from '@/lib/firebase';
+import { Calendar as CalendarIcon, X, Send, Trash2, CheckCircle2, Paperclip, FileText, Image as ImageIcon, Video } from 'lucide-react';
+import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc, deleteDoc, addDoc, collection, serverTimestamp, arrayUnion, getDoc } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import 'react-day-picker/dist/style.css';
 
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { parseMentions } from '@/lib/parseMentions';
 import { MentionDropdown } from './MentionDropdown';
@@ -23,6 +26,8 @@ const availablePriorities = ['Critical', 'High', 'Medium', 'Low'];
 
 export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: { task: any; onClose: () => void; columns: any[]; epics?: any[]; onSaveLocal?: (taskData: any) => void }) {
   const { user } = useAuth();
+  const toast = useToast();
+  const dialog = useDialog();
   const { activeProjectId } = useProject();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -32,8 +37,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const [epicId, setEpicId] = useState('');
   const [date, setDate] = useState<Date | undefined>();
   const [isSaving, setIsSaving] = useState(false);
+  const [attachments, setAttachments] = useState<any[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [sessionUploadedPaths, setSessionUploadedPaths] = useState<string[]>([]);
   
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<any[]>([]);
   const [descCursorPos, setDescCursorPos] = useState(0);
@@ -53,6 +63,8 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       setEpicId(task.epicId || '');
       setDate(task.date ? new Date(task.date) : undefined);
       setComments(task.comments || []);
+      setAttachments(task.attachments || []);
+      setSessionUploadedPaths([]);
     }
   }, [task, columns]);
 
@@ -71,6 +83,101 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
   const isNew = task.isNew;
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setUploadProgress(0);
+
+    const newAttachments = [...attachments];
+    const newPaths = [...sessionUploadedPaths];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const storageRef = ref(storage, `tasks/attachments/${Date.now()}_${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      await new Promise<void>((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            setUploadProgress(progress);
+          },
+          (error) => {
+            console.error("Upload failed", error);
+            reject(error);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            newAttachments.push({
+              id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
+              name: file.name,
+              url: downloadURL,
+              type: file.type,
+              size: file.size,
+              refPath: uploadTask.snapshot.ref.fullPath,
+            });
+            newPaths.push(uploadTask.snapshot.ref.fullPath);
+            resolve();
+          }
+        );
+      });
+    }
+
+    setAttachments(newAttachments);
+    setSessionUploadedPaths(newPaths);
+    setIsUploading(false);
+    setUploadProgress(0);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleRemoveAttachment = async (attachment: any) => {
+    const isConfirmed = await dialog.confirm({
+      title: "Elimina Allegato",
+      message: "Sei sicuro di voler eliminare questo allegato?",
+      isDestructive: true,
+      confirmText: "Elimina"
+    });
+    if (!isConfirmed) return;
+    
+    // Remove from UI first for responsiveness
+    const updatedAttachments = attachments.filter(a => a.id !== attachment.id);
+    setAttachments(updatedAttachments);
+
+    try {
+      // If it has a refPath, we can delete it from storage
+      if (attachment.refPath) {
+        const fileRef = ref(storage, attachment.refPath);
+        await deleteObject(fileRef);
+      }
+      
+      // If the task already exists, update the db right away
+      if (!isNew) {
+        await updateDoc(doc(db, 'tasks', task.id), {
+          attachments: updatedAttachments
+        });
+      }
+    } catch (err) {
+      console.error("Error removing attachment", err);
+    }
+  };
+
+  const handleClose = async () => {
+    // If we have uploaded files in this session but we are cancelling (not saving),
+    // let's try to delete them to avoid orphans.
+    if (sessionUploadedPaths.length > 0) {
+      for (const path of sessionUploadedPaths) {
+        try {
+          await deleteObject(ref(storage, path));
+        } catch(e) { console.error("Error cleaning up file", e); }
+      }
+      setSessionUploadedPaths([]);
+    }
+    onClose();
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -84,6 +191,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         date: date ? format(date, 'yyyy-MM-dd') : null,
         updatedAt: serverTimestamp(),
         projectId: activeProjectId,
+        attachments,
       };
 
       if (onSaveLocal) {
@@ -101,17 +209,25 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           await updateDoc(doc(db, 'tasks', task.id), taskData);
         }
       }
+      setSessionUploadedPaths([]);
+      toast.success("Task aggiornato!");
       onClose();
     } catch (error) {
       console.error("Error saving task:", error);
-      alert("Si è verificato un errore durante il salvataggio.");
+      toast.error("Si è verificato un errore durante il salvataggio.");
     }
     setIsSaving(false);
   };
 
   const handleDelete = async () => {
     if (isNew) return;
-    if (confirm("Sei sicuro di voler eliminare definitivamente questo task?")) {
+    const isConfirmed = await dialog.confirm({
+      title: "Elimina Task",
+      message: "Sei sicuro di voler eliminare definitivamente questo task?",
+      isDestructive: true,
+      confirmText: "Elimina"
+    });
+    if (isConfirmed) {
       try {
         if (task.meetingId && task.meetingTaskIdx !== undefined) {
           const meetingRef = doc(db, 'meetings', task.meetingId);
@@ -159,7 +275,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   };
 
   const handleDeleteComment = async (commentId: string) => {
-    if (!confirm("Sei sicuro di voler eliminare questo commento?")) return;
+    const isConfirmed = await dialog.confirm({
+      title: "Elimina Commento",
+      message: "Sei sicuro di voler eliminare questo commento?",
+      isDestructive: true,
+      confirmText: "Elimina"
+    });
+    if (!isConfirmed) return;
     
     const commentToDelete = comments.find(c => c.id === commentId);
     if (!commentToDelete) return;
@@ -186,7 +308,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={handleClose}>
       <div 
         className="relative w-full max-w-3xl max-h-[90vh] bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
@@ -231,7 +353,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                 onChange={(e) => setColumnId(e.target.value)}
                 className="appearance-none pr-8 pl-4 py-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 text-blue-400 text-xs font-medium cursor-pointer outline-none"
               >
-                <option value="" disabled className="bg-black text-white/50">Seleziona colonna</option>
+                <option value="" disabled className="bg-black text-[#858585]">Seleziona colonna</option>
                 {columns.map(col => (
                   <option key={col.id} value={col.id} className="bg-black text-white">{col.title}</option>
                 ))}
@@ -246,7 +368,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                 onChange={(e) => setEpicId(e.target.value)}
                 className="appearance-none pr-8 pl-4 py-1.5 rounded-full border border-purple-500/50 bg-purple-500/10 text-purple-400 text-xs font-medium cursor-pointer outline-none"
               >
-                <option value="" className="bg-black text-white/50">Nessun Epic</option>
+                <option value="" className="bg-black text-[#858585]">Nessun Epic</option>
                 {epics.map(epic => (
                   <option key={epic.id} value={epic.id} className="bg-black text-white">{epic.title}</option>
                 ))}
@@ -259,11 +381,11 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           </div>
           <div className="flex items-center gap-3">
             {!isNew && (
-              <button onClick={handleDelete} className="p-2 text-white/50 hover:text-red-500 transition-colors hover:bg-white/5 rounded-full" title="Elimina Task">
+              <button onClick={handleDelete} className="p-2 text-[#858585] hover:text-red-500 transition-colors hover:bg-white/5 rounded-full" title="Elimina Task">
                 <Trash2 size={20} />
               </button>
             )}
-            <button onClick={onClose} className="p-2 text-white/50 hover:text-white transition-colors hover:bg-white/5 rounded-full">
+            <button onClick={handleClose} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full">
               <X size={20} />
             </button>
           </div>
@@ -277,11 +399,11 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
               type="text" 
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="text-3xl font-halfre text-white bg-transparent border-none outline-none focus:ring-0 placeholder:text-white/30 w-full"
+              className="text-3xl font-halfre text-white bg-transparent border-none outline-none focus:ring-0 placeholder:text-[#858585] w-full"
               placeholder="Titolo della Task"
             />
             
-            <div className="flex items-center gap-6 text-sm text-white/50 font-sans">
+            <div className="flex items-center gap-6 text-sm text-[#858585] font-sans">
               <div className="flex items-center gap-2 relative">
                 <CalendarIcon size={16} />
                 <span>Scadenza: </span>
@@ -357,12 +479,81 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
             />
           </div>
 
+          {/* Attachments Section */}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">Allegati</h4>
+              <button 
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/80 text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                <Paperclip size={14} />
+                Aggiungi File
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+                multiple
+                accept="image/*,video/*"
+              />
+            </div>
+
+            {isUploading && (
+              <div className="w-full bg-white/5 rounded-full h-1.5 mb-2 overflow-hidden">
+                <div className="bg-blue-500 h-1.5 rounded-full transition-all duration-300" style={{ width: `${uploadProgress}%` }}></div>
+              </div>
+            )}
+
+            {attachments.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-2">
+                {attachments.map((file) => (
+                  <div key={file.id} className="relative group rounded-xl overflow-hidden bg-white/5 border border-white/10 aspect-square flex flex-col items-center justify-center">
+                    {file.type?.startsWith('image/') ? (
+                      <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                    ) : file.type?.startsWith('video/') ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-[#858585] bg-black/40">
+                        <Video size={32} className="mb-2" />
+                        <span className="text-[10px] px-2 truncate w-full text-center">{file.name}</span>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center text-[#858585] bg-black/40">
+                        <FileText size={32} className="mb-2" />
+                        <span className="text-[10px] px-2 truncate w-full text-center">{file.name}</span>
+                      </div>
+                    )}
+                    
+                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
+                      <a 
+                        href={file.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+                      </a>
+                      <button 
+                        onClick={() => handleRemoveAttachment(file)}
+                        className="p-2 bg-red-500/80 hover:bg-red-500 rounded-full text-white transition-colors"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {!isNew && (
             <div className="flex flex-col gap-4">
               <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">Commenti</h4>
               <div className="flex flex-col gap-4">
                 {comments.length === 0 ? (
-                  <p className="text-white/30 text-sm italic">Nessun commento presente.</p>
+                  <p className="text-[#858585] text-sm italic">Nessun commento presente.</p>
                 ) : (
                   comments.map(comment => (
                     <div key={comment.id} className="flex items-start gap-3">
@@ -373,13 +564,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                         <div className="flex items-center justify-between gap-4">
                           <span className="text-sm font-medium text-white">{comment.author}</span>
                           <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-white/40">
+                            <span className="text-[11px] text-[#858585]">
                               {comment.createdAt ? format(new Date(comment.createdAt), 'dd MMM HH:mm', { locale: it }) : ''}
                             </span>
                             {(comment.authorUid === user?.uid || comment.author === user?.displayName) && (
                               <button
                                 onClick={() => handleDeleteComment(comment.id)}
-                                className="opacity-0 group-hover/comment:opacity-100 text-white/40 hover:text-red-400 p-1 rounded-full transition-opacity"
+                                className="opacity-0 group-hover/comment:opacity-100 text-[#858585] hover:text-red-400 p-1 rounded-full transition-opacity"
                                 title="Elimina commento"
                               >
                                 <Trash2 size={12} />
@@ -439,7 +630,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                 <button 
                   onClick={handleAddComment}
                   disabled={!newComment.trim()}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-white/50 hover:text-white disabled:opacity-50 transition-colors bg-white/5 hover:bg-white/10 rounded-full"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-[#858585] hover:text-white disabled:opacity-50 transition-colors bg-white/5 hover:bg-white/10 rounded-full"
                 >
                   <Send size={14} />
                 </button>
@@ -450,7 +641,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           )}
 
           <div className="flex gap-3 shrink-0">
-            <button onClick={onClose} className="px-5 py-2.5 rounded-full text-white/70 font-medium hover:text-white hover:bg-white/5 transition-colors">
+            <button onClick={handleClose} className="px-5 py-2.5 rounded-full text-white/70 font-medium hover:text-white hover:bg-white/5 transition-colors">
               Annulla
             </button>
             <button 

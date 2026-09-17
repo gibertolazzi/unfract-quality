@@ -28,7 +28,7 @@ export function DocCard({ doc }: DocCardProps) {
           <h3 className="text-[20px] font-medium text-white tracking-wide">
             {doc.title}
           </h3>
-          <p className="text-[13px] text-white/50 font-sans mt-1">
+          <p className="text-[13px] text-[#858585] font-sans mt-1">
             Manager: {doc.manager} - {doc.date} - {doc.company}
           </p>
         </div>

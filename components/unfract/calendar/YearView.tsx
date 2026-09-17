@@ -27,7 +27,7 @@ function MiniMonth({ date, onMonthClick }: { date: Date, onMonthClick: (d: Date)
       
       <div className="grid grid-cols-7 gap-y-2">
         {daysOfWeek.map((day, idx) => (
-          <div key={idx} className={`text-[10px] text-center font-medium ${idx === 0 || idx === 6 ? 'text-[#006AFF]' : 'text-white/40'}`}>
+          <div key={idx} className={`text-[10px] text-center font-medium ${idx === 0 || idx === 6 ? 'text-[#006AFF]' : 'text-[#858585]'}`}>
             {day}
           </div>
         ))}
@@ -40,7 +40,7 @@ function MiniMonth({ date, onMonthClick }: { date: Date, onMonthClick: (d: Date)
               key={i} 
               className={`
                 text-[11px] text-center w-6 h-6 mx-auto flex items-center justify-center rounded-full
-                ${!isCurrMonth ? 'text-white/20' : 'text-white/80'}
+                ${!isCurrMonth ? 'text-[#858585]' : 'text-white/80'}
                 ${isCurrDay ? 'bg-[#006AFF] text-white font-bold' : ''}
               `}
             >

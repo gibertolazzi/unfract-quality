@@ -33,7 +33,7 @@ export function SlashMenu({ onSelect, onClose, position }: SlashMenuProps) {
       className="absolute z-50 w-64 bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2"
       style={{ top: position.top, left: position.left }}
     >
-      <div className="px-3 pb-2 text-xs font-medium text-white/40 border-b border-white/5 mb-1">
+      <div className="px-3 pb-2 text-xs font-medium text-[#858585] border-b border-white/5 mb-1">
         Blocchi di base
       </div>
       {options.map(opt => (
@@ -42,27 +42,27 @@ export function SlashMenu({ onSelect, onClose, position }: SlashMenuProps) {
           onClick={() => onSelect(opt.type)}
           className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[#006AFF]/10 hover:text-[#00A6FF] transition-colors text-left"
         >
-          <div className="p-2 bg-white/5 rounded-lg text-white/50 group-hover:text-[#00A6FF] group-hover:bg-[#006AFF]/20 transition-colors">
+          <div className="p-2 bg-white/5 rounded-lg text-[#858585] group-hover:text-[#00A6FF] group-hover:bg-[#006AFF]/20 transition-colors">
             <opt.icon size={16} />
           </div>
           <div className="flex flex-col">
             <span className="text-sm font-medium text-white/90">{opt.label}</span>
-            <span className="text-xs text-white/40">{opt.desc}</span>
+            <span className="text-xs text-[#858585]">{opt.desc}</span>
           </div>
         </button>
       ))}
       
-      <div className="px-3 pt-3 pb-2 text-xs font-medium text-white/40 border-b border-white/5 border-t mt-1 mb-1">
+      <div className="px-3 pt-3 pb-2 text-xs font-medium text-[#858585] border-b border-white/5 border-t mt-1 mb-1">
         Avanzati
       </div>
       
       <button className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left" onClick={onClose}>
-        <div className="p-2 bg-white/5 rounded-lg text-white/50"><List size={16} /></div>
+        <div className="p-2 bg-white/5 rounded-lg text-[#858585]"><List size={16} /></div>
         <span className="text-sm font-medium text-white/90">Elenco puntato</span>
       </button>
       
       <button className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left" onClick={onClose}>
-        <div className="p-2 bg-white/5 rounded-lg text-white/50"><CheckSquare size={16} /></div>
+        <div className="p-2 bg-white/5 rounded-lg text-[#858585]"><CheckSquare size={16} /></div>
         <span className="text-sm font-medium text-white/90">Attività</span>
       </button>
       

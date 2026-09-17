@@ -156,7 +156,7 @@ export const ContentEditableBlock = React.memo(({
         onBlur={handleBlur}
         onFocus={onFocus}
         onKeyDown={onKeyDown}
-        className={`empty:before:content-["Premi_'/'_per_i_comandi_o_inizia_a_scrivere..."] empty:before:text-white/30 empty:before:pointer-events-none cursor-text outline-none ${className || ''}`}
+        className={`empty:before:content-["Premi_'/'_per_i_comandi_o_inizia_a_scrivere..."] empty:before:text-[#858585] empty:before:pointer-events-none cursor-text outline-none ${className || ''}`}
       />
       {mentionCoords && (
         <div style={{ position: 'absolute', top: mentionCoords.top, left: mentionCoords.left, zIndex: 50 }}>

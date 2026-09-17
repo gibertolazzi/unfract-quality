@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Folder, Check } from 'lucide-react';
+import { X, Folder, PlusCircle, Search, Loader2 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Organization } from './types';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -12,23 +13,29 @@ interface AssignProjectModalProps {
 
 export function AssignProjectModal({ organization, onClose }: AssignProjectModalProps) {
   const { projects } = useProject();
-  const [isAssigning, setIsAssigning] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isAssigning, setIsAssigning] = useState<string | null>(null);
+  const toast = useToast();
 
   // Progetti che NON sono già in questa organizzazione
-  const availableProjects = projects.filter(p => !p.organizationIds?.includes(organization.id));
+  const availableProjects = projects.filter(p => 
+    !p.organizationIds?.includes(organization.id) &&
+    p.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const handleAssign = async (projectId: string) => {
-    setIsAssigning(true);
+    setIsAssigning(projectId);
     try {
       await updateDoc(doc(db, 'projects', projectId), {
         organizationIds: arrayUnion(organization.id)
       });
-      // The context will update automatically because it's listening to Firestore
-    } catch (err) {
-      console.error(err);
-      alert("Errore durante l'assegnazione del progetto.");
+      onClose();
+      toast.success("Progetto assegnato!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Errore durante l'assegnazione del progetto.");
     } finally {
-      setIsAssigning(false);
+      setIsAssigning(null);
     }
   };
 
@@ -41,9 +48,9 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
         <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/5">
           <div>
             <h2 className="text-lg font-semibold text-white/90">Assegna Progetto</h2>
-            <p className="text-xs text-white/50 mt-1">Aggiungi un progetto a {organization.name}</p>
+            <p className="text-xs text-[#858585] mt-1">Aggiungi un progetto a {organization.name}</p>
           </div>
-          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
+          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
             <X size={20} />
           </button>
         </div>
@@ -51,8 +58,8 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
         <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-2">
           {availableProjects.length === 0 ? (
             <div className="text-center py-8">
-              <Folder size={32} className="mx-auto text-white/20 mb-3" />
-              <p className="text-sm text-white/50">Tutti i tuoi progetti sono già assegnati a questa organizzazione, oppure non ne hai creati.</p>
+              <Folder size={32} className="mx-auto text-[#858585] mb-3" />
+              <p className="text-sm text-[#858585]">Tutti i tuoi progetti sono già assegnati a questa organizzazione, oppure non ne hai creati.</p>
             </div>
           ) : (
             availableProjects.map(project => (
@@ -67,7 +74,7 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
                 </div>
                 <button
                   onClick={() => handleAssign(project.id)}
-                  disabled={isAssigning}
+                  disabled={!!isAssigning}
                   className="px-4 py-1.5 text-xs font-medium bg-[#006AFF] hover:bg-[#0055CC] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 opacity-0 group-hover:opacity-100"
                 >
                   <PlusCircle size={14} /> Assegna
@@ -81,5 +88,4 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
   );
 }
 
-// Temporary icon for button
-import { PlusCircle } from 'lucide-react';
+

@@ -145,13 +145,13 @@ export function DashboardView() {
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[16px] font-medium text-white/90">Le mie Task</h3>
-              <Link href="/" className="flex items-center gap-1 text-[12px] text-white/40 hover:text-white/70 transition-colors">
+              <Link href="/" className="flex items-center gap-1 text-[12px] text-[#858585] hover:text-white/70 transition-colors">
                 Vedi tutte <ArrowRight size={12} />
               </Link>
             </div>
             
             {userTasks.length === 0 ? (
-              <div className="py-8 text-center text-white/30 text-sm">Nessuna task assegnata</div>
+              <div className="py-8 text-center text-[#858585] text-sm">Nessuna task assegnata</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {userTasks.map((task) => {
@@ -166,12 +166,12 @@ export function DashboardView() {
                         {status === "done" ? (
                           <CheckCircle2 size={18} className="text-[#00D222]" />
                         ) : (
-                          <Circle size={18} className="text-white/20 group-hover:text-white/40 transition-colors" />
+                          <Circle size={18} className="text-[#858585] group-hover:text-[#858585] transition-colors" />
                         )}
                         <div className={`absolute -top-0.5 -left-0.5 w-5 h-5 rounded-full ${getPriorityGlow(task.priority)} opacity-20 blur-[6px]`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <span className={`text-[13px] font-medium block truncate ${status === "done" ? "text-white/40 line-through" : "text-white/90"}`}>
+                        <span className={`text-[13px] font-medium block truncate ${status === "done" ? "text-[#858585] line-through" : "text-white/90"}`}>
                           {task.title || "Senza titolo"}
                         </span>
                       </div>
@@ -189,15 +189,15 @@ export function DashboardView() {
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl">
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-[16px] font-medium text-white/90">Oggi in Calendario</h3>
-              <Link href="/calendar" className="flex items-center gap-1 text-[12px] text-white/40 hover:text-white/70 transition-colors">
+              <Link href="/calendar" className="flex items-center gap-1 text-[12px] text-[#858585] hover:text-white/70 transition-colors">
                 Vedi calendario <ArrowRight size={12} />
               </Link>
             </div>
 
             {isSyncing ? (
-              <div className="py-8 text-center text-white/30 text-sm">Sincronizzazione...</div>
+              <div className="py-8 text-center text-[#858585] text-sm">Sincronizzazione...</div>
             ) : events.length === 0 ? (
-              <div className="py-8 text-center text-white/30 text-sm">Nessun evento per oggi</div>
+              <div className="py-8 text-center text-[#858585] text-sm">Nessun evento per oggi</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {events.map((event) => (
@@ -211,7 +211,7 @@ export function DashboardView() {
                     <div className="w-[2px] h-8 bg-[#006AFF] rounded-full flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <span className="text-[13px] font-medium text-white/90 block truncate">{event.title}</span>
-                      <span className="text-[11px] text-white/40">{event.startTime} – {event.endTime}</span>
+                      <span className="text-[11px] text-[#858585]">{event.startTime} – {event.endTime}</span>
                     </div>
                     {event.meetLink && (
                       <a 
@@ -248,22 +248,22 @@ export function DashboardView() {
               
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
                 <span className="text-[32px] font-bold text-white tracking-tighter">{percCompleted}%</span>
-                <span className="text-[10px] text-white/40 -mt-1 uppercase tracking-widest">Fatto</span>
+                <span className="text-[10px] text-[#858585] -mt-1 uppercase tracking-widest">Fatto</span>
               </div>
             </div>
 
             <div className="flex items-center justify-center gap-4 mt-6">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-[#006AFF]" />
-                <span className="text-[10px] text-white/50 font-medium">Fatte ({completedCount})</span>
+                <span className="text-[10px] text-[#858585] font-medium">Fatte ({completedCount})</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-[#FFB800]" />
-                <span className="text-[10px] text-white/50 font-medium">In corso ({inProgressCount})</span>
+                <span className="text-[10px] text-[#858585] font-medium">In corso ({inProgressCount})</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-[#FF0004]" />
-                <span className="text-[10px] text-white/50 font-medium">Da fare ({notStartedCount})</span>
+                <span className="text-[10px] text-[#858585] font-medium">Da fare ({notStartedCount})</span>
               </div>
             </div>
           </div>

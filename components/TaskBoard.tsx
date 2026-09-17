@@ -10,6 +10,8 @@ import { CustomPrompt } from './unfract/CustomPrompt';
 import { collection, onSnapshot, doc, writeBatch, updateDoc, deleteDoc, addDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProject } from '@/contexts/ProjectContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200]',
@@ -17,8 +19,6 @@ const priorityStyles = {
   Low: 'text-[#006AFF] border-[#006AFF]',
   Critical: 'text-[#FF0004] border-[#FF0004]'
 };
-
-import { useAuth } from '@/contexts/AuthContext';
 
 export function TaskCard({ task, index, onClick }: { task: any; index: number; onClick: () => void }) {
   const { user } = useAuth();
@@ -55,7 +55,7 @@ export function TaskCard({ task, index, onClick }: { task: any; index: number; o
 
           <div className="relative z-10 flex flex-col gap-6">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-white/50">
+              <div className="flex items-center gap-2 text-[#858585]">
                 <Calendar size={16} />
                 <span className="text-[13px] font-sans font-medium">{task.date || 'No Date'}</span>
               </div>
@@ -124,10 +124,10 @@ export function TaskColumn({
               className="text-xl font-bold text-white font-sans bg-transparent outline-none focus:border-b focus:border-white/20 w-full mr-4"
             />
             <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => onNewTask(column.id)} className="flex items-center gap-2 text-white/40 hover:text-white transition-colors shrink-0">
+              <button onClick={() => onNewTask(column.id)} className="flex items-center gap-2 text-[#858585] hover:text-white transition-colors shrink-0">
                 <PlusCircle size={16} />
               </button>
-              <button onClick={() => onDeleteColumn(column.id)} className="text-white/20 hover:text-red-500 transition-colors">
+              <button onClick={() => onDeleteColumn(column.id)} className="text-[#858585] hover:text-red-500 transition-colors">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -161,6 +161,7 @@ export function TaskBoard() {
   const [activeView, setActiveView] = useState<'board' | 'tasklist' | 'timeline'>('board');
   const [showColumnPrompt, setShowColumnPrompt] = useState(false);
   const { activeProjectId } = useProject();
+  const dialog = useDialog();
 
   useEffect(() => {
     if (!activeProjectId) {
@@ -199,7 +200,14 @@ export function TaskBoard() {
   };
 
   const deleteColumn = async (columnId: string) => {
-    if (confirm("Sei sicuro di voler eliminare questa colonna? I task al suo interno non verranno eliminati ma rimarranno senza colonna assegnata.")) {
+    const isConfirmed = await dialog.confirm({
+      title: "Elimina Colonna",
+      message: "Sei sicuro di voler eliminare questa colonna? I task al suo interno non verranno eliminati ma rimarranno senza colonna assegnata.",
+      isDestructive: true,
+      confirmText: "Elimina"
+    });
+    
+    if (isConfirmed) {
       await deleteDoc(doc(db, 'columns', columnId));
     }
   };
@@ -308,19 +316,19 @@ export function TaskBoard() {
       <div className="flex items-center gap-8 mb-8 mt-2 border-b border-white/5 pb-4">
         <button 
           onClick={() => setActiveView('board')} 
-          className={`flex items-center gap-2 font-semibold text-lg transition-colors pb-4 -mb-[17px] border-b-2 ${activeView === 'board' ? 'text-[#006AFF] border-[#006AFF]' : 'text-white/50 border-transparent hover:text-white'}`}
+          className={`flex items-center gap-2 font-semibold text-lg transition-colors pb-4 -mb-[17px] border-b-2 ${activeView === 'board' ? 'text-[#006AFF] border-[#006AFF]' : 'text-[#858585] border-transparent hover:text-white'}`}
         >
           Board
         </button>
         <button 
           onClick={() => setActiveView('tasklist')} 
-          className={`flex items-center gap-2 font-semibold text-lg transition-colors pb-4 -mb-[17px] border-b-2 ${activeView === 'tasklist' ? 'text-[#006AFF] border-[#006AFF]' : 'text-white/50 border-transparent hover:text-white'}`}
+          className={`flex items-center gap-2 font-semibold text-lg transition-colors pb-4 -mb-[17px] border-b-2 ${activeView === 'tasklist' ? 'text-[#006AFF] border-[#006AFF]' : 'text-[#858585] border-transparent hover:text-white'}`}
         >
           Tasklist
         </button>
         <button 
           onClick={() => setActiveView('timeline')} 
-          className={`flex items-center gap-2 font-semibold text-lg transition-colors pb-4 -mb-[17px] border-b-2 ${activeView === 'timeline' ? 'text-[#006AFF] border-[#006AFF]' : 'text-white/50 border-transparent hover:text-white'}`}
+          className={`flex items-center gap-2 font-semibold text-lg transition-colors pb-4 -mb-[17px] border-b-2 ${activeView === 'timeline' ? 'text-[#006AFF] border-[#006AFF]' : 'text-[#858585] border-transparent hover:text-white'}`}
         >
           Timeline
         </button>

@@ -1,12 +1,28 @@
 "use client";
 
-import React from 'react';
+import { db } from '@/lib/firebase';
+import { useDialog } from '@/contexts/DialogContext';
 import { Meeting } from './types';
-import { Clock, Users, ArrowRight } from 'lucide-react';
+import { Clock, Users, ArrowRight, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { deleteMeeting } from '@/lib/meetings';
 
-export function MeetingCard({ meeting }: { meeting: Meeting }) {
+export function MeetingCard({ meeting }: { meeting: any }) {
   const router = useRouter();
+  const dialog = useDialog();
+
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const isConfirmed = await dialog.confirm({
+      title: "Elimina Meeting",
+      message: "Sei sicuro di voler eliminare questo meeting?",
+      isDestructive: true,
+      confirmText: "Elimina"
+    });
+    if (isConfirmed) {
+      await deleteMeeting(meeting.id);
+    }
+  };
 
   return (
     <div 
@@ -15,7 +31,7 @@ export function MeetingCard({ meeting }: { meeting: Meeting }) {
     >
       <div className="flex flex-col gap-2">
         <h3 className="text-white font-medium text-lg">{meeting.title}</h3>
-        <div className="flex items-center gap-4 text-sm text-white/40">
+        <div className="flex items-center gap-4 text-sm text-[#858585]">
           <span className="flex items-center gap-1.5"><Clock size={14} /> {meeting.date} • {meeting.duration}</span>
           <span className="flex items-center gap-1.5"><Users size={14} /> {meeting.manager}</span>
         </div>
@@ -27,7 +43,14 @@ export function MeetingCard({ meeting }: { meeting: Meeting }) {
             {meeting.tasks.length} Task
           </div>
         )}
-        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-white/50 group-hover:bg-[#006AFF] group-hover:text-white transition-colors">
+        <button 
+          onClick={handleDelete}
+          className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[#858585] hover:bg-red-500/20 hover:text-red-500 transition-colors"
+          title="Elimina meeting"
+        >
+          <Trash2 size={18} />
+        </button>
+        <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[#858585] group-hover:bg-[#006AFF] group-hover:text-white transition-colors">
           <ArrowRight size={18} />
         </div>
       </div>

@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getMeetingById } from '@/lib/meetings';
+import { useDialog } from '@/contexts/DialogContext';
+import { useToast } from '@/contexts/ToastContext';
 import { Meeting } from '@/components/unfract/meetings/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ChevronLeft, Calendar, Clock, User, CheckCircle2, FileText, Target, Pencil, Check, X } from 'lucide-react';
@@ -15,12 +17,17 @@ import { TranscriptModal } from '@/components/unfract/meetings/TranscriptModal';
 export default function MeetingDetailPage({ params }: { params: { id: string } }) {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const dialog = useDialog();
+  const toast = useToast();
   
   const [columns, setColumns] = useState<any[]>([]);
   const [epics, setEpics] = useState<any[]>([]);
   const [editingTask, setEditingTask] = useState<any | null>(null);
   const [editingTaskIdx, setEditingTaskIdx] = useState<number | null>(null);
   const [isTranscriptModalOpen, setIsTranscriptModalOpen] = useState(false);
+  
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editedTitle, setEditedTitle] = useState("");
 
   const { user, loading: authLoading } = useAuth();
   const { activeProjectId } = useProject();
@@ -35,6 +42,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
     
     getMeetingById(params.id).then(doc => {
       setMeeting(doc);
+      if (doc) setEditedTitle(doc.title);
       setIsLoading(false);
     });
 
@@ -45,10 +53,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       setEpics(eSnap.docs.map(d => ({ id: d.id, ...d.data() })));
     };
     loadData();
-  }, [params.id, user, authLoading, router]);
+  }, [params.id, user, authLoading, router, activeProjectId]);
 
   if (authLoading || isLoading) {
-    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-white/50" /></div>;
+    return <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-[#858585]" /></div>;
   }
 
   if (!meeting) {
@@ -91,18 +99,36 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       await updateDoc(doc(db, "meetings", params.id), { tasks: newTasks });
       setMeeting({ ...meeting, tasks: newTasks });
       
-      alert("Task inviata alla TaskBoard con successo!");
+      toast.success("Task inviata alla TaskBoard con successo!");
     } catch (e) {
       console.error(e);
-      alert("Errore durante l'invio della task.");
+      toast.error("Errore durante l'invio della task.");
     }
   };
 
   const handleDeassignFromBoard = async (task: any, idx: number) => {
-    if (!task.globalTaskId) return;
-    if (confirm("Sei sicuro di voler rimuovere l'assegnazione? Questo eliminerà la task dalla Kanban board globale.")) {
+    const isConfirmed = await dialog.confirm({
+      title: "Rimuovi Assegnazione",
+      message: "Sei sicuro di voler rimuovere l'assegnazione? Questo eliminerà la task dalla Kanban board globale.",
+      isDestructive: true,
+      confirmText: "Rimuovi"
+    });
+    
+    if (isConfirmed) {
       try {
-        await deleteDoc(doc(db, 'tasks', task.globalTaskId));
+        if (task.globalTaskId) {
+          await deleteDoc(doc(db, 'tasks', task.globalTaskId));
+        } else {
+          const tasksQuery = query(
+            collection(db, 'tasks'),
+            where('meetingId', '==', params.id),
+            where('meetingTaskIdx', '==', idx)
+          );
+          const querySnapshot = await getDocs(tasksQuery);
+          for (const docSnapshot of querySnapshot.docs) {
+            await deleteDoc(doc(db, 'tasks', docSnapshot.id));
+          }
+        }
         
         const newTasks = [...meeting.tasks];
         const updatedTask = { ...newTasks[idx], isAssigned: false };
@@ -111,10 +137,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         
         await updateDoc(doc(db, "meetings", params.id), { tasks: newTasks });
         setMeeting({ ...meeting, tasks: newTasks });
-        
+        toast.success("Assegnazione rimossa.");
       } catch (e) {
         console.error(e);
-        alert("Errore durante la de-assegnazione.");
+        toast.error("Errore durante la de-assegnazione.");
       }
     }
   };
@@ -140,9 +166,26 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       setMeeting({ ...meeting, tasks: newTasks });
       setEditingTask(null);
       setEditingTaskIdx(null);
+      toast.success("Task aggiornata.");
     } catch (e) {
       console.error(e);
-      alert("Errore durante il salvataggio.");
+      toast.error("Errore durante il salvataggio.");
+    }
+  };
+
+  const saveTitle = async () => {
+    if (!meeting || !editedTitle.trim() || editedTitle === meeting.title) {
+      setIsEditingTitle(false);
+      return;
+    }
+    try {
+      await updateDoc(doc(db, "meetings", params.id), { title: editedTitle });
+      setMeeting({ ...meeting, title: editedTitle });
+      setIsEditingTitle(false);
+      toast.success("Titolo aggiornato.");
+    } catch (error) {
+      console.error(error);
+      toast.error("Errore durante il salvataggio del titolo.");
     }
   };
 
@@ -160,10 +203,48 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
 
       {/* Header */}
       <div className="flex flex-col mb-12">
-        <h1 className="text-[32px] font-medium text-white tracking-wide mb-4">
-          {meeting.title}
-        </h1>
-        <div className="flex items-center gap-6 text-white/50 text-[15px]">
+        {isEditingTitle ? (
+          <div className="flex items-center gap-2 mb-4">
+            <input 
+              type="text" 
+              value={editedTitle} 
+              onChange={(e) => setEditedTitle(e.target.value)}
+              className="text-[32px] font-medium text-white tracking-wide bg-transparent border-b border-[#006AFF] focus:outline-none w-full max-w-[500px]"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') saveTitle();
+                if (e.key === 'Escape') {
+                  setEditedTitle(meeting.title);
+                  setIsEditingTitle(false);
+                }
+              }}
+              onBlur={saveTitle}
+            />
+            <button onClick={saveTitle} className="p-2 rounded-full hover:bg-white/10 text-green-500 transition-colors">
+              <Check size={20} />
+            </button>
+            <button onClick={() => {
+              setEditedTitle(meeting.title);
+              setIsEditingTitle(false);
+            }} className="p-2 rounded-full hover:bg-white/10 text-[#858585] transition-colors">
+              <X size={20} />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 mb-4 group">
+            <h1 className="text-[32px] font-medium text-white tracking-wide">
+              {meeting.title}
+            </h1>
+            <button 
+              onClick={() => setIsEditingTitle(true)}
+              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#858585] hover:text-white opacity-0 group-hover:opacity-100 transition-all"
+              title="Modifica titolo"
+            >
+              <Pencil size={18} />
+            </button>
+          </div>
+        )}
+        <div className="flex items-center gap-6 text-[#858585] text-[15px]">
           <div className="flex items-center gap-2"><Calendar size={16} /> {meeting.date}</div>
           <div className="flex items-center gap-2"><Clock size={16} /> {meeting.duration}</div>
           <div className="flex items-center gap-2"><User size={16} /> {meeting.manager}</div>
@@ -190,7 +271,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
             </h2>
             
             {meeting.decisions.length === 0 ? (
-              <p className="text-white/40 text-sm">Nessuna decisione registrata.</p>
+              <p className="text-[#858585] text-sm">Nessuna decisione registrata.</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {meeting.decisions.map((dec, i) => (
@@ -213,13 +294,13 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           </div>
           
           {meeting.tasks.length === 0 ? (
-            <p className="text-white/40 text-sm relative z-10">Nessun task emerso.</p>
+            <p className="text-[#858585] text-sm relative z-10">Nessun task emerso.</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
               {meeting.tasks.map((task, idx) => {
                 let bgColor = 'bg-white/5';
                 let borderColor = 'border-white/10';
-                let badgeColor = 'text-white/50 border-white/20';
+                let badgeColor = 'text-[#858585] border-white/20';
                 
                 if (task.priority === 'CRITICAL' || task.priority === 'HIGH') {
                   bgColor = 'bg-red-500/10';
@@ -246,7 +327,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                       <div className="flex items-start gap-3 flex-1">
                         <div className="w-4 h-4 rounded-[4px] border border-white/20 flex-shrink-0 mt-0.5" />
                         <span className="text-[#006AFF] font-mono text-sm">[{idx + 1}]</span>
-                        <span className={`text-white/90 text-sm font-medium flex-1 leading-snug ${task.isAssigned ? 'line-through text-white/50' : ''}`}>{task.title}</span>
+                        <span className={`text-white/90 text-sm font-medium flex-1 leading-snug ${task.isAssigned ? 'line-through text-[#858585]' : ''}`}>{task.title}</span>
                       </div>
                       
                       {task.priority && (
@@ -267,13 +348,13 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                             )}
                           </div>
                         </div>
-                        <span className="text-white/40 text-xs">{user?.displayName || 'Da assegnare'}</span>
+                        <span className="text-[#858585] text-xs">{user?.displayName || 'Da assegnare'}</span>
                       </div>
 
                       <div className="flex items-center gap-2">
                         {!task.isAssigned && (
                           <button onClick={() => startEditing(task, idx)} className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
-                            <Pencil size={14} className="text-white/50" />
+                            <Pencil size={14} className="text-[#858585]" />
                           </button>
                         )}
                         {!task.isAssigned ? (
@@ -304,7 +385,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         <div className="bg-[#111] border border-white/5 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-medium text-white flex items-center gap-2">
-              <FileText size={20} className="text-white/50" /> Trascrizione Completa
+              <FileText size={20} className="text-[#858585]" /> Trascrizione Completa
             </h2>
             {meeting.transcript && (
               <button 
@@ -315,7 +396,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
               </button>
             )}
           </div>
-          <div className="text-white/50 leading-relaxed text-[14px] h-[300px] overflow-y-auto custom-scrollbar italic pr-4 whitespace-pre-wrap">
+          <div className="text-[#858585] leading-relaxed text-[14px] h-[300px] overflow-y-auto custom-scrollbar italic pr-4 whitespace-pre-wrap">
             {typeof meeting.transcript === 'string' ? meeting.transcript : JSON.stringify(meeting.transcript)}
             {!meeting.transcript && "Trascrizione non disponibile."}
           </div>

@@ -27,20 +27,20 @@ export function CommentPanel({ isOpen, onClose, comments, onAddComment, blockTex
     <div className="fixed inset-y-0 right-0 w-full max-w-sm bg-[#0E0E0E] border-l border-white/10 shadow-2xl z-50 flex flex-col transform transition-transform">
       <div className="flex items-center justify-between p-4 border-b border-white/5">
         <h3 className="text-[16px] font-medium text-white">Commenti</h3>
-        <button onClick={onClose} className="p-2 text-white/50 hover:text-white transition-colors hover:bg-white/5 rounded-full">
+        <button onClick={onClose} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full">
           <X size={18} />
         </button>
       </div>
 
       <div className="p-4 border-b border-white/5 bg-white/[0.02]">
-        <p className="text-[13px] text-white/40 italic line-clamp-3">
+        <p className="text-[13px] text-[#858585] italic line-clamp-3">
           "{blockTextPreview}"
         </p>
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
         {comments.length === 0 ? (
-          <div className="text-white/40 text-[14px] text-center mt-8">
+          <div className="text-[#858585] text-[14px] text-center mt-8">
             Nessun commento su questo blocco.
           </div>
         ) : (
@@ -48,7 +48,7 @@ export function CommentPanel({ isOpen, onClose, comments, onAddComment, blockTex
             <div key={c.id} className="flex flex-col gap-1 p-3 bg-white/5 rounded-xl">
               <div className="flex justify-between items-center">
                 <span className="text-[13px] font-medium text-white/90">{c.author}</span>
-                <span className="text-[11px] text-white/40">{c.timestamp}</span>
+                <span className="text-[11px] text-[#858585]">{c.timestamp}</span>
               </div>
               <p className="text-[14px] text-white/70">{c.text}</p>
             </div>

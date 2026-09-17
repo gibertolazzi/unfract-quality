@@ -20,8 +20,8 @@ export function DayView({ currentDate, events, onEventClick, onTimeSlotClick }: 
       <div className="flex border-b border-white/10">
         <div className="w-16 shrink-0 border-r border-white/5" />
         <div className="flex-1 text-center py-4">
-          <div className="text-sm text-white/50 font-medium uppercase">{format(currentDate, 'EEEE')}</div>
-          <div className={`text-2xl font-bold mt-1 ${isToday(currentDate) ? 'text-[#006AFF]' : 'text-white'}`}>
+          <div className="text-sm text-[#858585] font-medium uppercase">{format(currentDate, 'EEEE')}</div>
+          <div className={`mx-auto w-fit px-4 py-1 rounded-full text-2xl font-bold mt-1 ${isToday(currentDate) ? 'bg-[#006AFF] text-white' : 'text-white'}`}>
             {format(currentDate, 'd MMMM yyyy')}
           </div>
         </div>
@@ -32,7 +32,7 @@ export function DayView({ currentDate, events, onEventClick, onTimeSlotClick }: 
         {/* Time Column */}
         <div className="w-16 shrink-0 border-r border-white/5 flex flex-col">
           {HOURS.map(hour => (
-            <div key={hour} className="h-24 flex items-start justify-center text-xs text-white/40 pt-2 border-b border-white/5">
+            <div key={hour} className="h-24 flex items-start justify-center text-xs text-[#858585] pt-2 border-b border-white/5">
               {hour.toString().padStart(2, '0')}:00
             </div>
           ))}

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar as CalendarIcon, Clock, AlignLeft, Video, Users } from 'lucide-react';
+import { X, Calendar as CalendarIcon, Clock, AlignLeft, Video, Users, Download } from 'lucide-react';
 import { CalendarEvent } from './calendar/types';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -23,6 +24,9 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
   const [textColor, setTextColor] = useState('text-[#00A6FF]');
   const [addMeet, setAddMeet] = useState(false);
   const [guestEmail, setGuestEmail] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const { settings } = useAuth();
 
   const colorOptions = [
     { bg: 'bg-[#006AFF]/20', border: 'border-[#006AFF]/30', text: 'text-[#00A6FF]' },
@@ -57,11 +61,22 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!title.trim()) return;
+    setIsSaving(true);
     
+    const eventId = initialEvent ? initialEvent.id : Math.random().toString(36).substr(2, 9);
+    let finalMeetLink = initialEvent?.meetLink;
+    if (addMeet && !finalMeetLink) {
+      if (settings?.defaultMeetingLink) {
+        finalMeetLink = settings.defaultMeetingLink;
+      } else {
+        finalMeetLink = `${window.location.origin}/video/${eventId}`;
+      }
+    }
+
     onSave({
-      id: initialEvent ? initialEvent.id : Math.random().toString(36).substr(2, 9),
+      id: eventId,
       title,
       date,
       startTime,
@@ -70,9 +85,59 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
       textColor,
       description,
       addMeet,
-      guestEmail
+      guestEmail,
+      meetLink: finalMeetLink
     });
+    setIsSaving(false);
     onClose();
+  };
+
+  const downloadICS = async () => {
+    const formatDate = (d: Date, t: string) => {
+      const [h, m] = t.split(':');
+      const dateObj = new Date(d);
+      dateObj.setHours(parseInt(h, 10), parseInt(m, 10), 0);
+      return dateObj.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+    };
+
+    const start = formatDate(date, startTime);
+    const end = formatDate(date, endTime);
+    
+    const eventId = initialEvent ? initialEvent.id : Math.random().toString(36).substring(7);
+    let activeMeetLink = initialEvent?.meetLink;
+    if (addMeet && !activeMeetLink) {
+      if (settings?.defaultMeetingLink) {
+        activeMeetLink = settings.defaultMeetingLink;
+      } else {
+        activeMeetLink = `${window.location.origin}/video/${eventId}`;
+      }
+    }
+    
+    const icsContent = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Unfract//Calendar//EN',
+      'BEGIN:VEVENT',
+      `UID:${eventId}@unfract.com`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'}`,
+      `DTSTART:${start}`,
+      `DTEND:${end}`,
+      `SUMMARY:${title || 'Nuovo Evento'}`,
+      `DESCRIPTION:${description.replace(/\n/g, '\\n')}${activeMeetLink ? `\\n\\nPartecipa alla videoconferenza: ${activeMeetLink}` : ''}`,
+      activeMeetLink ? `LOCATION:${activeMeetLink}` : '',
+      activeMeetLink ? `URL:${activeMeetLink}` : '',
+      'END:VEVENT',
+      'END:VCALENDAR'
+    ].filter(Boolean).join('\r\n');
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${(title || 'evento').replace(/[^a-z0-9]/gi, '_').toLowerCase()}.ics`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -89,7 +154,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
           <h3 className="text-xl font-halfre text-white">
             {initialEvent ? 'Modifica Evento' : 'Nuovo Evento'}
           </h3>
-          <button onClick={onClose} className="p-2 text-white/50 hover:text-white transition-colors hover:bg-white/5 rounded-full">
+          <button onClick={onClose} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full">
             <X size={20} />
           </button>
         </div>
@@ -99,14 +164,14 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
             type="text" 
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="text-2xl font-halfre text-white bg-transparent border-b border-white/10 pb-2 outline-none focus:border-white/30 placeholder:text-white/30 w-full transition-colors"
+            className="text-2xl font-halfre text-white bg-transparent border-b border-white/10 pb-2 outline-none focus:border-white/30 placeholder:text-[#858585] w-full transition-colors"
             placeholder="Aggiungi titolo"
             autoFocus
           />
 
           <div className="flex flex-col gap-4 text-sm text-white/70 font-sans">
             <div className="flex items-center gap-4">
-              <CalendarIcon size={18} className="text-white/40" />
+              <CalendarIcon size={18} className="text-[#858585]" />
               <input 
                 type="date"
                 value={format(date, 'yyyy-MM-dd')}
@@ -116,7 +181,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
             </div>
 
             <div className="flex items-center gap-4">
-              <Clock size={18} className="text-white/40" />
+              <Clock size={18} className="text-[#858585]" />
               <div className="flex items-center gap-2">
                 <input 
                   type="time"
@@ -135,7 +200,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
             </div>
 
             <div className="flex items-start gap-4">
-              <AlignLeft size={18} className="text-white/40 mt-2" />
+              <AlignLeft size={18} className="text-[#858585] mt-2" />
                 <textarea 
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
@@ -145,26 +210,26 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
               </div>
 
               <div className="flex items-center gap-4 mt-2">
-                <Users size={18} className="text-white/40" />
+                <Users size={18} className="text-[#858585]" />
                 <input 
                   type="email" 
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-white/30 placeholder:text-white/30"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-white/30 placeholder:text-[#858585]"
                   placeholder="Email dell'invitato (opzionale)"
                 />
               </div>
 
               {initialEvent?.meetLink && (
                 <div className="flex items-center gap-4 mt-2">
-                  <Video size={18} className="text-white/40" />
+                  <Video size={18} className="text-[#858585]" />
                   <a 
                     href={initialEvent.meetLink} 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="text-[#006AFF] hover:underline"
                   >
-                    Partecipa con Google Meet
+                    Partecipa alla videoconferenza
                   </a>
                 </div>
               )}
@@ -183,7 +248,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
             </div>
 
             <div className="flex items-center gap-4 mt-2">
-              <Video size={18} className="text-white/40" />
+              <Video size={18} className="text-[#858585]" />
               <label className="flex items-center gap-3 cursor-pointer">
                 <div className={`w-10 h-5 rounded-full transition-colors relative ${addMeet ? 'bg-[#006AFF]' : 'bg-white/10'}`}>
                   <div className={`w-3 h-3 rounded-full bg-white absolute top-1 transition-transform ${addMeet ? 'left-6' : 'left-1'}`} />
@@ -194,7 +259,9 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
                   onChange={(e) => setAddMeet(e.target.checked)}
                   className="hidden"
                 />
-                <span className="text-white/80">Genera link di Google Meet</span>
+                <span className="text-white/80">
+                  {settings?.defaultMeetingLink ? 'Aggiungi il mio link riunione predefinito' : 'Genera link per la videoconferenza'}
+                </span>
               </label>
             </div>
           </div>
@@ -209,6 +276,16 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
               Elimina
             </button>
           )}
+          
+          <button 
+            onClick={downloadICS}
+            className={`${(!initialEvent || !onDelete) ? 'mr-auto' : ''} flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#00A6FF] hover:text-[#006AFF] hover:bg-[#006AFF]/10 rounded-full transition-colors`}
+            title="Scarica invito per Outlook, Apple Calendar, ecc."
+          >
+            <Download size={16} />
+            Esporta .ics
+          </button>
+
           <button 
             onClick={onClose}
             className="px-5 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors"
@@ -217,10 +294,10 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
           </button>
           <button 
             onClick={handleSave}
-            disabled={!title.trim()}
-            className="px-5 py-2 rounded-full bg-[#006AFF] text-white text-sm font-medium hover:bg-[#0055CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!title.trim() || isSaving}
+            className="px-5 py-2 rounded-full bg-[#006AFF] text-white text-sm font-medium hover:bg-[#0055CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Salva
+            {isSaving ? 'Salvataggio...' : 'Salva'}
           </button>
         </div>
       </div>

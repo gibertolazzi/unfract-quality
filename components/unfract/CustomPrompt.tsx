@@ -25,7 +25,7 @@ export function CustomPrompt({
       >
         <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
           <h3 className="text-sm font-semibold text-white/90">{title}</h3>
-          <button onClick={onClose} className="text-white/50 hover:text-white transition-colors">
+          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -47,7 +47,7 @@ export function CustomPrompt({
 
           {colors && (
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-white/50">Colore:</span>
+              <span className="text-xs text-[#858585]">Colore:</span>
               <div className="flex gap-2">
                 {colors.map(color => (
                   <button 

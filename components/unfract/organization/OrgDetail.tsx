@@ -9,6 +9,8 @@ import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { AssignProjectModal } from './AssignProjectModal';
 import { Folder } from 'lucide-react';
 
@@ -31,6 +33,9 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState(initialOrg.name);
 
+  const toast = useToast();
+  const dialog = useDialog();
+
   const bannerInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
@@ -43,9 +48,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
     try {
       await updateDoc(doc(db, 'organizations', org.id), { name: editedName });
       setOrg({ ...org, name: editedName });
+      toast.success("Nome aggiornato.");
     } catch (err) {
       console.error(err);
-      alert("Errore durante l'aggiornamento del nome.");
+      toast.error("Errore durante l'aggiornamento del nome.");
       setEditedName(org.name);
     }
   };
@@ -62,9 +68,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       
       await updateDoc(doc(db, 'organizations', org.id), { bannerUrl: url });
       setOrg({ ...org, bannerUrl: url });
+      toast.success("Banner caricato.");
     } catch (err) {
       console.error(err);
-      alert("Errore durante l'upload del banner.");
+      toast.error("Errore durante l'upload del banner.");
     } finally {
       setIsUploadingBanner(false);
     }
@@ -82,9 +89,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       
       await updateDoc(doc(db, 'organizations', org.id), { logoUrl: url });
       setOrg({ ...org, logoUrl: url });
+      toast.success("Logo caricato.");
     } catch (err) {
       console.error(err);
-      alert("Errore durante l'upload del logo.");
+      toast.error("Errore durante l'upload del logo.");
     } finally {
       setIsUploadingLogo(false);
     }
@@ -93,13 +101,13 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const inviteLink = typeof window !== 'undefined' ? `${window.location.origin}/invite/${org.id}` : '';
 
   const copyInviteLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    alert("Link copiato negli appunti!");
+    navigator.clipboard.writeText(`${window.location.origin}/organization/${org.id}?join=true`);
+    toast.success("Link copiato negli appunti!");
   };
 
   const handleSendEmailInvite = async () => {
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
-      alert("Inserisci un indirizzo email valido.");
+      toast.error("Inserisci un indirizzo email valido.");
       return;
     }
     
@@ -122,24 +130,33 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       }
 
       setInviteEmail('');
-      alert('Invito inviato con successo!');
+      setInviteModalOpen(false);
+      toast.success('Invito inviato con successo!');
     } catch (err: any) {
       console.error(err);
-      alert(`Errore: ${err.message}`);
+      toast.error(`Errore: ${err.message}`);
     } finally {
       setIsSendingInvite(false);
     }
   };
 
   const handleUnassignProject = async (projectId: string) => {
-    if (!confirm("Sei sicuro di voler rimuovere questo progetto dall'organizzazione?")) return;
+    const isConfirmed = await dialog.confirm({
+      title: "Rimuovi Progetto",
+      message: "Sei sicuro di voler rimuovere questo progetto dall'organizzazione?",
+      isDestructive: true,
+      confirmText: "Rimuovi"
+    });
+    if (!isConfirmed) return;
+
     try {
       await updateDoc(doc(db, 'projects', projectId), {
         organizationIds: arrayRemove(org.id)
       });
+      toast.success("Progetto rimosso.");
     } catch (err) {
       console.error(err);
-      alert("Errore durante la rimozione del progetto.");
+      toast.error("Errore durante la rimozione del progetto.");
     }
   };
 
@@ -244,11 +261,11 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-white tracking-tight">Membri</h2>
-            <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-white/50 text-[13px] font-medium flex items-center justify-center min-w-[28px]">
+            <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
               {org.members?.length || 0}
             </div>
           </div>
-          <button onClick={() => setInviteModalOpen(true)} className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={() => setInviteModalOpen(true)} className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[#858585] hover:text-white hover:bg-white/10 transition-colors">
             <PlusCircle size={16} />
           </button>
         </div>
@@ -269,7 +286,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[14px] text-white font-medium">{member.displayName}</span>
-                  <span className="text-[11px] text-white/40 capitalize">{member.role}</span>
+                  <span className="text-[11px] text-[#858585] capitalize">{member.role}</span>
                 </div>
               </div>
             </div>
@@ -282,18 +299,18 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold text-white tracking-tight">Progetti</h2>
-            <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-white/50 text-[13px] font-medium flex items-center justify-center min-w-[28px]">
+            <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
               {assignedProjects.length}
             </div>
           </div>
-          <button onClick={() => setAssignProjectModalOpen(true)} className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
+          <button onClick={() => setAssignProjectModalOpen(true)} className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center text-[#858585] hover:text-white hover:bg-white/10 transition-colors">
             <PlusCircle size={16} />
           </button>
         </div>
 
         <div className="flex flex-wrap gap-4">
           {assignedProjects.length === 0 ? (
-            <p className="text-white/40 text-sm">Nessun progetto assegnato a questa organizzazione.</p>
+            <p className="text-[#858585] text-sm">Nessun progetto assegnato a questa organizzazione.</p>
           ) : (
             assignedProjects.map(project => (
               <div 
@@ -306,12 +323,12 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                   </div>
                   <div className="flex flex-col">
                     <span className="text-[14px] text-white font-medium">{project.name}</span>
-                    <span className="text-[11px] text-white/40">Progetto</span>
+                    <span className="text-[11px] text-[#858585]">Progetto</span>
                   </div>
                 </div>
                 <button 
                   onClick={() => handleUnassignProject(project.id)}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-white/40 hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
+                  className="opacity-0 group-hover:opacity-100 p-2 text-[#858585] hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
                   title="Rimuovi progetto"
                 >
                   <X size={16} />
@@ -326,11 +343,11 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       {inviteModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#0A0A0A] border border-white/10 rounded-[24px] p-8 max-w-lg w-full shadow-2xl relative">
-            <button onClick={() => setInviteModalOpen(false)} className="absolute top-6 right-6 text-white/50 hover:text-white">
+            <button onClick={() => setInviteModalOpen(false)} className="absolute top-6 right-6 text-[#858585] hover:text-white">
               <X size={20} />
             </button>
             <h2 className="text-2xl font-semibold text-white mb-2">Invita Membri</h2>
-            <p className="text-white/50 text-sm mb-6">Invia un invito via email o condividi il link con il tuo team.</p>
+            <p className="text-[#858585] text-sm mb-6">Invia un invito via email o condividi il link con il tuo team.</p>
             
             {/* Invite via Email */}
             <div className="mb-6">
@@ -355,7 +372,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
             <div className="relative flex items-center py-2 mb-6">
               <div className="flex-grow border-t border-white/10"></div>
-              <span className="flex-shrink-0 mx-4 text-white/30 text-xs font-medium">OPPURE CONDIVIDI IL LINK</span>
+              <span className="flex-shrink-0 mx-4 text-[#858585] text-xs font-medium">OPPURE CONDIVIDI IL LINK</span>
               <div className="flex-grow border-t border-white/10"></div>
             </div>
 

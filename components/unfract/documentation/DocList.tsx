@@ -8,6 +8,7 @@ import { DocCard } from './DocCard';
 
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 
 interface DocListProps {
   documents: Document[];
@@ -16,23 +17,30 @@ interface DocListProps {
 export function DocList({ documents }: DocListProps) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
+  const toast = useToast();
   const { activeProjectId } = useProject();
   const { user } = useAuth();
 
   const handleCreateNew = async () => {
     if (!activeProjectId || !user) {
-      alert("Progetto o utente non trovato.");
+      toast.error("Progetto o utente non trovato.");
       return;
     }
     setIsCreating(true);
     // Dynamic import to avoid SSR issues if any, or just import at top.
     const { createDocument } = await import('@/lib/documentation');
-    const newId = await createDocument(user.displayName || "Utente Sconosciuto", activeProjectId);
-    if (newId) {
-      router.push(`/documentation/${newId}?edit=true`);
-    } else {
+    try {
+      const newId = await createDocument(activeProjectId, user.displayName || "Utente Sconosciuto");
+      if (newId) {
+        router.push(`/documentation/${newId}?edit=true`);
+      } else {
+        setIsCreating(false);
+        toast.error('Errore durante la creazione del documento.');
+      }
+    } catch (error) {
+      console.error(error);
       setIsCreating(false);
-      alert('Errore durante la creazione del documento.');
+      toast.error('Errore durante la creazione del documento.');
     }
   };
 
@@ -49,7 +57,7 @@ export function DocList({ documents }: DocListProps) {
           New Document
         </button>
 
-        <button className="flex items-center gap-2 border border-white/10 bg-transparent text-white/50 hover:text-white transition-colors px-4 py-2.5 rounded-xl text-sm font-medium">
+        <button className="flex items-center gap-2 border border-white/10 bg-transparent text-[#858585] hover:text-white transition-colors px-4 py-2.5 rounded-xl text-sm font-medium">
           Ordina per: più recente
           <ChevronDown size={16} />
         </button>
@@ -58,7 +66,7 @@ export function DocList({ documents }: DocListProps) {
       {/* List */}
       <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pb-10">
         {documents.length === 0 ? (
-          <div className="text-center text-white/50 mt-10">
+          <div className="text-center text-[#858585] mt-10">
             Nessun documento trovato. Creane uno nuovo!
           </div>
         ) : (
