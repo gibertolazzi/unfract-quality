@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useProject } from '@/contexts/ProjectContext';
-import { UserSettingsModal } from './UserSettingsModal';
+import { UserSettingsModal } from '@/components/unfract/auth/UserSettingsModal';
 
 type Notification = {
   id: string;

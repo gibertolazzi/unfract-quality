@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Circle, ChevronDown, ChevronRight, PlusCircle, CheckCircle2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
-import { CustomPrompt } from './CustomPrompt';
+import { CustomPrompt } from '@/components/unfract/shared/CustomPrompt';
 
 import { useProject } from '@/contexts/ProjectContext';
 

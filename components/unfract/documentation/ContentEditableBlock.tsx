@@ -2,7 +2,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { parseMentionsToHtml } from '@/lib/parseMentions';
-import { MentionDropdown } from '@/components/unfract/MentionDropdown';
+import { MentionDropdown } from '@/components/unfract/shared/MentionDropdown';
 
 interface ContentEditableBlockProps {
   id: string;

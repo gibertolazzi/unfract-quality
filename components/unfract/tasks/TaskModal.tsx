@@ -13,7 +13,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { parseMentions } from '@/lib/parseMentions';
-import { MentionDropdown } from './MentionDropdown';
+import { MentionDropdown } from '@/components/unfract/shared/MentionDropdown';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200] bg-[#FF2200]/10',

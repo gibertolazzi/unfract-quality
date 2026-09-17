@@ -3,7 +3,7 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendMessage, Mention, Attachment } from '@/lib/chat';
-import { MentionDropdown } from '@/components/unfract/MentionDropdown';
+import { MentionDropdown } from '@/components/unfract/shared/MentionDropdown';
 import { Send, ImagePlus, Paperclip, Loader2, X, File as FileIcon, Plus } from 'lucide-react';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';

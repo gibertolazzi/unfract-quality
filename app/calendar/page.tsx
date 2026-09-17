@@ -1,5 +1,5 @@
 import React from "react";
-import { CalendarBoard } from "@/components/unfract/CalendarBoard";
+import { CalendarBoard } from "@/components/unfract/calendar/CalendarBoard";
 
 export default function CalendarPage() {
   return (

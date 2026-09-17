@@ -2,10 +2,10 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Sidebar } from "@/components/unfract/Sidebar";
-import { TopBar } from "@/components/unfract/TopBar";
+import { Sidebar } from "@/components/unfract/layout/Sidebar";
+import { TopBar } from "@/components/unfract/layout/TopBar";
 import { useAuth } from "@/contexts/AuthContext";
-import { LoginScreen } from "@/components/unfract/LoginScreen";
+import { LoginScreen } from "@/components/unfract/auth/LoginScreen";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

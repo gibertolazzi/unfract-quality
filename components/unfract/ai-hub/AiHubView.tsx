@@ -31,7 +31,7 @@ export function AiHubView() {
     }
   }, [activeProjectId]);
 
-  const context = activeProject ? `Progetto: ${activeProject.name}\nDescrizione: ${activeProject.description || ''}\n\nTasks:\n${tasks.map(t => `- [TASK:${t.id}] ${t.title} (${t.status}, priority: ${t.priority || 'medium'})`).join('\n')}` : "";
+  const context = activeProject ? `Progetto: ${activeProject.name}\nDescrizione: ${activeProject.name || ''}\n\nTasks:\n${tasks.map(t => `- [TASK:${t.id}] ${t.title} (${t.status}, priority: ${t.priority || 'medium'})`).join('\n')}` : "";
 
   const { 
     messages, 

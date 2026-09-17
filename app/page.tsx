@@ -1,5 +1,5 @@
 import React from "react";
-import { TaskBoard } from "@/components/TaskBoard";
+import { TaskBoard } from "@/components/unfract/tasks/TaskBoard";
 
 export default function UnfractPage() {
   return (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar as CalendarIcon, Clock, AlignLeft, Video, Users, Download } from 'lucide-react';
-import { CalendarEvent } from './calendar/types';
+import { CalendarEvent } from './types';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';

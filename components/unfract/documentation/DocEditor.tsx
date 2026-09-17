@@ -12,7 +12,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { DocToolbar } from './DocToolbar';
 import { SlashMenu } from './SlashMenu';
-import { CustomPrompt } from '../CustomPrompt';
+import { CustomPrompt } from '@/components/unfract/shared/CustomPrompt';
 import { ContentEditableBlock } from './ContentEditableBlock';
 import { compressAndUploadImage } from '@/lib/storage';
 

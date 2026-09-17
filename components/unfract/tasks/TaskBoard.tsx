@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { Calendar, PlusCircle, Trash2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import { TaskModal } from './unfract/TaskModal';
-import { TaskList } from './unfract/TaskList';
-import { TaskTimeline } from './unfract/TaskTimeline';
-import { CustomPrompt } from './unfract/CustomPrompt';
+import { TaskModal } from '@/components/unfract/tasks/TaskModal';
+import { TaskList } from '@/components/unfract/tasks/TaskList';
+import { TaskTimeline } from '@/components/unfract/tasks/TaskTimeline';
+import { CustomPrompt } from '@/components/unfract/shared/CustomPrompt';
 import { collection, onSnapshot, doc, writeBatch, updateDoc, deleteDoc, addDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProject } from '@/contexts/ProjectContext';

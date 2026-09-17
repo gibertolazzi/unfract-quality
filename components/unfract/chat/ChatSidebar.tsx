@@ -126,7 +126,7 @@ export function ChatSidebar() {
                       <span className="truncate">{chat.name}</span>
                     </div>
                     <div 
-                      onClick={(e) => handleDeleteChat(e, chat.id, chat.name)}
+                      onClick={(e) => handleDeleteChat(e, chat.id, chat.name || "Chat")}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-[#FF0004]/20 hover:text-[#FF0004] rounded transition-all text-[#858585] shrink-0"
                     >
                       <Trash2 size={12} />

@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ChevronLeft, Calendar, Clock, User, CheckCircle2, FileText, Target, Pencil, Check, X } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { TaskModal } from '@/components/unfract/TaskModal';
+import { TaskModal } from '@/components/unfract/tasks/TaskModal';
 import { useProject } from '@/contexts/ProjectContext';
 import { TranscriptModal } from '@/components/unfract/meetings/TranscriptModal';
 

@@ -1,7 +1,7 @@
 import "./globals.css";
 import React from "react";
 import { ClientProviders } from "@/components/ClientProviders";
-import { AppShell } from "@/components/AppShell";
+import { AppShell } from "@/components/unfract/layout/AppShell";
 
 export default function DashboardLayout({ children }: { children?: React.ReactNode }) {
   return (
