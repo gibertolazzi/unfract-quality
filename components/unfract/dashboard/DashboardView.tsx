@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClock } from "@/contexts/ClockContext";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { fetchCalendarEvents } from "@/lib/googleCalendar";
 import { format, startOfDay, endOfDay } from "date-fns";
@@ -48,67 +48,50 @@ export function DashboardView() {
 
   useEffect(() => {
     const loadEvents = async () => {
-      if (!accessToken) return;
-      setIsSyncing(true);
-      try {
-        const today = new Date();
-        const evts = await fetchCalendarEvents(accessToken, startOfDay(today), endOfDay(today));
-        
-        const mapped = evts.map((e: any) => {
-          const start = e.start?.dateTime ? new Date(e.start.dateTime) : new Date(e.start?.date);
-          const end = e.end?.dateTime ? new Date(e.end.dateTime) : new Date(e.end?.date);
-          return {
-            id: e.id,
-            title: e.summary || "Senza titolo",
-            start,
-            end,
-            startTime: format(start, "HH:mm"),
-            endTime: format(end, "HH:mm"),
-            meetLink: e.hangoutLink
-          };
-        }).sort((a: any, b: any) => a.start.getTime() - b.start.getTime());
-        
-        setEvents(mapped);
-      } catch (err) {
-        console.error("Error fetching calendar", err);
-      } finally {
+      if (accessToken) {
+        setIsSyncing(true);
+        try {
+          const now = new Date();
+          const start = startOfDay(now);
+          const end = endOfDay(now);
+          const rawEvents = await fetchCalendarEvents(accessToken, start, end);
+          const mapped = rawEvents.map((ev: any) => ({
+            id: ev.id,
+            title: ev.summary || "Senza Titolo",
+            startTime: ev.start.dateTime ? format(new Date(ev.start.dateTime), "HH:mm") : "Tutto il giorno",
+            endTime: ev.end.dateTime ? format(new Date(ev.end.dateTime), "HH:mm") : "",
+            meetLink: ev.hangoutLink
+          }));
+          setEvents(mapped);
+        } catch (error) {
+          console.error("Errore fetch eventi:", error);
+        }
         setIsSyncing(false);
       }
     };
     loadEvents();
   }, [accessToken]);
 
-  const formatSeconds = (totalSeconds: number) => {
-    const h = Math.floor(totalSeconds / 3600);
-    const m = Math.floor((totalSeconds % 3600) / 60);
-    const s = totalSeconds % 60;
-    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
   const userTasks = tasks.filter(t => t.assignee === user?.displayName || !t.assignee).slice(0, 6);
   
-  const totalTasks = tasks.length || 1;
-  let completedCount = 0;
-  let inProgressCount = 0;
-  let notStartedCount = 0;
+  const completedCount = tasks.filter(t => getTaskStatus(t) === "done").length;
+  const inProgressCount = tasks.filter(t => getTaskStatus(t) === "progress").length;
+  const notStartedCount = tasks.filter(t => getTaskStatus(t) === "todo").length;
+  const totalTasks = tasks.length || 1; 
 
-  tasks.forEach(t => {
-    const col = columns.find(c => c.id === t.columnId);
-    const title = col?.title?.toLowerCase() || "";
-    if (title.includes("done") || title.includes("fatto") || title.includes("completato")) {
-      completedCount++;
-    } else if (title.includes("progress") || title.includes("lavorazione") || title.includes("doing")) {
-      inProgressCount++;
-    } else {
-      notStartedCount++;
-    }
-  });
-
-  const percCompleted = Math.round((completedCount / totalTasks) * 100) || 0;
+  const percCompleted = Math.round((completedCount / totalTasks) * 100);
   
-  const circ = 238.76;
-  const cDashOffset = circ - (completedCount / totalTasks) * circ;
-  const pDashOffset = circ - (inProgressCount / totalTasks) * circ;
+  const circ = 2 * Math.PI * 38;
+  const pDashOffset = circ - (completedCount / totalTasks) * circ;
+  const cDashOffset = circ - (inProgressCount / totalTasks) * circ;
   const nDashOffset = circ - (notStartedCount / totalTasks) * circ;
   
   const pRotation = -90 + (completedCount / totalTasks) * 360;
@@ -120,18 +103,59 @@ export function DashboardView() {
     return "bg-[#006AFF]/10 text-[#006AFF] border-[#006AFF]/30";
   };
   
+  const getPriorityTextColor = (priority: string) => {
+    if (priority === "High" || priority === "Critical") return "text-[#FF0004]";
+    if (priority === "Medium") return "text-[#FFB800]";
+    return "text-[#006AFF]";
+  };
+
   const getPriorityGlow = (priority: string) => {
     if (priority === "High" || priority === "Critical") return "bg-[#FF0004]";
     if (priority === "Medium") return "bg-[#FFB800]";
     return "bg-[#006AFF]";
   };
 
-  const getTaskStatus = (task: any) => {
+  function getTaskStatus(task: any) {
     const col = columns.find(c => c.id === task.columnId);
     const title = col?.title?.toLowerCase() || "";
     if (title.includes("done") || title.includes("fatto") || title.includes("completato")) return "done";
     if (title.includes("progress") || title.includes("lavorazione") || title.includes("doing")) return "progress";
     return "todo";
+  };
+
+  const handleToggleTaskStatus = async (e: React.MouseEvent, task: any) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const currentStatus = getTaskStatus(task);
+    
+    // Find target column
+    let targetColId = null;
+    if (currentStatus === "done") {
+      // Move to "To Do"
+      const todoCol = columns.find(c => {
+        const title = c.title?.toLowerCase() || "";
+        return title.includes("to do") || title.includes("todo") || title.includes("da fare");
+      });
+      targetColId = todoCol?.id || columns[0]?.id;
+    } else {
+      // Move to "Done"
+      const doneCol = columns.find(c => {
+        const title = c.title?.toLowerCase() || "";
+        return title.includes("done") || title.includes("fatto") || title.includes("completato");
+      });
+      targetColId = doneCol?.id || columns[columns.length - 1]?.id;
+    }
+
+    if (targetColId && targetColId !== task.columnId) {
+      try {
+        await updateDoc(doc(db, "tasks", task.id), {
+          columnId: targetColId
+        });
+      } catch (error) {
+        console.error("Error updating task status:", error);
+      }
+    }
   };
 
   return (
@@ -162,11 +186,14 @@ export function DashboardView() {
                       href="/"
                       className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors group"
                     >
-                      <div className="relative flex-shrink-0">
+                      <div 
+                        className="relative flex-shrink-0 cursor-pointer group/dot"
+                        onClick={(e) => handleToggleTaskStatus(e, task)}
+                      >
                         {status === "done" ? (
                           <CheckCircle2 size={18} className="text-[#00D222]" />
                         ) : (
-                          <Circle size={18} className="text-[#858585] group-hover:text-[#858585] transition-colors" />
+                          <Circle size={18} className={`${getPriorityTextColor(task.priority)} opacity-50 group-hover/dot:opacity-100 transition-opacity`} />
                         )}
                         <div className={`absolute -top-0.5 -left-0.5 w-5 h-5 rounded-full ${getPriorityGlow(task.priority)} opacity-20 blur-[6px]`} />
                       </div>
