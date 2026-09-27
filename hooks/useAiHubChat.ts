@@ -72,7 +72,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
   const generateTitle = async (firstMessage: string) => {
     try {
       const genAI = new GoogleGenerativeAI(AI_HUB_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash-lite' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
       const prompt = `Genera un titolo molto breve (massimo 4-5 parole) per descrivere questo messaggio dell'utente. Restituisci SOLO il titolo senza virgolette e senza altra punteggiatura.\nMessaggio: "${firstMessage}"`;
       const result = await model.generateContent(prompt);
       return result.response.text().trim();
@@ -122,7 +122,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
     try {
       const genAI = new GoogleGenerativeAI(AI_HUB_KEY);
       const model = genAI.getGenerativeModel({ 
-        model: 'gemini-3.5-flash-lite',
+        model: 'gemini-3.8-flash',
         systemInstruction: `Sei Unfract AI, l'assistente strategico del progetto aziendale. \n\nContesto del progetto:\n${projectContextText}\n\nRispondi alle domande dell'utente in modo professionale e conciso. Se l'utente chiede lo stato di una task, o menziona una task specifica, INCLUDI SEMPRE il tag speciale [TASK:id_della_task] nel tuo testo per permettere al sistema di mostrare la card visiva.` 
       });
 

@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
-import { Meeting } from '@/components/unfract/meetings/types';
+import { Meeting } from '@/types/meetings';
 
 const COLLECTION_NAME = 'meetings';
 
@@ -105,10 +105,16 @@ export async function getMeetingById(id: string): Promise<(Meeting & { projectId
 export async function saveMeeting(projectId: string, meetingData: Omit<Meeting, 'id' | 'createdAt'>): Promise<string | null> {
   try {
     if (!projectId) throw new Error("projectId is required");
+    
+    // Per eliminare il meeting dopo 3 giorni tramite Firebase TTL
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 3);
+
     const dataToSave = {
       ...meetingData,
       projectId,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      expiresAt: expiresAt
     };
     const docRef = await addDoc(collection(db, COLLECTION_NAME), dataToSave);
     return docRef.id;
@@ -124,6 +130,17 @@ export async function deleteMeeting(id: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Error deleting meeting:", error);
+    return false;
+  }
+}
+
+export async function updateMeeting(id: string, data: Partial<Meeting>): Promise<boolean> {
+  try {
+    const docRef = doc(db, COLLECTION_NAME, id);
+    await updateDoc(docRef, data);
+    return true;
+  } catch (error) {
+    console.error("Error updating meeting:", error);
     return false;
   }
 }

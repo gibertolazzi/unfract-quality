@@ -14,14 +14,17 @@ export async function fetchCalendarEvents(accessToken: string, timeMin: Date, ti
     });
 
     if (!res.ok) {
-      throw new Error('Failed to fetch events');
+      if (res.status === 401) {
+        return { error: 'unauthorized' };
+      }
+      throw new Error('Failed to fetch events: ' + res.status);
     }
 
     const data = await res.json();
-    return data.items || [];
+    return { items: data.items || [] };
   } catch (error) {
-    console.error('Error fetching calendar events:', error);
-    return [];
+    // console.error('Error fetching calendar events:', error); // silenced console spam
+    return { items: [] };
   }
 }
 

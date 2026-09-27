@@ -8,8 +8,7 @@ export async function processMeetingTranscript(audioBlob?: Blob | null, roughTra
     throw new Error("Manca la API Key di Gemini. Inserisci NEXT_PUBLIC_GEMINI_API_KEY nel file .env.local");
   }
 
-  // Using gemini-3.1-pro for highest quality transcription and processing of 1h+ meetings
-  const model = genAI.getGenerativeModel({ model: "gemini-3.1-pro", generationConfig: { responseMimeType: "application/json" } });
+    
 
   let fileUri: string | null = null;
   let mimeType: string | null = null;
@@ -93,31 +92,63 @@ Devi estrarre le seguenti informazioni ed emettere ESATTAMENTE questo formato JS
 }
 `;
 
-  try {
-    let result;
-    if (fileUri && mimeType) {
-      result = await model.generateContent([
-        prompt,
-        {
-          fileData: {
-            mimeType: mimeType,
-            fileUri: fileUri
+    // Usa gemini-3.5-transcribe come modello primario assoluto (ottimizzato per l'audio) se c'è un fileUri
+    const modelsToTry = fileUri 
+    ? ["gemini-3.5-transcribe", "gemini-3.6-flash"]
+    : ["gemini-3.6-flash"];
+  let lastError;
+  const MAX_RETRIES = 3;
+
+  for (const modelName of modelsToTry) {
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        console.log(`Tentativo ${attempt}/${MAX_RETRIES} di generazione con il modello: ${modelName}`);
+        // Fallback a un MIME type testuale per gemini-pro che a volte non supporta application/json
+        const responseMimeType = modelName === 'gemini-pro' ? 'text/plain' : 'application/json';
+        const currentModel = genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType } });
+        
+        let result;
+        if (fileUri && mimeType) {
+          result = await currentModel.generateContent([
+            prompt,
+            {
+              fileData: {
+                mimeType: mimeType,
+                fileUri: fileUri
+              }
+            }
+          ]);
+        } else {
+          result = await currentModel.generateContent(prompt);
+        }
+        
+        const response = await result.response;
+        let text = response.text();
+        
+        // Rimuovi eventuali blocchi markdown
+        text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+
+        return JSON.parse(text);
+      } catch (error: any) {
+        lastError = error;
+        
+        // Se è un 503 o 429, ritentiamo sullo stesso modello con exponential backoff
+        if (error.message && (error.message.includes('503') || error.message.includes('429'))) {
+          if (attempt < MAX_RETRIES) {
+            const delay = attempt * 2000;
+            console.warn(`Modello ${modelName} sovraccarico (503/429). Ritento tra ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue; // Prova di nuovo
           }
         }
-      ]);
-    } else {
-      result = await model.generateContent(prompt);
+        
+        // Se non è un 503/429 o abbiamo esaurito i tentativi, loggiamo l'errore e passiamo al prossimo modello.
+        console.error(`Errore definitivo con il modello ${modelName} (dopo ${attempt} tentativi):`, error.message || error);
+        break; // Passa al modello successivo in modelsToTry
+      }
     }
-    
-    const response = await result.response;
-    let text = response.text();
-    
-    // Rimuovi eventuali blocchi markdown ```json ... ```
-    text = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-
-    return JSON.parse(text);
-  } catch (error) {
-    console.error("Errore durante l'elaborazione con Gemini:", error);
-    throw error;
   }
+
+  console.error("Tutti i modelli hanno fallito. Ultimo errore:", lastError);
+  throw lastError;
 }

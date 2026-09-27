@@ -2,9 +2,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, query, getDocs, onSnapshot, where } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { Organization } from '@/components/unfract/organization/types';
+import { Organization } from '@/types/organization';
 
 interface OrganizationContextType {
   organizations: Organization[];
@@ -33,19 +33,12 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
     }
 
     const orgsRef = collection(db, 'organizations');
-    // In un'app reale con molti dati, dovremmo avere un array `memberUids` su Firestore per fare:
-    // query(orgsRef, where('memberUids', 'array-contains', user.uid))
-    // Per MVP, carichiamo tutto in tempo reale e filtriamo lato client
-    const q = query(orgsRef);
+    const q = query(orgsRef, where('memberUids', 'array-contains', user.uid));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const fetchedOrgs: Organization[] = [];
       snapshot.forEach(doc => {
-        const data = doc.data() as any;
-        const isMember = data.members?.some((m: any) => m.uid === user.uid);
-        if (isMember) {
-          fetchedOrgs.push({ id: doc.id, ...data } as Organization);
-        }
+        fetchedOrgs.push({ id: doc.id, ...doc.data() } as Organization);
       });
       setOrganizations(fetchedOrgs);
       setLoading(false);

@@ -1,6 +1,6 @@
 import { db } from '@/lib/firebase';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query } from 'firebase/firestore';
-import { CalendarEvent } from '@/components/unfract/calendar/types';
+import { CalendarEvent } from '@/types/calendar';
 
 export const subscribeToEvents = (userId: string, callback: (events: CalendarEvent[]) => void) => {
   const eventsRef = collection(db, 'users', userId, 'events');

@@ -1,16 +1,18 @@
 import "./globals.css";
 import React from "react";
 import { ClientProviders } from "@/components/ClientProviders";
-import { AppShell } from "@/components/unfract/layout/AppShell";
 
-export default function DashboardLayout({ children }: { children?: React.ReactNode }) {
+export const metadata = {
+  title: "Unfract MVP",
+  description: "Unfract MVP Application",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
         <ClientProviders>
-          <AppShell>
-            {children}
-          </AppShell>
+          {children}
         </ClientProviders>
       </body>
     </html>

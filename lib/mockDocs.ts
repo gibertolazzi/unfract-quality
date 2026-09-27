@@ -1,4 +1,4 @@
-import { Document } from '@/components/unfract/documentation/types';
+import { Document } from '@/types/documentation';
 
 export const MOCK_DOCS: Document[] = [
   {

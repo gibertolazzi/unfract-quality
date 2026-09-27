@@ -3,8 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 
 interface ClockContextType {
-  time: string;
-  
   chronoTime: number;
   chronoRunning: boolean;
   toggleChrono: () => void;
@@ -20,7 +18,6 @@ interface ClockContextType {
 const ClockContext = createContext<ClockContextType | undefined>(undefined);
 
 export function ClockProvider({ children }: { children: React.ReactNode }) {
-  const [time, setTime] = useState<string>("00:00:00");
   
   const [chronoTime, setChronoTime] = useState(0);
   const [chronoRunning, setChronoRunning] = useState(false);
@@ -30,17 +27,6 @@ export function ClockProvider({ children }: { children: React.ReactNode }) {
   const [timerRunning, setTimerRunning] = useState(false);
   const [initialTimerMinutes, setInitialTimerMinutes] = useState(25);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Global Clock
-  useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTime(now.toLocaleTimeString("it-IT", { hour12: false }));
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   // Chrono Logic
   const toggleChrono = () => {
@@ -98,7 +84,6 @@ export function ClockProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <ClockContext.Provider value={{
-      time,
       chronoTime, chronoRunning, toggleChrono, resetChrono,
       timerTime, timerRunning, toggleTimer, resetTimer, setCustomTimer
     }}>

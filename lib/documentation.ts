@@ -1,6 +1,6 @@
 import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
-import { Document, DocBlock } from '@/components/unfract/documentation/types';
+import { Document, DocBlock } from '@/types/documentation';
 
 const COLLECTION_NAME = 'documentation';
 

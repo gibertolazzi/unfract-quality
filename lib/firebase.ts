@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
@@ -18,7 +18,10 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Firestore and Auth
-const db = getFirestore(app);
+// Configure Firestore to use long polling to prevent AbortError during Next.js Hot Reloads
+const db = !getApps().length
+  ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true } as any)
+  : getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 

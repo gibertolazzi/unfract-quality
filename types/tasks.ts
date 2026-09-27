@@ -1,0 +1,35 @@
+export interface Task {
+  id: string;
+  title: string;
+  description?: string;
+  priority: string;
+  category?: string;
+  columnId: string;
+  epicId?: string;
+  date?: string;
+  createdAt?: any;
+  updatedAt?: any;
+  completedAt?: any;
+  projectId: string;
+  order?: number;
+  assignees?: number;
+  comments?: any[];
+  attachments?: any[];
+  meetingId?: string;
+  meetingTaskIdx?: number;
+}
+
+export interface Column {
+  id: string;
+  title: string;
+  order: number;
+  projectId: string;
+}
+
+export interface Epic {
+  id: string;
+  title: string;
+  color: string;
+  projectId: string;
+  createdAt?: string;
+}
