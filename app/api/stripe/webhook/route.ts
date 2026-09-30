@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy');
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
-export async function POST(req: Request) {
+export async function POST(req: any) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
   const payload = await req.text();
   const signature = req.headers.get('stripe-signature');
 

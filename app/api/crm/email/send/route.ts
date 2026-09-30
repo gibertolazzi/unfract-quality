@@ -83,7 +83,7 @@ function prune() {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 
-export async function POST(req) {
+export async function POST(req: any) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const resendKey = process.env.RESEND_API_KEY;
   const firebaseApiKey = process.env.FIREBASE_WEB_API_KEY;
