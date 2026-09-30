@@ -11,9 +11,11 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@hello-pangea/dnd": "^18.0.1",
+    "@stripe/stripe-js": "^9.17.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
     "firebase": "^12.18.0",
+    "firebase-admin": "^14.5.0",
     "lucide-react": "^0.395.0",
     "motion": "^13.4.1",
     "next": "14.2.4",
@@ -23,6 +25,7 @@
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
     "resend": "^6.26.0",
+    "stripe": "^22.6.2",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {

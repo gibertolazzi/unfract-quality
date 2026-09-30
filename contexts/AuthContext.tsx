@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { auth, GoogleAuthProvider, signInWithPopup } from '@/lib/firebase';
-import { onAuthStateChanged, User, signOut } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -22,6 +22,9 @@ interface AuthContextType {
   settings: UserSettings | null;
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (e: string, p: string) => Promise<void>;
+  registerWithEmail: (e: string, p: string, name: string) => Promise<void>;
+  resetPassword: (e: string) => Promise<void>;
   logout: () => Promise<void>;
   accessToken: string | null;
   updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>;
@@ -32,6 +35,9 @@ const AuthContext = createContext<AuthContextType>({
   settings: null,
   loading: true,
   loginWithGoogle: async () => {},
+  loginWithEmail: async () => {},
+  registerWithEmail: async () => {},
+  resetPassword: async () => {},
   logout: async () => {},
   accessToken: null,
   updateSettings: async () => {},
@@ -87,6 +93,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      console.error("Error signing in with email", error);
+      throw error;
+    }
+  };
+
+  const registerWithEmail = async (email: string, password: string, name: string) => {
+    try {
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      // Aggiorniamo subito il nome nel documento utente
+      const userRef = doc(db, 'users', result.user.uid);
+      await setDoc(userRef, {
+        displayName: name,
+        email: email,
+        photoURL: null,
+        plan: 'free', // Predisposizione per la fase 2
+        createdAt: new Date(),
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error registering with email", error);
+      throw error;
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email);
+    } catch (error) {
+      console.error("Error resetting password", error);
+      throw error;
+    }
+  };
+
   const loginWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider();
@@ -126,7 +168,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, settings, loading, loginWithGoogle, logout, accessToken, updateSettings }}>
+    <AuthContext.Provider value={{ user, settings, loading, loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, logout, accessToken, updateSettings }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,5 @@
 "use client";
+import { UpgradeModal } from "@/components/marketing/UpgradeModal";
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -124,6 +125,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const [editValue, setEditValue] = useState("");
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
 
   useEffect(() => {
     if (onClose && isOpen) onClose();
@@ -433,7 +435,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
       
       {/* Bottom Upgrade */}
       <div className="flex flex-col gap-3 mt-4 shrink-0">
-        <div className="flex items-center justify-between px-4 py-3 border border-white/10 rounded-2xl bg-gradient-to-b from-white/10 to-transparent cursor-pointer hover:border-white/20 transition-all overflow-hidden">
+        <div onClick={() => setIsUpgradeOpen(true)} className="flex items-center justify-between px-4 py-3 border border-white/10 rounded-2xl bg-gradient-to-b from-[#006AFF]/20 to-transparent cursor-pointer hover:border-[#006AFF]/50 transition-all overflow-hidden">
           <div className="flex items-center gap-2 truncate">
             <div className="shrink-0">
               <ChevronUp size={16} className="text-white" />
@@ -457,6 +459,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
           </div>
         )}
       </div>
+      {isUpgradeOpen && <UpgradeModal onClose={() => setIsUpgradeOpen(false)} />}
       {isCreateModalOpen && (
         <CreateProjectModal 
           onClose={() => setIsCreateModalOpen(false)}
