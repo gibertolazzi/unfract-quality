@@ -58,6 +58,7 @@ export default function OrganizationPage() {
       const newOrgData = {
         name: newOrgName,
         ownerId: user.uid,
+        memberUids: [user.uid],
         memberCount: 1,
         bannerGradient: 'from-[#0061FF] to-[#00D2FF]', // default
         members: [{

@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, getDocs, onSnapshot, where } from 'firebase/firestore';
+import { OrganizationService } from '@/lib/services/organizationService';
 import { useAuth } from './AuthContext';
 import { Organization } from '@/types/organization';
 
@@ -32,18 +32,8 @@ export function OrganizationProvider({ children }: { children: React.ReactNode }
       return;
     }
 
-    const orgsRef = collection(db, 'organizations');
-    const q = query(orgsRef, where('memberUids', 'array-contains', user.uid));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedOrgs: Organization[] = [];
-      snapshot.forEach(doc => {
-        fetchedOrgs.push({ id: doc.id, ...doc.data() } as Organization);
-      });
+    const unsubscribe = OrganizationService.subscribe(user.uid, (fetchedOrgs) => {
       setOrganizations(fetchedOrgs);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching organizations:", error);
       setLoading(false);
     });
 
