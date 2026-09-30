@@ -447,7 +447,8 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                 )}
                 
                 {!timerRunning && !isTimerActive ? (
-                  <input
+                  <>
+                    <input
                     type="number"
                     className="w-8 bg-transparent text-[15px] font-bold tracking-wider tabular-nums text-[#858585] outline-none placeholder:text-[#858585] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:m-0"
                     placeholder="25"
@@ -464,6 +465,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     }}
                   />
                   <span className="text-[10px] uppercase tracking-wider text-[#858585]/70 font-semibold ml-[-4px]">min</span>
+                  </>
                 ) : (
                   <span className={`text-[15px] font-bold tracking-wider tabular-nums ${timerRunning || isTimerActive ? "text-[#00D222] drop-shadow-[0_0_8px_rgba(0,210,34,0.4)]" : "text-[#858585]"}`}>
                     {formatSeconds(timerTime)}

@@ -6,6 +6,7 @@ import { getRecapEmailHtml, getNotificationEmailHtml, QueuedNotification } from 
 
 
 export async function GET(request: Request) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   // Verifichiamo un secret per evitare abusi pubblici
   const authHeader = request.headers.get('authorization');
   if (authHeader !== `Bearer ${process.env.CRON_SECRET || 'unfract-cron-secret-123'}`) {
