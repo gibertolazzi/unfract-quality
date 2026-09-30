@@ -325,10 +325,16 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   );
 
   return (
-    <div className="h-[88px] w-full flex items-center justify-between px-6 bg-[#0B0B0B]">
+    <div className="min-h-[88px] h-auto py-4 md:py-0 w-full flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 bg-[#0B0B0B] gap-4">
+      
+      
+      {/* Mobile Hamburger */}
+      <button onClick={onMenuClick} className="md:hidden p-2 -ml-2 rounded-lg text-[#858585] hover:text-white hover:bg-white/5 transition-colors">
+        <Menu size={20} />
+      </button>
       
       {/* CENTER: Cerca (Allargata e allineata a sinistra) */}
-      <div className="flex-1 flex justify-start relative" ref={searchRef}>
+      <div className="w-full md:flex-1 md:flex justify-start relative order-2 md:order-1" ref={searchRef}>
         <div className={`flex items-center gap-3 bg-[#0A0A0A] border transition-colors h-[44px] px-5 rounded-full w-full max-w-[600px] shadow-sm ${isSearchOpen ? 'border-[#006AFF]/50' : 'border-white/5 hover:border-white/10'}`}>
           <Search size={16} className="text-[#858585]" />
           <input 
@@ -412,7 +418,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
       </div>
 
       {/* RIGHT PORTION (Dynamic Island + Notifiche & Profilo) */}
-      <div className="flex items-center gap-6 justify-end w-[350px]">
+      <div className="flex items-center gap-3 md:gap-6 justify-end w-auto lg:w-[350px] order-1 md:order-2">
         {/* Dynamic Island */}
         <div className="relative z-50" ref={islandRef}>
           <div 
@@ -423,7 +429,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
 
           {/* Expanded Menu */}
-          <div className={`absolute top-[54px] left-1/2 -translate-x-1/2 w-[240px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top flex flex-col p-4 gap-4 ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
+          <div className={`absolute top-[54px] right-0 md:left-1/2 md:-translate-x-1/2 w-[240px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top flex flex-col p-4 gap-4 ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
             <div className="flex items-center justify-between">
               <span className="text-[#858585] text-xs font-medium uppercase tracking-wider">Orologio</span>
               <span className="text-white font-medium text-sm tabular-nums">{time}</span>
@@ -443,7 +449,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                 {!timerRunning && !isTimerActive ? (
                   <input
                     type="number"
-                    className="w-12 bg-transparent text-[15px] font-bold tracking-wider tabular-nums text-[#858585] outline-none placeholder:text-[#858585]"
+                    className="w-8 bg-transparent text-[15px] font-bold tracking-wider tabular-nums text-[#858585] outline-none placeholder:text-[#858585] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none text-center [appearance:textfield] [&::-webkit-outer-spin-button]:m-0"
                     placeholder="25"
                     onBlur={(e) => {
                       const val = parseInt(e.target.value);
@@ -457,6 +463,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       }
                     }}
                   />
+                  <span className="text-[10px] uppercase tracking-wider text-[#858585]/70 font-semibold ml-[-4px]">min</span>
                 ) : (
                   <span className={`text-[15px] font-bold tracking-wider tabular-nums ${timerRunning || isTimerActive ? "text-[#00D222] drop-shadow-[0_0_8px_rgba(0,210,34,0.4)]" : "text-[#858585]"}`}>
                     {formatSeconds(timerTime)}
@@ -465,7 +472,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={toggleTimer} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                  {timerRunning ? <Pause size={14} className="text-[#00D222]" /> : <Play size={14} className="text-white/70" fill="currentColor" />}
+                  {timerRunning ? <Pause size={14} className="text-[#00D222]" fill="currentColor" stroke="currentColor" strokeWidth={1} strokeLinejoin="round" /> : <Play size={14} className="text-white/70 hover:text-white transition-colors" fill="currentColor" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />}
                 </button>
                 <button onClick={resetTimer} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
                   <RotateCcw size={14} className="text-[#858585] hover:text-white" />
@@ -487,7 +494,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
               </div>
               <div className="flex items-center gap-1">
                 <button onClick={toggleChrono} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
-                  {chronoRunning ? <Pause size={14} className="text-[#FFB800]" /> : <Play size={14} className="text-white/70" fill="currentColor" />}
+                  {chronoRunning ? <Pause size={14} className="text-[#FFB800]" fill="currentColor" stroke="currentColor" strokeWidth={1} strokeLinejoin="round" /> : <Play size={14} className="text-white/70 hover:text-white transition-colors" fill="currentColor" stroke="currentColor" strokeWidth={1.5} strokeLinejoin="round" />}
                 </button>
                 <button onClick={resetChrono} className="p-1.5 rounded-full hover:bg-white/10 transition-colors">
                   <RotateCcw size={14} className="text-[#858585] hover:text-white" />

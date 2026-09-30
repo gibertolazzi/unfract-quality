@@ -51,8 +51,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 p-6 pt-0 overflow-hidden">
-          <div className="w-full h-full bg-black/20 rounded-[31px] border border-[#1A1A1A] p-8 overflow-y-auto">
+        <main className="flex-1 p-3 md:p-6 pt-0 overflow-hidden">
+          <div className="w-full h-full bg-black/20 rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-4 md:p-8 overflow-y-auto">
             {children}
           </div>
         </main>
