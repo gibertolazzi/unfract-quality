@@ -5,8 +5,11 @@ import { adminDb } from '@/lib/firebase-admin';
 const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
 export async function POST(req: any) {
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-  const payload = await req.text();
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return new Response(JSON.stringify({ error: 'Manca la chiave STRIPE_SECRET_KEY nel server.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, undefined);
+    const payload = await req.text();
   const signature = req.headers.get('stripe-signature');
 
   let event;
