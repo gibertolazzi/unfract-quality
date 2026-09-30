@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Folder, Users } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 
@@ -18,7 +19,9 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
     onCreate(name.trim(), selectedOrgIds.length > 0 ? selectedOrgIds : undefined);
   };
 
-  return (
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div 
         className="w-full max-w-md bg-[#0A0A0A] border border-white/10 rounded-2xl shadow-2xl flex flex-col overflow-hidden"
@@ -52,7 +55,9 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
             </label>
             <div className="flex flex-col gap-2 max-h-40 overflow-y-auto custom-scrollbar p-2 bg-white/5 border border-white/10 rounded-xl">
               {organizations.length === 0 ? (
-                <span className="text-[#858585] text-xs italic p-2">Nessuna organizzazione disponibile.</span>
+                <div className="flex items-center justify-center py-4 px-2 text-center">
+                  <span className="text-[#858585] text-xs">Nessuna organizzazione collegata.</span>
+                </div>
               ) : (
                 organizations.map(org => (
                   <label key={org.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
@@ -89,6 +94,7 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
