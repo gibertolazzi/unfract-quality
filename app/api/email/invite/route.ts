@@ -3,9 +3,9 @@ import { Resend } from 'resend';
 import { getOrgInviteEmailHtml } from '@/lib/emailTemplates';
 
 // Inizializza Resend con la chiave API (deve essere configurata nelle variabili d'ambiente)
-const resend = new Resend(process.env.RESEND_API_KEY || 're_123456789');
 
-export async function POST(req: NextRequest) {
+export async function POST(req: any) {
+  const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     const body = await req.json();
     const { email, inviterName, orgName, inviteLink } = body;

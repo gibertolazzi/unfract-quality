@@ -4,7 +4,6 @@ import { collection, query, where, getDocs, getDoc, writeBatch, doc } from 'fire
 import { Resend } from 'resend';
 import { getRecapEmailHtml, getNotificationEmailHtml, QueuedNotification } from '@/lib/emailTemplates';
 
-const resend = new Resend(process.env.RESEND_API_KEY || 're_3cztcEPV_7vdi1xJmUNFD8JzCwVU4gX1m');
 
 export async function GET(request: Request) {
   // Verifichiamo un secret per evitare abusi pubblici
