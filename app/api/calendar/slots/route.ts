@@ -32,7 +32,11 @@ export async function GET(request: Request) {
     const dayEnd = setMinutes(setHours(targetDate, 18), 0);
     
     // 3. Fetch events for that day
-    const events = await fetchCalendarEvents(token, startOfDay(targetDate), endOfDay(targetDate));
+    const result = await fetchCalendarEvents(token, startOfDay(targetDate), endOfDay(targetDate));
+    if ('error' in result && result.error) {
+      return NextResponse.json({ error: result.error }, { status: 401 });
+    }
+    const events = result.items || [];
 
     // 4. Generate 30-min slots
     const slots = [];
