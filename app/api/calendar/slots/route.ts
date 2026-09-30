@@ -32,11 +32,7 @@ export async function GET(request: Request) {
     const dayEnd = setMinutes(setHours(targetDate, 18), 0);
     
     // 3. Fetch events for that day
-    const result = await fetchCalendarEvents(token, startOfDay(targetDate), endOfDay(targetDate));
-    if ('error' in result && result.error) {
-      return NextResponse.json({ error: result.error }, { status: 401 });
-    }
-    const events = result.items || [];
+    const events = await fetchCalendarEvents(token, startOfDay(targetDate), endOfDay(targetDate));
 
     // 4. Generate 30-min slots
     const slots = [];
@@ -46,7 +42,8 @@ export async function GET(request: Request) {
       const slotEnd = new Date(currentSlot.getTime() + 30 * 60000);
       
       // Check if slot overlaps with any event
-      const isAvailable = !events.some((e: any) => {
+      const eventsList = events.items || [];
+      const isAvailable = !eventsList.some((e: any) => {
         if (!e.start?.dateTime || !e.end?.dateTime) return false;
         const eStart = new Date(e.start.dateTime);
         const eEnd = new Date(e.end.dateTime);

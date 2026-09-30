@@ -3,7 +3,8 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CrmProspectReport } from './types';
-import { REPORT_STATE_LABELS } from './constants';
+import { REPORT_STATE_LABELS } from "./constants";
+import { Paragrafi } from "./TextHelpers";
 
 /**
  * Il report su carta, o in PDF.

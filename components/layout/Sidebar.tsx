@@ -4,7 +4,7 @@ import { UpgradeModal } from "@/components/marketing/UpgradeModal";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { MegaphoneIcon } from "@/components/icons/MegaphoneIcon";
-import { ChevronDown, ChevronUp, Home, CheckCircle2, Calendar, Hash, FileVideo, Users, LogOut, Check, Plus, Trash2, MessageCircle, Sparkles, Handshake, Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, Home, CheckCircle2, Calendar, Hash, FileVideo, Users, LogOut, Check, Plus, Trash2, MessageCircle, Sparkles, Handshake, Settings, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject, Project } from "@/contexts/ProjectContext";
 import { DeleteProjectModal } from "@/components/tasks/DeleteProjectModal";
@@ -99,7 +99,7 @@ const NAV_ITEMS = [
   { id: "documentation", label: "Documentation", Icon: Hash, href: "/documentation" },
   { id: "meetings", label: "Meetings", Icon: FileVideo, href: "/meetings" },
   { id: "crm", label: "CRM", Icon: Handshake, href: "/crm" },
-  { id: "marketing", label: "Marketing", Icon: MegaphoneIcon, href: "/marketing" },
+  { id: "marketing", label: "Marketing", Icon: MegaphoneIcon, href: "/marketing", disabled: true },
   { id: "organization", label: "Organization", Icon: Users, href: "/organization" },
   { id: "chat", label: "Chat", Icon: MessageCircle, href: "/chat" },
   { id: "ai-hub", label: "AI Hub", Icon: Sparkles, href: "/ai-hub" },
@@ -358,18 +358,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
       {/* Nav */}
       <nav className="flex flex-col gap-0.5 flex-1 overflow-y-auto overflow-x-hidden pr-1 pb-4">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+          const isActive = !item.disabled && (pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href)));
           const isDocMenu = item.id === "documentation";
 
           return (
             <div 
               key={item.id} 
-              className={`flex flex-col transition-opacity ${draggedItemId === item.id ? 'opacity-30' : 'opacity-100'}`}
-              draggable
-              onDragStart={(e) => handleDragStart(e, item.id)}
-              onDragOver={(e) => handleDragOver(e, item.id)}
-              onDragLeave={(e) => handleDragLeave(e, item.id)}
-              onDrop={(e) => handleDrop(e, item.id)}
+              className={`flex flex-col transition-opacity ${draggedItemId === item.id ? 'opacity-30' : item.disabled ? 'opacity-40' : 'opacity-100'}`}
+              draggable={!item.disabled}
+              onDragStart={(e) => !item.disabled && handleDragStart(e, item.id)}
+              onDragOver={(e) => !item.disabled && handleDragOver(e, item.id)}
+              onDragLeave={(e) => !item.disabled && handleDragLeave(e, item.id)}
+              onDrop={(e) => !item.disabled && handleDrop(e, item.id)}
               onDragEnd={handleDragEnd}
             >
               <div
@@ -381,19 +381,31 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                     : "text-[#808080] hover:text-white hover:bg-white/5"
                 }`}
               >
-                <Link
-                  href={item.href}
-                  className="flex items-center gap-3 flex-1 overflow-hidden"
-                  onClick={() => {
+                                <Link
+                  href={item.disabled ? "#" : item.href}
+                  className={`flex items-center gap-3 flex-1 overflow-hidden ${item.disabled ? 'cursor-not-allowed' : ''}`}
+                  onClick={(e) => {
+                    if (item.disabled) {
+                      e.preventDefault();
+                      return;
+                    }
                     if (isDocMenu && !isDocsExpanded) setIsDocsExpanded(true);
                   }}
                 >
                   <div className="shrink-0">
                     <item.Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
                   </div>
-                  <span className={`text-[13px] truncate font-normal`}>
-                    {item.label}
-                  </span>
+                  <div className="flex flex-1 items-center justify-between overflow-hidden">
+                    <span className={`text-[13px] truncate font-normal`}>
+                      {item.label}
+                    </span>
+                    {item.disabled && (
+                      <span className="text-[10px] bg-white/10 text-white/70 px-2 py-0.5 rounded flex items-center gap-1 shrink-0 ml-2">
+                        <Lock size={10} />
+                        Presto
+                      </span>
+                    )}
+                  </div>
                 </Link>
 
                 {isDocMenu && (

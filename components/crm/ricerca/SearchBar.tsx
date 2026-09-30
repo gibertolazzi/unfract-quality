@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { Search, Loader2, Info } from 'lucide-react';
 import { recognize, describeRecognition } from '@/lib/crm/prospect/recognize';
-import { SEARCH_KIND_LABELS } from './constants';
+import { SEARCH_KIND_LABELS } from "./constants";
+import { Formattato } from "./TextHelpers";
 
 /**
  * Un campo solo, e la sezione capisce da sé cosa ci hai scritto.

@@ -191,7 +191,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         epicId,
         date: date ? format(date, 'yyyy-MM-dd') : undefined,
         updatedAt: serverTimestamp(),
-        projectId: activeProjectId,
+        projectId: activeProjectId || undefined,
         attachments,
       };
 

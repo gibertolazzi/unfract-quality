@@ -5,7 +5,8 @@ import { FileText, Check, Archive, Sparkles, Cpu, AlertTriangle, Printer } from 
 import { CrmProspectReport } from './types';
 import { REPORT_STATE_LABELS, ReportState } from './constants';
 import { formatDate } from '../shared/TableUtils';
-import { ReportPrintView } from './ReportPrintView';
+import { ReportPrintView } from "./ReportPrintView";
+import { Paragrafi } from "./TextHelpers";
 
 /**
  * I report di una scheda.

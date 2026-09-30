@@ -296,12 +296,12 @@ export function CampaignSetupView({ campaignId }: { campaignId: string }) {
                               Aggiungi nuovo contatto al CRM
                             </button>
                             {[...contacts, ...customers]
-                              .filter(c => (c.name || '').toLowerCase().includes(recipientSearch.toLowerCase()) || (c.email || '').toLowerCase().includes(recipientSearch.toLowerCase()))
-                              .map(c => {
+                              .filter((c: any) => (c.name || '').toLowerCase().includes(recipientSearch.toLowerCase()) || (c.email || '').toLowerCase().includes(recipientSearch.toLowerCase()))
+                              .map((c: any) => {
                                 const formId = `contact_${c.id}`;
                                 return (
                                   <label key={c.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors group">
-                                    <input type="checkbox" checked={recipientsForm.includes(formId)} onChange={(e) => { if (e.target.checked) setRecipientsForm([...recipientsForm, formId]); else setRecipientsForm(recipientsForm.filter(r => r !== formId)); }} className="appearance-none h-4 w-4 rounded-[4px] border border-[#2A2A2A] bg-[#0B0B0B] checked:bg-[#1A1A1A] checked:border-[#3F3F3F] cursor-pointer transition-all bg-no-repeat bg-center checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox=%220%200%2014%2014%22%20fill=%22none%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M3%207.5L6%2010.5L11%204%22%20stroke=%22white%22%20stroke-width=%221.5%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')]" />
+                                    <input type="checkbox" checked={recipientsForm.includes(formId)} onChange={(e) => { if (e.target.checked) setRecipientsForm([...recipientsForm, formId]); else setRecipientsForm(recipientsForm.filter((r: any) => r !== formId)); }} className="appearance-none h-4 w-4 rounded-[4px] border border-[#2A2A2A] bg-[#0B0B0B] checked:bg-[#1A1A1A] checked:border-[#3F3F3F] cursor-pointer transition-all bg-no-repeat bg-center checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox=%220%200%2014%2014%22%20fill=%22none%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M3%207.5L6%2010.5L11%204%22%20stroke=%22white%22%20stroke-width=%221.5%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')]" />
                                     <span className="text-[13px] text-[#E5E5E5] flex items-center gap-2 group-hover:text-white transition-colors truncate">
                                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-[#858585] group-hover:text-[#A3A3A3] shrink-0"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                                       {c.name} {c.email ? <span className="text-[#858585]">({c.email})</span> : ''}

@@ -54,7 +54,7 @@ export function DashboardView() {
           const start = startOfDay(now);
           const end = endOfDay(now);
           const rawEvents = await fetchCalendarEvents(accessToken, start, end);
-          const mapped = rawEvents.map((ev: any) => ({
+          const mapped = (rawEvents.items || []).map((ev: any) => ({
             id: ev.id,
             title: ev.summary || "Senza Titolo",
             startTime: ev.start.dateTime ? format(new Date(ev.start.dateTime), "HH:mm") : "Tutto il giorno",
