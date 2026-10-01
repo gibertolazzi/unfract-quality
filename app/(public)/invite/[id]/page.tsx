@@ -6,6 +6,7 @@ import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import { LoginScreen } from '@/components/auth/LoginScreen';
 
 export default function InvitePage() {
   const params = useParams();
@@ -19,9 +20,6 @@ export default function InvitePage() {
     if (loading) return;
     
     if (!user) {
-      // Potremmo reindirizzare al login, ma per ora il sistema ha solo il popup AuthContext.
-      // Assumiamo che se non c'è l'utente, non può accettare l'invito finché non accede.
-      setStatus('Effettua il login per accettare questo invito.');
       return;
     }
 
@@ -71,6 +69,10 @@ export default function InvitePage() {
     processInvite();
   }, [user, loading, orgId, router]);
 
+  if (!user && !loading) {
+    return <LoginScreen />;
+  }
+
   return (
     <div className="flex h-screen w-full items-center justify-center bg-[#0B0B0B] text-white">
       <div className="flex flex-col items-center gap-4">
@@ -78,9 +80,7 @@ export default function InvitePage() {
           <Loader2 className="w-10 h-10 animate-spin text-[#006AFF]" />
         ) : null}
         <p className="text-white/70 font-medium">{status}</p>
-        {!user && !loading && (
-          <p className="text-sm text-[#858585] mt-2">Torna alla home o ricarica dopo aver fatto l'accesso.</p>
-        )}
+        
       </div>
     </div>
   );
