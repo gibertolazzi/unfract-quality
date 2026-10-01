@@ -25,6 +25,7 @@ export async function getMeetings(projectId: string): Promise<Meeting[]> {
         decisions: data.decisions || [],
         tasks: data.tasks || [],
         transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
+        audioUrl: data.audioUrl,
         createdAt: data.createdAt,
         projectId: data.projectId
       } as Meeting & { projectId?: string };
@@ -57,6 +58,7 @@ export function subscribeToMeetings(projectId: string, callback: (meetings: Meet
         decisions: data.decisions || [],
         tasks: data.tasks || [],
         transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
+        audioUrl: data.audioUrl,
         createdAt: data.createdAt,
         projectId: data.projectId
       } as Meeting & { projectId?: string };
@@ -93,6 +95,7 @@ export async function getMeetingById(id: string): Promise<(Meeting & { projectId
       decisions: data.decisions || [],
       tasks: data.tasks || [],
       transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
+      audioUrl: data.audioUrl,
       createdAt: data.createdAt,
       projectId: data.projectId
     } as Meeting & { projectId?: string };

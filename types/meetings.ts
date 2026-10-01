@@ -19,5 +19,6 @@ export interface Meeting {
   decisions: string[];
   tasks: MeetingTask[];
   transcript: string;
+  audioUrl?: string;
   createdAt: any;
 }

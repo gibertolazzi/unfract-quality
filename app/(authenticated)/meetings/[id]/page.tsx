@@ -181,7 +181,22 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
     if (!meeting) return;
     setIsRetrying(true);
     try {
-      const result = await processMeetingTranscript(null, meeting.transcript);
+      let audioBlob: Blob | null = null;
+      if (meeting.audioUrl) {
+        try {
+          const res = await fetch(meeting.audioUrl);
+          if (res.ok) {
+            audioBlob = await res.blob();
+          } else {
+            console.error("Audio fetch failed with status:", res.status);
+          }
+        } catch (err) {
+          console.error("Error fetching audio:", err);
+          toast.error("Impossibile recuperare l'audio per la rielaborazione. Verrà usato solo il testo.");
+        }
+      }
+      
+      const result = await processMeetingTranscript(audioBlob, meeting.transcript);
       const newTitle = meeting.title.replace(" (Trascrizione Fallita)", "");
       
       const newData = {
@@ -292,6 +307,18 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           <div className="flex items-center gap-2"><Clock size={16} /> {meeting.duration}</div>
           <div className="flex items-center gap-2"><User size={16} /> {meeting.manager}</div>
         </div>
+        {meeting.audioUrl && (
+          <div className="mt-8 bg-[#111] p-4 rounded-2xl border border-white/5 flex flex-col gap-2">
+            <h3 className="text-sm font-medium text-white/80">Registrazione Audio</h3>
+            <audio 
+              controls 
+              className="w-full h-10 outline-none grayscale invert-[0.9] hue-rotate-180 opacity-80 hover:opacity-100 transition-opacity" 
+              src={meeting.audioUrl}
+            >
+              Il tuo browser non supporta l'elemento audio.
+            </audio>
+          </div>
+        )}
       </div>
 
       <div className="flex flex-col gap-8">

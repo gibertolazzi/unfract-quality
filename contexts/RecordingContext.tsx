@@ -8,6 +8,8 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/contexts/ToastContext';
 import { processMeetingTranscript } from '@/lib/gemini';
 import { saveMeeting } from '@/lib/meetings';
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface RecordingContextType {
   isRecording: boolean;
@@ -110,8 +112,18 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
+      // Compressione audio per ottimizzazione storage
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: 'audio/webm',
+        audioBitsPerSecond: 24000 // 24kbps per una buona compressione vocale
+      });
       audioChunksRef.current = [];
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) audioChunksRef.current.push(event.data);
@@ -174,6 +186,17 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    let audioUrl = '';
+    try {
+      const timestamp = new Date().getTime();
+      const storageRef = ref(storage, `meetings/${activeProjectId}/${timestamp}.webm`);
+      await uploadBytes(storageRef, audioBlob);
+      audioUrl = await getDownloadURL(storageRef);
+    } catch (uploadError) {
+      console.error("Failed to upload audio to storage:", uploadError);
+      toast.error("Errore nel salvataggio dell'audio sul cloud.");
+    }
+
     try {
       const result = await processMeetingTranscript(audioBlob, transcript);
       await saveMeeting(activeProjectId, {
@@ -184,7 +207,8 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
         summary: result.summary,
         decisions: result.decisions,
         tasks: result.tasks,
-        transcript: result.transcript || transcript
+        transcript: result.transcript || transcript,
+        audioUrl: audioUrl || undefined
       });
     } catch (error: any) {
       console.error("Gemini failed:", error);
@@ -199,7 +223,8 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
         summary: "L'IA non è riuscita a elaborare la trascrizione. Potrebbe essere necessario elaborarla manualmente.",
         decisions: [],
         tasks: [],
-        transcript: transcript || "Nessun testo trascritto."
+        transcript: transcript || "Nessun testo trascritto.",
+        audioUrl: audioUrl || undefined
       });
     }
     
