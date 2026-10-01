@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useCrm } from '@/contexts/CrmContext';
+import { useIAM } from '@/contexts/IamContext';
 import { CrmNav, CrmTab } from '@/components/crm/CrmNav';
 import { CrmKpiBar } from '@/components/crm/CrmKpiBar';
 import { OwnerOption } from '@/components/crm/leads/LeadFiltersBar';
@@ -27,14 +28,18 @@ export default function CrmPage() {
   const { user } = useAuth();
   const { organizations } = useOrganization();
   const { activeProject, activeProjectId } = useProject();
+  const { canRead, canWrite, loading: iamLoading } = useIAM();
   
+  const hasCrmRead = canRead('crm');
+  const hasCrmWrite = canWrite('crm');
+
   const {
     leads, accounts, contacts, customers, opportunities, followups, loading, activate
   } = useCrm();
 
   useEffect(() => {
-    activate();
-  }, [activate]);
+    if (hasCrmRead) activate();
+  }, [activate, hasCrmRead]);
 
   const [tab, setTab] = useState<CrmTab>('contact');
   const [createModal, setCreateModal] = useState<'contact' | 'account' | 'lead' | 'customer' | 'opportunity' | 'followup' | 'file' | null>(null);
@@ -79,6 +84,24 @@ export default function CrmPage() {
     return <p className="text-sm text-[#858585]">Seleziona un progetto per usare il CRM.</p>;
   }
 
+  if (iamLoading) {
+    return <div className="flex h-full items-center justify-center text-[#858585] text-sm">Verifica permessi in corso...</div>;
+  }
+
+  if (!hasCrmRead) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center max-w-md mx-auto">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Accesso Negato</h2>
+        <p className="text-[#858585] text-sm mb-6">
+          Non hai i permessi necessari per accedere al CRM di questo progetto. Chiedi all'amministratore del progetto o del tuo team di assegnarti un ruolo che includa l'accesso al CRM.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -95,62 +118,64 @@ export default function CrmPage() {
           }}
         />
         
-        <div className="flex items-center gap-3">
-          {['contact', 'opportunity'].includes(tab) && (
-            <button
-              type="button"
-              onClick={() => setImportOpen(true)}
-              className="flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-white/10"
-            >
-              <Upload size={16} />
-              Import
-            </button>
-          )}
-          
-          {tab === 'contact' && (
-            <div className="relative">
+        {hasCrmWrite && (
+          <div className="flex items-center gap-3">
+            {['contact', 'opportunity'].includes(tab) && (
               <button
                 type="button"
-                onClick={() => setAddMenuOpen(!addMenuOpen)}
+                onClick={() => setImportOpen(true)}
+                className="flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-white/10"
+              >
+                <Upload size={16} />
+                Import
+              </button>
+            )}
+            
+            {tab === 'contact' && (
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAddMenuOpen(!addMenuOpen)}
+                  className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
+                >
+                  <PlusCircle size={16} />
+                  New Contact
+                </button>
+                {addMenuOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)}></div>
+                    <div className="absolute right-0 top-12 z-50 w-48 rounded-xl border border-[#1A1A1A] bg-[#0B0B0B] p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+                      <button onClick={() => { setCreateModal('account'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Azienda</button>
+                      <button onClick={() => { setCreateModal('contact'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Contatto</button>
+                      <button onClick={() => { setCreateModal('lead'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Lead</button>
+                      <button onClick={() => { setCreateModal('customer'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Cliente</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {tab === 'opportunity' && (
+              <button
+                type="button"
+                onClick={() => setCreateModal('opportunity')}
                 className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
               >
                 <PlusCircle size={16} />
-                New Contact
+                New Opportunity
               </button>
-              {addMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)}></div>
-                  <div className="absolute right-0 top-12 z-50 w-48 rounded-xl border border-[#1A1A1A] bg-[#0B0B0B] p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                    <button onClick={() => { setCreateModal('account'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Azienda</button>
-                    <button onClick={() => { setCreateModal('contact'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Contatto</button>
-                    <button onClick={() => { setCreateModal('lead'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Lead</button>
-                    <button onClick={() => { setCreateModal('customer'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Cliente</button>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          {tab === 'opportunity' && (
-            <button
-              type="button"
-              onClick={() => setCreateModal('opportunity')}
-              className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
-            >
-              <PlusCircle size={16} />
-              New Opportunity
-            </button>
-          )}
-          {tab === 'followup' && (
-            <button
-              type="button"
-              onClick={() => setCreateModal('followup')}
-              className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
-            >
-              <PlusCircle size={16} />
-              New Follow up
-            </button>
-          )}
-        </div>
+            )}
+            {tab === 'followup' && (
+              <button
+                type="button"
+                onClick={() => setCreateModal('followup')}
+                className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
+              >
+                <PlusCircle size={16} />
+                New Follow up
+              </button>
+            )}
+          </div>
+        )}
       </header>
 
       <CrmKpiBar

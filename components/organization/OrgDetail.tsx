@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, UserPlus, Link2, MoreHorizontal, MoreVertical, Pencil, PlusCircle, ImagePlus, Loader2, Copy, X } from 'lucide-react';
+import { ChevronLeft, UserPlus, Link2, MoreHorizontal, MoreVertical, Pencil, PlusCircle, ImagePlus, Loader2, Copy, X, Users, Lock } from 'lucide-react';
 import { Organization } from './types';
 import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
@@ -18,6 +18,7 @@ import { MemberChip } from './MemberChip';
 import { OrgMember } from '@/types/organization';
 import { Project } from '@/contexts/ProjectContext';
 import { Folder } from 'lucide-react';
+import { TeamsSection } from './TeamsSection';
 
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const { user } = useAuth();
@@ -263,21 +264,146 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         )}
       </div>
 
-      {/* Membri Section */}
-      <section className="px-2">
-        <div className="flex items-center justify-between mb-8">
+      {/* Modello Operativo Section */}
+      <section className="px-2 mb-12">
+        <h2 className="text-sm font-semibold text-[#858585] tracking-wider uppercase mb-4">Modello Operativo Workspace</h2>
+        <div className="flex gap-4">
+          {[
+            { id: 'flat', label: 'Flat (Progetti Singoli)', icon: <Folder size={18} /> },
+            { id: 'teams', label: 'Teams (Squadre)', icon: <UserPlus size={18} /> },
+            { id: 'corporate', label: 'Corporate (Avanzato)', icon: <Link2 size={18} /> }
+          ].map(mode => {
+            const isSelected = (org.structureMode || 'teams') === mode.id;
+            return (
+              <button
+                key={mode.id}
+                onClick={async () => {
+                  try {
+                    const { setDoc } = await import('firebase/firestore');
+                    await setDoc(doc(db, 'workspaces', org.id), { structureMode: mode.id }, { merge: true });
+                    await updateDoc(doc(db, 'organizations', org.id), { structureMode: mode.id }); // Legacy sync
+                    setOrg({ ...org, structureMode: mode.id as any });
+                    toast.success("Modello operativo aggiornato.");
+                  } catch (e) {
+                    console.error(e);
+                    toast.error("Errore nell'aggiornamento.");
+                  }
+                }}
+                className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border transition-all ${
+                  isSelected 
+                    ? 'bg-[#006AFF]/10 border-[#006AFF] text-white shadow-[0_0_15px_rgba(0,106,255,0.2)]' 
+                    : 'bg-[#111] border-white/5 text-[#858585] hover:bg-white/5 hover:border-white/10'
+                }`}
+              >
+                <div className={`mb-2 ${isSelected ? 'text-[#006AFF]' : ''}`}>
+                  {mode.icon}
+                </div>
+                <span className="text-sm font-medium">{mode.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* Conditional Sections based on Structure Mode */}
+
+      {/* FLAT MODE: Show only Projects and Workspace Members */}
+      {(org.structureMode === 'flat' || !org.structureMode) && (
+        <section className="px-2 mt-8 mb-16">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-white tracking-tight">Progetti (Modalità Flat)</h2>
+              <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
+                {assignedProjects.length}
+              </div>
+            </div>
+            <button 
+              onClick={() => setAssignProjectModalOpen(true)} 
+              className="h-[40px] px-4 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-xl font-medium flex items-center gap-2 transition-colors hover:bg-[#003B80]/80 text-[13px]"
+            >
+              <PlusCircle size={16} className="text-[#00A6FF]" />
+              Aggiungi Progetto
+            </button>
+          </div>
+
+          <div className="flex flex-wrap gap-4">
+            {assignedProjects.length === 0 ? (
+              <p className="text-[#858585] text-sm">Nessun progetto in questo Workspace.</p>
+            ) : (
+              assignedProjects.map(project => (
+                <div 
+                  key={project.id} 
+                  onClick={() => setIamProject(project)}
+                  className="flex items-center justify-between min-w-[240px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all group cursor-pointer"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-[34px] h-[34px] rounded-full bg-[#006AFF]/10 flex items-center justify-center text-[#006AFF]">
+                      <Folder size={16} />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-[14px] text-white font-medium">{project.name}</span>
+                      <span className="text-[11px] text-[#858585]">Progetto</span>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); handleUnassignProject(project.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-2 text-[#858585] hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
+                    title="Elimina progetto dal workspace"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* TEAMS MODE: Show Teams / Squadre */}
+      {org.structureMode === 'teams' && (
+        <TeamsSection workspaceId={org.id} workspaceMembers={org.members || []} />
+      )}
+
+      {/* CORPORATE MODE: Show Departments and Roles */}
+      {org.structureMode === 'corporate' && (
+        <section className="px-2 mt-8 mb-16">
+          <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-white tracking-tight">Enterprise IAM</h2>
+              <span className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded uppercase font-bold tracking-wider">Avanzato</span>
+            </div>
+          </div>
+          
+          <div className="flex flex-col gap-6">
+            <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6">
+              <h3 className="text-white font-medium mb-4 flex items-center gap-2"><Link2 size={16} className="text-[#006AFF]"/> Dipartimenti (Nested)</h3>
+              <p className="text-[#858585] text-sm mb-4">Gestisci gerarchie complesse (es. HR {'>'} Recruiting).</p>
+              <button onClick={() => dialog.alert({ title: "Prossimamente", message: "La gestione dei dipartimenti annidati (Corporate) sarà disponibile nel prossimo aggiornamento Enterprise."})} className="text-sm text-[#006AFF] hover:underline">Configura Dipartimenti &rarr;</button>
+            </div>
+            
+            <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6">
+              <h3 className="text-white font-medium mb-4 flex items-center gap-2"><Lock size={16} className="text-[#006AFF]"/> Ruoli Custom Globali (RBAC)</h3>
+              <p className="text-[#858585] text-sm mb-4">Crea ruoli specifici validi in tutto il workspace (es. "Viewer CRM").</p>
+              <button onClick={() => dialog.alert({ title: "Prossimamente", message: "La gestione delle policy globali sarà disponibile nel prossimo aggiornamento Enterprise. I ruoli personalizzati sono attualmente configurabili all'interno dei singoli progetti."})} className="text-sm text-[#006AFF] hover:underline">Gestisci Policy &rarr;</button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Membri Globali (Comuni a tutte le modalità) */}
+      <section className="px-2 mb-16">
+        <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white tracking-tight">Membri</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">Directory Utenti</h2>
             <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
               {org.members?.length || 0}
             </div>
           </div>
           <button 
             onClick={() => setInviteModalOpen(true)} 
-            className="h-[40px] px-4 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-xl font-medium flex items-center gap-2 transition-colors hover:bg-[#003B80]/80 text-[13px]"
+            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-medium transition-colors"
           >
-            <PlusCircle size={16} className="text-[#00A6FF]" />
-            Aggiungi Membro
+            Invita
           </button>
         </div>
 
@@ -290,56 +416,6 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
               onClick={() => setIamMember(member)} 
             />
           ))}
-        </div>
-      </section>
-
-      {/* Progetti Section */}
-      <section className="px-2 mt-12 mb-16">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <h2 className="text-2xl font-bold text-white tracking-tight">Progetti</h2>
-            <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
-              {assignedProjects.length}
-            </div>
-          </div>
-          <button 
-            onClick={() => setAssignProjectModalOpen(true)} 
-            className="h-[40px] px-4 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-xl font-medium flex items-center gap-2 transition-colors hover:bg-[#003B80]/80 text-[13px]"
-          >
-            <PlusCircle size={16} className="text-[#00A6FF]" />
-            Aggiungi Progetto
-          </button>
-        </div>
-
-        <div className="flex flex-wrap gap-4">
-          {assignedProjects.length === 0 ? (
-            <p className="text-[#858585] text-sm">Nessun progetto assegnato a questa organizzazione.</p>
-          ) : (
-            assignedProjects.map(project => (
-              <div 
-                key={project.id} 
-                onClick={() => setIamProject(project)}
-                className="flex items-center justify-between min-w-[240px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-[34px] h-[34px] rounded-full bg-[#006AFF]/10 flex items-center justify-center text-[#006AFF]">
-                    <Folder size={16} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-[14px] text-white font-medium">{project.name}</span>
-                    <span className="text-[11px] text-[#858585]">Progetto</span>
-                  </div>
-                </div>
-                <button 
-                  onClick={(e) => { e.stopPropagation(); handleUnassignProject(project.id); }}
-                  className="opacity-0 group-hover:opacity-100 p-2 text-[#858585] hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
-                  title="Rimuovi progetto"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ))
-          )}
         </div>
       </section>
 

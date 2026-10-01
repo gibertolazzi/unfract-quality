@@ -12,7 +12,6 @@ import { Organization } from './types';
 
 const MODULES: { id: AppModule; label: string }[] = [
   { id: 'crm', label: 'CRM' },
-  { id: 'marketing', label: 'Marketing' },
   { id: 'tasks', label: 'Task' },
   { id: 'documentation', label: 'Documentazione' },
   { id: 'settings', label: 'Impostazioni' }
@@ -25,16 +24,17 @@ interface ProjectIAMModalProps {
 }
 
 export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMModalProps) {
-  const [activeTab, setActiveTab] = useState<'roles' | 'members' | 'requests'>('roles');
+  const [activeTab, setActiveTab] = useState<'roles' | 'members' | 'teams' | 'requests'>('roles');
 
   const [roles, setRoles] = useState<CustomRole[]>([]);
   const [projectMembersAccess, setProjectMembersAccess] = useState<ProjectMemberAccess[]>([]);
   const [accessRequests, setAccessRequests] = useState<AccessRequest[]>([]);
+  const [teams, setTeams] = useState<any[]>([]); // Using any for WorkspaceGroup to avoid import errors if not exported
   
   const [isCreatingRole, setIsCreatingRole] = useState(false);
   const [newRoleName, setNewRoleName] = useState('');
   const [newRolePerms, setNewRolePerms] = useState<Record<AppModule, PermissionLevel>>({
-    crm: 'none', marketing: 'none', tasks: 'none', documentation: 'none', settings: 'none'
+    crm: 'none', tasks: 'none', documentation: 'none', settings: 'none'
   });
 
   useEffect(() => {
@@ -53,8 +53,13 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
       setAccessRequests(snap.docs.map(d => ({ id: d.id, ...d.data() } as AccessRequest)));
     });
 
-    return () => { unsubRoles(); unsubMembers(); unsubRequests(); };
-  }, [project.id]);
+    // Listen to workspace teams
+    const unsubTeams = onSnapshot(query(collection(db, 'workspace_groups'), where('workspaceId', '==', organization.id)), (snap) => {
+      setTeams(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => { unsubRoles(); unsubMembers(); unsubRequests(); unsubTeams(); };
+  }, [project.id, organization.id]);
 
   const projectUsers = useMemo(() => {
     return organization.members || [];
@@ -72,7 +77,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
     });
     setIsCreatingRole(false);
     setNewRoleName('');
-    setNewRolePerms({ crm: 'none', marketing: 'none', tasks: 'none', documentation: 'none', settings: 'none' });
+    setNewRolePerms({ crm: 'none', tasks: 'none', documentation: 'none', settings: 'none' });
   };
 
   const deleteRole = async (id: string) => {
@@ -120,6 +125,16 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
           >
             <Users size={16} /> Assegnazione Membri
           </button>
+          
+          {organization.structureMode === 'teams' && (
+            <button 
+              onClick={() => setActiveTab('teams')}
+              className={`flex shrink-0 items-center gap-2 px-4 py-2 text-[14px] rounded-xl font-medium transition-colors ${activeTab === 'teams' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            >
+              <Users size={16} /> Squadre (Teams)
+            </button>
+          )}
+
           <button 
             onClick={() => setActiveTab('requests')}
             className={`flex shrink-0 items-center gap-2 px-4 py-2 text-[14px] rounded-xl font-medium transition-colors ${activeTab === 'requests' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
@@ -238,15 +253,71 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                     {!isOwner && (
                       <select
                         value={currentAccess?.roleId || 'none'}
-                        onChange={(e) => handleAssignRole(user.uid, e.target.value)}
+                        onChange={(e) => {
+                          if (e.target.value === 'CREATE_NEW_ROLE') {
+                            setActiveTab('roles');
+                            setIsCreatingRole(true);
+                          } else {
+                            handleAssignRole(user.uid, e.target.value);
+                          }
+                        }}
                         className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
                       >
                         <option value="none">Nessun Ruolo (Default)</option>
                         {roles.map(r => (
                           <option key={r.id} value={r.id}>{r.name}</option>
                         ))}
+                        <option value="CREATE_NEW_ROLE" className="font-bold text-[#0D6EFD]">+ Crea nuovo ruolo</option>
                       </select>
                     )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Teams Tab */}
+          {activeTab === 'teams' && (
+            <div className="flex flex-col gap-4">
+              {teams.length === 0 && (
+                <div className="py-12 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl">
+                  <p className="text-[#858585]">Nessuna squadra presente in questo Workspace.</p>
+                </div>
+              )}
+
+              {teams.map(team => {
+                const currentAccess = projectMembersAccess.find(a => a.userId === team.id); // For teams, userId holds the team.id
+                
+                return (
+                  <div key={team.id} className="flex items-center justify-between p-4 bg-[#0A0A0A] border border-white/10 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-[#006AFF]/10 flex items-center justify-center text-[#006AFF]">
+                        <Users size={20} />
+                      </div>
+                      <div>
+                        <p className="text-white font-medium text-sm">{team.name}</p>
+                        <p className="text-[#858585] text-xs">Squadra</p>
+                      </div>
+                    </div>
+                    
+                    <select
+                      value={currentAccess?.roleId || 'none'}
+                      onChange={(e) => {
+                        if (e.target.value === 'CREATE_NEW_ROLE') {
+                          setActiveTab('roles');
+                          setIsCreatingRole(true);
+                        } else {
+                          handleAssignRole(team.id, e.target.value);
+                        }
+                      }}
+                      className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
+                    >
+                      <option value="none">Nessun Accesso (Default)</option>
+                      {roles.map(r => (
+                        <option key={r.id} value={r.id}>{r.name}</option>
+                      ))}
+                      <option value="CREATE_NEW_ROLE" className="font-bold text-[#0D6EFD]">+ Crea nuovo ruolo</option>
+                    </select>
                   </div>
                 );
               })}

@@ -4,15 +4,15 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, onSnapshot, orderBy, deleteDoc, or } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
-import { useOrganization } from './OrganizationContext';
+import { useWorkspace } from './WorkspaceContext';
 
 export interface Project {
   id: string;
   name: string;
   userId: string;
+  workspaceId?: string;
   organizationIds?: string[];
   createdAt: any;
-
 }
 
 interface ProjectContextType {
@@ -20,7 +20,7 @@ interface ProjectContextType {
   activeProjectId: string | null;
   activeProject: Project | null;
   setActiveProjectId: (id: string) => void;
-  createProject: (name: string, organizationIds?: string[]) => Promise<string | null>;
+  createProject: (name: string) => Promise<string | null>;
   renameProject: (id: string, newName: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   loading: boolean;
@@ -41,7 +41,7 @@ export const useProject = () => useContext(ProjectContext);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { organizations, loading: orgLoading } = useOrganization();
+  const { activeWorkspaceId, loading: workspaceLoading } = useWorkspace();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,52 +60,25 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (authLoading || orgLoading) return;
+    if (authLoading || workspaceLoading) return;
     
-    if (!user) {
+    if (!user || !activeWorkspaceId) {
       setProjects([]);
       setActiveProjectIdState(null);
       setLoading(false);
       return;
     }
 
-    const orgIds = organizations.map(org => org.id);
-    
-    // We want to fetch projects that either belong to the user personally OR belong to any of the user's organizations
-    let q;
-    if (orgIds.length > 0) {
-      // split into chunks if needed, but array-contains-any allows max 10 elements in Firebase.
-      // For MVP, we slice to 10.
-      q = query(
-        collection(db, 'projects'),
-        or(
-          where('userId', '==', user.uid),
-          where('organizationIds', 'array-contains-any', orgIds.slice(0, 10))
-        )
-      );
-    } else {
-      q = query(
-        collection(db, 'projects'),
-        where('userId', '==', user.uid)
-      );
-    }
+    // New logic: fetch all projects for the active workspace
+    const q = query(
+      collection(db, 'projects'),
+      where('workspaceId', '==', activeWorkspaceId)
+    );
 
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       if (snapshot.empty) {
-        // Create default project
-        try {
-          const docRef = await addDoc(collection(db, 'projects'), {
-            name: 'Untitled Project',
-            userId: user.uid,
-            createdAt: serverTimestamp()
-          });
-          setActiveProjectId(docRef.id);
-          // Migrate orphan data to the newly created project
-          const { migrateOrphanData } = await import('@/lib/migration');
-          await migrateOrphanData(docRef.id);
-        } catch (e) {
-          console.error("Error creating default project:", e);
-        }
+        setProjects([]);
+        setActiveProjectIdState(null);
       } else {
         const loadedProjects: Project[] = [];
         snapshot.forEach(doc => {
@@ -144,15 +117,27 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [user, authLoading, orgLoading, organizations.length]);
+  }, [user, authLoading, workspaceLoading, activeWorkspaceId]);
 
-  const createProject = async (name: string, organizationIds?: string[]) => {
-    if (!user) return null;
+  const createProject = async (name: string) => {
+    if (!user || !activeWorkspaceId) return null;
     try {
+      const { setDoc } = await import('firebase/firestore');
       const docRef = await addDoc(collection(db, 'projects'), {
         name,
         userId: user.uid,
-        organizationIds: organizationIds || [],
+        creatorId: user.uid,
+        workspaceId: activeWorkspaceId,
+        createdAt: serverTimestamp()
+      });
+      const grantRef = doc(collection(db, 'access_grants'));
+      await setDoc(grantRef, {
+        workspaceId: activeWorkspaceId,
+        subjectType: 'user',
+        subjectId: user.uid,
+        resourceType: 'project',
+        resourceId: docRef.id,
+        role: 'admin',
         createdAt: serverTimestamp()
       });
       setActiveProjectId(docRef.id);

@@ -1,6 +1,6 @@
 export type PermissionLevel = 'none' | 'read' | 'write';
 
-export type AppModule = 'crm' | 'marketing' | 'tasks' | 'documentation' | 'settings';
+export type AppModule = 'crm' | 'tasks' | 'documentation' | 'settings';
 
 export type ModulePermissions = Record<AppModule, PermissionLevel>;
 

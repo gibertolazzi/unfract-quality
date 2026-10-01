@@ -11,6 +11,7 @@ import { TaskService, ColumnService, EpicService } from '@/lib/services/taskServ
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
+import { useIAM } from '@/contexts/IamContext';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200]',
@@ -96,7 +97,8 @@ export function TaskColumn({
   onColumnTitleChange, 
   onColumnTitleBlur, 
   onDeleteColumn,
-  onNewTask
+  onNewTask,
+  hasTasksWrite
 }: { 
   column: any; 
   tasks: any[]; 
@@ -106,6 +108,7 @@ export function TaskColumn({
   onColumnTitleBlur: (id: string, title: string) => void;
   onDeleteColumn: (id: string) => void;
   onNewTask: (colId: string) => void;
+  hasTasksWrite: boolean;
 }) {
   return (
     <Draggable draggableId={column.id} index={index}>
@@ -120,16 +123,19 @@ export function TaskColumn({
               value={column.title}
               onChange={(e) => onColumnTitleChange(column.id, e.target.value)}
               onBlur={() => onColumnTitleBlur(column.id, column.title)}
-              className="text-xl font-bold text-white font-sans bg-transparent outline-none focus:border-b focus:border-white/20 w-full mr-4"
+              readOnly={!hasTasksWrite}
+              className={`text-xl font-bold text-white font-sans bg-transparent outline-none w-full mr-4 ${hasTasksWrite ? 'focus:border-b focus:border-white/20' : ''}`}
             />
-            <div className="flex items-center gap-2 shrink-0">
-              <button onClick={() => onNewTask(column.id)} className="flex items-center gap-2 text-[#858585] hover:text-white transition-colors shrink-0">
-                <PlusCircle size={16} />
-              </button>
-              <button onClick={() => onDeleteColumn(column.id)} className="text-[#858585] hover:text-red-500 transition-colors">
-                <Trash2 size={16} />
-              </button>
-            </div>
+            {hasTasksWrite && (
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => onNewTask(column.id)} className="flex items-center gap-2 text-[#858585] hover:text-white transition-colors shrink-0">
+                  <PlusCircle size={16} />
+                </button>
+                <button onClick={() => onDeleteColumn(column.id)} className="text-[#858585] hover:text-red-500 transition-colors">
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
           </div>
           
           <Droppable droppableId={column.id} type="task">
@@ -161,9 +167,13 @@ export function TaskBoard() {
   const [showColumnPrompt, setShowColumnPrompt] = useState(false);
   const { activeProjectId } = useProject();
   const dialog = useDialog();
+  const { canRead, canWrite, loading: iamLoading } = useIAM();
+
+  const hasTasksRead = canRead('tasks');
+  const hasTasksWrite = canWrite('tasks');
 
   useEffect(() => {
-    if (!activeProjectId) {
+    if (!activeProjectId || !hasTasksRead) {
       setColumns([]);
       setTasks([]);
       setEpics([]);
@@ -290,6 +300,24 @@ export function TaskBoard() {
     });
   };
 
+  if (iamLoading) {
+    return <div className="flex h-full items-center justify-center text-[#858585] text-sm">Verifica permessi in corso...</div>;
+  }
+
+  if (!hasTasksRead) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center max-w-md mx-auto">
+        <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6">
+          <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+        </div>
+        <h2 className="text-2xl font-bold text-white mb-2">Accesso Negato</h2>
+        <p className="text-[#858585] text-sm mb-6">
+          Non hai i permessi necessari per accedere alla sezione Task di questo progetto. Chiedi all'amministratore di assegnarti un ruolo che includa l'accesso.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full font-sans">
       <div className="relative z-10 flex items-center justify-between mb-8 mt-2">
@@ -318,13 +346,17 @@ export function TaskBoard() {
         </nav>
         
         <div className="ml-auto flex items-center gap-4">
-          <button onClick={() => openNewTaskModal()} className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm">
-            <PlusCircle size={16} className="text-[#00A6FF]" /> Nuova Task
-          </button>
-          {activeView === 'board' && (
-            <button onClick={() => setShowColumnPrompt(true)} className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white border border-white/10 hover:border-white/20 rounded-full font-medium transition-colors text-sm">
-              <PlusCircle size={16} /> Aggiungi Colonna
-            </button>
+          {hasTasksWrite && (
+            <>
+              <button onClick={() => openNewTaskModal()} className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm">
+                <PlusCircle size={16} className="text-[#00A6FF]" /> Nuova Task
+              </button>
+              {activeView === 'board' && (
+                <button onClick={() => setShowColumnPrompt(true)} className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white border border-white/10 hover:border-white/20 rounded-full font-medium transition-colors text-sm">
+                  <PlusCircle size={16} /> Aggiungi Colonna
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -349,6 +381,7 @@ export function TaskBoard() {
                       column={col} 
                       tasks={columnTasks} 
                       index={index} 
+                      hasTasksWrite={hasTasksWrite}
                       onTaskClick={setSelectedTask}
                       onColumnTitleChange={handleColumnTitleChange}
                       onColumnTitleBlur={handleColumnTitleBlur}

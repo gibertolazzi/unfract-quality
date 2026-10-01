@@ -11,27 +11,31 @@ import { DialogProvider } from '@/contexts/DialogContext';
 import { ChatProvider } from '@/contexts/ChatContext';
 import { CrmProvider } from '@/contexts/CrmContext';
 
+import { WorkspaceProvider } from '@/contexts/WorkspaceContext';
+
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
       <ClockProvider>
-        <OrganizationProvider>
-          <ProjectProvider>
-            <IamProvider>
-              <ToastProvider>
-                <DialogProvider>
-                  <RecordingProvider>
-                    <ChatProvider>
-                      <CrmProvider>
-                        {children}
-                      </CrmProvider>
-                    </ChatProvider>
-                  </RecordingProvider>
-                </DialogProvider>
-              </ToastProvider>
-            </IamProvider>
-          </ProjectProvider>
-        </OrganizationProvider>
+        <WorkspaceProvider>
+          <OrganizationProvider>
+            <ProjectProvider>
+              <IamProvider>
+                <ToastProvider>
+                  <DialogProvider>
+                    <RecordingProvider>
+                      <ChatProvider>
+                        <CrmProvider>
+                          {children}
+                        </CrmProvider>
+                      </ChatProvider>
+                    </RecordingProvider>
+                  </DialogProvider>
+                </ToastProvider>
+              </IamProvider>
+            </ProjectProvider>
+          </OrganizationProvider>
+        </WorkspaceProvider>
       </ClockProvider>
     </AuthProvider>
   );

@@ -16,5 +16,6 @@ export interface Organization {
   bannerGradient?: string;
   bannerUrl?: string;
   logoUrl?: string;
+  structureMode?: 'flat' | 'teams' | 'corporate'; // Added for Workspace migration
   createdAt?: any;
 }

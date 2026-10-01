@@ -5,6 +5,9 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { useAuth } from "@/contexts/AuthContext";
 import { LoginScreen } from "@/components/auth/LoginScreen";
+import { useProject } from "@/contexts/ProjectContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { usePathname } from "next/navigation";
 
 import { useState, useRef } from "react";
 
@@ -25,11 +28,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   };
   const { user, loading } = useAuth();
   
+  const { activeProjectId, loading: projLoading } = useProject();
+  const { activeWorkspaceId } = useWorkspace();
+  const pathname = usePathname();
+  
   if (loading) return null;
   
   if (!user) {
     return <LoginScreen />;
   }
+
+  const isOrgRoute = pathname?.startsWith('/organization');
+  const isLocked = !projLoading && !activeProjectId && !isOrgRoute;
 
   return (
     <div className="flex h-screen bg-[#0B0B0B] text-white font-sans overflow-hidden">
@@ -51,10 +61,64 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div className="flex-1 flex flex-col min-w-0">
         <TopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 p-3 md:p-6 pt-0 overflow-hidden">
-          <div className="w-full h-full bg-black/20 rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-4 md:p-8 overflow-y-auto">
+        <main className="flex-1 p-3 md:p-6 pt-0 overflow-hidden relative">
+          <div className={`w-full h-full bg-black/20 rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-4 md:p-8 overflow-y-auto ${isLocked ? 'filter blur-sm opacity-50 select-none' : ''}`}>
             {children}
           </div>
+
+          {isLocked && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
+              <div className="bg-[#111] border border-white/10 rounded-2xl p-8 max-w-md w-full text-center shadow-2xl">
+                <div className="w-16 h-16 bg-[#006AFF]/10 text-[#006AFF] rounded-full flex items-center justify-center mx-auto mb-6">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="rect x='3' y='11' width='18' height='11' rx='2' ry='2'"/><path d="path d='M7 11V7a5 5 0 0 1 10 0v4'"/></svg>
+                </div>
+                <h2 className="text-xl font-bold text-white mb-2">Sezione Bloccata</h2>
+                <p className="text-[#858585] text-sm mb-6">
+                  {activeWorkspaceId 
+                    ? "Per accedere a questa sezione devi prima selezionare o creare un progetto dalla sidebar a sinistra."
+                    : "Non sei membro di alcun Workspace. Crea il tuo primo Workspace per iniziare o attendi un invito."}
+                </p>
+                {!activeWorkspaceId && (
+                  <button 
+                    onClick={async () => {
+                      const name = prompt("Nome della tua azienda o team:");
+                      if (name && name.trim()) {
+                        const { collection, addDoc, serverTimestamp, doc, setDoc } = await import('firebase/firestore');
+                        const { db } = await import('@/lib/firebase');
+                        
+                        try {
+                          const wsRef = await addDoc(collection(db, 'workspaces'), {
+                            name: name.trim(),
+                            ownerId: user.uid,
+                            structureMode: 'teams',
+                            createdAt: serverTimestamp()
+                          });
+                          
+                          await setDoc(doc(collection(db, 'access_grants')), {
+                            workspaceId: wsRef.id,
+                            subjectType: 'user',
+                            subjectId: user.uid,
+                            resourceType: 'workspace',
+                            resourceId: wsRef.id,
+                            role: 'admin',
+                            createdAt: serverTimestamp()
+                          });
+                          
+                          // The onSnapshot in WorkspaceContext will automatically pick it up!
+                        } catch (e) {
+                          console.error(e);
+                          alert("Errore durante la creazione del workspace");
+                        }
+                      }
+                    }}
+                    className="w-full bg-[#006AFF] hover:bg-blue-600 text-white font-medium py-3 px-4 rounded-xl transition-colors"
+                  >
+                    Crea Workspace
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { MegaphoneIcon } from "@/components/icons/MegaphoneIcon";
 import { ChevronDown, ChevronUp, Home, CheckCircle2, Calendar, Hash, FileVideo, Users, LogOut, Check, Plus, Trash2, MessageCircle, Sparkles, Handshake, Settings, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useProject, Project } from "@/contexts/ProjectContext";
 import { DeleteProjectModal } from "@/components/tasks/DeleteProjectModal";
 import { CreateProjectModal } from "@/components/tasks/CreateProjectModal";
@@ -137,21 +138,52 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const [navItems, setNavItems] = useState(NAV_ITEMS);
+  const { activeWorkspace } = useWorkspace();
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+
+  // Filter NAV_ITEMS based on structureMode
+  const availableNavItems = NAV_ITEMS.filter(item => {
+    if (item.id === "organization") {
+      // In flat mode, we might want to hide "Organization" (or rename it to Workspace settings)
+      // Actually, if we hide it completely, how do they access Settings to change it back?
+      // Let's change the label to "Workspace" if flat, "Teams" if teams, "Corporate" if corporate.
+      // But for now, let's keep it visible so they can change the mode back.
+      return true;
+    }
+    return true;
+  }).map(item => {
+    if (item.id === "organization") {
+      if (activeWorkspace?.structureMode === 'flat') {
+        return { ...item, label: "Settings" }; // In flat mode, just call it Settings
+      }
+      if (activeWorkspace?.structureMode === 'teams') {
+        return { ...item, label: "Teams" };
+      }
+      if (activeWorkspace?.structureMode === 'corporate') {
+        return { ...item, label: "Corporate" };
+      }
+    }
+    return item;
+  });
+
+  const [navItems, setNavItems] = useState(availableNavItems);
+
+  useEffect(() => {
+    setNavItems(availableNavItems);
+  }, [activeWorkspace?.structureMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem('unfract-sidebar-order');
     if (saved) {
       try {
         const order = JSON.parse(saved);
-        const reordered = order.map((id: string) => NAV_ITEMS.find(i => i.id === id)).filter(Boolean);
-        const missing = NAV_ITEMS.filter(i => !order.includes(i.id));
-        setNavItems([...reordered, ...missing]);
+        const reordered = order.map((id: string) => availableNavItems.find(i => i.id === id)).filter(Boolean);
+        const missing = availableNavItems.filter(i => !order.includes(i.id));
+        setNavItems([...reordered, ...missing] as any);
       } catch (e) {}
     }
-  }, []);
+  }, [activeWorkspace?.structureMode]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedItemId(id);
@@ -263,44 +295,54 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
       
       {/* Project Selector */}
       <div className="relative mb-8" ref={dropdownRef}>
-        <div 
-          className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-white/10 transition-colors overflow-hidden"
-          onClick={() => {
-            if (!isEditing) setIsDropdownOpen(!isDropdownOpen);
-          }}
-        >
-          {isEditing ? (
-            <input
-              ref={inputRef}
-              type="text"
-              value={editValue}
-              onChange={(e) => setEditValue(e.target.value)}
-              onBlur={handleRenameSubmit}
-              onKeyDown={handleKeyDown}
-              className="bg-transparent text-sm font-medium outline-none w-full text-white"
-            />
-          ) : (
-            <span 
-              className="text-sm font-medium truncate flex-1"
-              onClick={(e) => {
+        {projects.length === 0 ? (
+          <button
+            onClick={handleCreateProject}
+            className="w-full flex items-center justify-center gap-2 bg-[#006AFF] hover:bg-blue-600 text-white rounded-xl px-4 py-2.5 transition-colors font-medium text-sm"
+          >
+            <Plus size={16} />
+            Crea Progetto
+          </button>
+        ) : (
+          <div 
+            className="flex items-center justify-between bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 cursor-pointer hover:bg-white/10 transition-colors overflow-hidden"
+            onClick={() => {
+              if (!isEditing) setIsDropdownOpen(!isDropdownOpen);
+            }}
+          >
+            {isEditing ? (
+              <input
+                ref={inputRef}
+                type="text"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onBlur={handleRenameSubmit}
+                onKeyDown={handleKeyDown}
+                className="bg-transparent text-sm font-medium outline-none w-full text-white"
+              />
+            ) : (
+              <span 
+                className="text-sm font-medium truncate flex-1"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsDropdownOpen(false);
+                  setIsEditing(true);
+                }}
+              >
+                {activeProject?.name || "Untitled Project"}
+              </span>
+            )}
+            
+            <div className="shrink-0 ml-2" onClick={(e) => {
+              if (isEditing) {
                 e.stopPropagation();
-                setIsDropdownOpen(false);
-                setIsEditing(true);
-              }}
-            >
-              {activeProject?.name || "Untitled Project"}
-            </span>
-          )}
-          
-          <div className="shrink-0 ml-2" onClick={(e) => {
-            if (isEditing) {
-              e.stopPropagation();
-              handleRenameSubmit();
-            }
-          }}>
-            <ChevronDown size={16} className={`text-[#858585] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                handleRenameSubmit();
+              }
+            }}>
+              <ChevronDown size={16} className={`text-[#858585] transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Dropdown Menu */}
         {isDropdownOpen && (
@@ -476,7 +518,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         <CreateProjectModal 
           onClose={() => setIsCreateModalOpen(false)}
           onCreate={async (name, orgId) => {
-            await createProject(name, orgId);
+            await createProject(name);
             setIsCreateModalOpen(false);
           }}
         />
