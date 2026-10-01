@@ -17,7 +17,7 @@ export default function VideoCallPage({ params }: { params: { id: string } }) {
     if (!containerRef.current) return;
     
     // Fallback al server pubblico se NEXT_PUBLIC_JITSI_DOMAIN non è ancora settato nel .env.local
-    const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.jit.si';
+    const domain = process.env.NEXT_PUBLIC_JITSI_DOMAIN || 'meet.unfract.com';
     const roomName = `unfract-${params.id}`;
 
     const initJitsi = () => {
