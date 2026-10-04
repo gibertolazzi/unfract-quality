@@ -120,7 +120,7 @@ export function TaskColumn({
         <div 
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`flex flex-col gap-6 w-full min-w-[340px] max-w-[380px] ${snapshot.isDragging ? 'opacity-80' : ''}`}
+          className={`flex h-full min-h-0 w-full min-w-[280px] max-w-[380px] flex-col gap-4 sm:min-w-[340px] sm:gap-6 ${snapshot.isDragging ? 'opacity-80' : ''}`}
         >
           <div className="flex flex-col gap-2 relative group px-2">
             <div className="flex items-center justify-between">
@@ -157,7 +157,7 @@ export function TaskColumn({
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className={`flex flex-col gap-4 p-5 bg-[#0C0C0C] border rounded-[32px] min-h-[500px] transition-colors ${snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
+                className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
               >
                 {tasks.map((t, idx) => (
                   <TaskCard key={t.id} task={t} index={idx} onClick={() => onTaskClick(t)} />
@@ -374,42 +374,45 @@ export function TaskBoard() {
   }
 
   return (
-    <div className="flex flex-col h-full font-sans">
-      <div className="relative z-10 mb-4 mt-2 min-w-0 overflow-x-auto sm:mb-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex w-max min-w-full items-center justify-between gap-2 sm:gap-3">
-        <nav className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+    <div className="flex h-full min-h-0 flex-col font-sans">
+      <div className="relative z-10 mb-4 mt-2 min-w-0 shrink-0 sm:mb-8">
+        <div className="flex w-full min-w-0 items-center justify-between gap-1 sm:gap-3">
+        <nav className="flex min-w-0 shrink items-center gap-0.5 sm:gap-2">
           <button 
             onClick={() => setActiveView('board')} 
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-4 sm:text-[14px] ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            aria-label={t.tasks.board}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <Layout size={16} />
-            {t.tasks.board}
+            <span className="hidden whitespace-nowrap md:inline">{t.tasks.board}</span>
           </button>
           <button 
             onClick={() => setActiveView('tasklist')} 
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-4 sm:text-[14px] ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            aria-label={t.tasks.tasklist}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <List size={16} />
-            {t.tasks.tasklist}
+            <span className="hidden whitespace-nowrap md:inline">{t.tasks.tasklist}</span>
           </button>
           <button 
             onClick={() => setActiveView('timeline')} 
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors sm:gap-2 sm:px-4 sm:text-[14px] ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            aria-label={t.tasks.timeline}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <CalendarDays size={16} />
-            {t.tasks.timeline}
+            <span className="hidden whitespace-nowrap md:inline">{t.tasks.timeline}</span>
           </button>
         </nav>
         
         <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-3">
           {hasTasksWrite && (
             <>
-              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] p-2 text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 sm:px-4 sm:py-2">
-                <PlusCircle size={16} className="text-[#00A6FF]" /><span className="hidden whitespace-nowrap sm:inline">{t.tasks.newTask}</span>
+              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] p-2 text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 md:px-4 md:py-2">
+                <PlusCircle size={16} className="text-[#00A6FF]" /><span className="hidden whitespace-nowrap md:inline">{t.tasks.newTask}</span>
               </button>
               {activeView === 'board' && (
-                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 p-2 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white sm:px-4 sm:py-2">
-                  <PlusCircle size={16} /><span className="hidden whitespace-nowrap sm:inline">{t.tasks.addColumn}</span>
+                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 p-2 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white md:px-4 md:py-2">
+                  <PlusCircle size={16} /><span className="hidden whitespace-nowrap md:inline">{t.tasks.addColumn}</span>
                 </button>
               )}
             </>
@@ -425,7 +428,7 @@ export function TaskBoard() {
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex items-start gap-8 overflow-x-auto pb-8 h-full"
+                className="flex min-h-0 flex-1 items-stretch gap-4 overflow-x-auto overflow-y-hidden pb-2 sm:gap-8 sm:pb-4"
               >
                 {columns.map((col, index) => {
                   const columnTasks = tasks
