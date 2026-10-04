@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Calendar, PlusCircle, Trash2, Layout, List, CalendarDays, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -179,6 +179,8 @@ export function TaskBoard() {
   const [epics, setEpics] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [activeView, setActiveView] = useState<'board' | 'tasklist' | 'timeline'>('board');
+  const [compactToolbar, setCompactToolbar] = useState(true);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [showColumnPrompt, setShowColumnPrompt] = useState(false);
   const { activeProjectId } = useProject();
   const dialog = useDialog();
@@ -207,6 +209,20 @@ export function TaskBoard() {
 
   const hasTasksRead = canRead('tasks');
   const hasTasksWrite = canWrite('tasks');
+
+  useEffect(() => {
+    const toolbar = toolbarRef.current;
+    if (!toolbar || typeof ResizeObserver === 'undefined') return;
+
+    const updateToolbarLayout = () => {
+      setCompactToolbar(toolbar.getBoundingClientRect().width < 900);
+    };
+    const observer = new ResizeObserver(updateToolbarLayout);
+    observer.observe(toolbar);
+    updateToolbarLayout();
+
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (!activeProjectId || !hasTasksRead) {
@@ -376,7 +392,7 @@ export function TaskBoard() {
   return (
     <div className="flex h-full min-h-0 flex-col font-sans">
       <div className="relative z-10 mb-4 mt-2 min-w-0 shrink-0 sm:mb-8">
-        <div className="flex w-full min-w-0 items-center justify-between gap-1 sm:gap-3">
+        <div ref={toolbarRef} className="flex w-full min-w-0 items-center justify-between gap-1 sm:gap-3">
         <nav className="flex min-w-0 shrink items-center gap-0.5 sm:gap-2">
           <button 
             onClick={() => setActiveView('board')} 
@@ -384,7 +400,7 @@ export function TaskBoard() {
             className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <Layout size={16} />
-            <span className="hidden whitespace-nowrap md:inline">{t.tasks.board}</span>
+            {!compactToolbar && <span className="whitespace-nowrap">{t.tasks.board}</span>}
           </button>
           <button 
             onClick={() => setActiveView('tasklist')} 
@@ -392,7 +408,7 @@ export function TaskBoard() {
             className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <List size={16} />
-            <span className="hidden whitespace-nowrap md:inline">{t.tasks.tasklist}</span>
+            {!compactToolbar && <span className="whitespace-nowrap">{t.tasks.tasklist}</span>}
           </button>
           <button 
             onClick={() => setActiveView('timeline')} 
@@ -400,19 +416,19 @@ export function TaskBoard() {
             className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <CalendarDays size={16} />
-            <span className="hidden whitespace-nowrap md:inline">{t.tasks.timeline}</span>
+            {!compactToolbar && <span className="whitespace-nowrap">{t.tasks.timeline}</span>}
           </button>
         </nav>
         
         <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-3">
           {hasTasksWrite && (
             <>
-              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] p-2 text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 md:px-4 md:py-2">
-                <PlusCircle size={16} className="text-[#00A6FF]" /><span className="hidden whitespace-nowrap md:inline">{t.tasks.newTask}</span>
+              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 ${compactToolbar ? 'p-2' : 'px-4 py-2'}`}>
+                <PlusCircle size={16} className="text-[#00A6FF]" />{!compactToolbar && <span className="whitespace-nowrap">{t.tasks.newTask}</span>}
               </button>
               {activeView === 'board' && (
-                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 p-2 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white md:px-4 md:py-2">
-                  <PlusCircle size={16} /><span className="hidden whitespace-nowrap md:inline">{t.tasks.addColumn}</span>
+                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white ${compactToolbar ? 'p-2' : 'px-4 py-2'}`}>
+                  <PlusCircle size={16} />{!compactToolbar && <span className="whitespace-nowrap">{t.tasks.addColumn}</span>}
                 </button>
               )}
             </>
