@@ -1,9 +1,11 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
-  FollowupState, FOLLOWUP_STATES, FOLLOWUP_STATE_LABELS, FOLLOWUP_STATE_COLORS,
+  FollowupState, FOLLOWUP_STATES, FOLLOWUP_STATE_COLORS,
   FOLLOWUP_TRANSITIONS,
 } from '@/components/crm/constants';
 
@@ -18,6 +20,7 @@ interface FollowupStateBadgeProps {
  * dalla macchina a stati: l'errore non si può nemmeno scegliere.
  */
 export function FollowupStateBadge({ state, disabled, onChange }: FollowupStateBadgeProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -44,7 +47,7 @@ export function FollowupStateBadge({ state, disabled, onChange }: FollowupStateB
         style={{ color, backgroundColor: `${color}1A` }}
       >
         <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-        {FOLLOWUP_STATE_LABELS[state]}
+        {getFollowupStateLabel(state, t)}
         {interactive && <ChevronDown size={10} />}
       </button>
 
@@ -61,7 +64,7 @@ export function FollowupStateBadge({ state, disabled, onChange }: FollowupStateB
                 className="h-1.5 w-1.5 rounded-full"
                 style={{ backgroundColor: FOLLOWUP_STATE_COLORS[candidate] }}
               />
-              {FOLLOWUP_STATE_LABELS[candidate]}
+              {getFollowupStateLabel(candidate, t)}
             </button>
           ))}
         </div>

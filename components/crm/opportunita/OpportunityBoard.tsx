@@ -1,10 +1,12 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { CrmOpportunity } from '@/components/crm/types';
 import {
-  OpportunityPhase, OPPORTUNITY_PHASES, OPPORTUNITY_PHASE_LABELS, OPPORTUNITY_PHASE_COLORS,
+  OpportunityPhase, OPPORTUNITY_PHASES, OPPORTUNITY_PHASE_COLORS,
   OPPORTUNITY_TRANSITIONS, canTransition,
 } from '@/components/crm/constants';
 import { PhaseSummary } from '@/lib/crm/opportunityFilters';
@@ -39,6 +41,7 @@ interface OpportunityBoardProps {
 export function OpportunityBoard({
   columns, counterpartyName, ownerName, onOpen, onMove, onReorder, onRefused,
 }: OpportunityBoardProps) {
+  const { t } = useTranslation();
   const [isMounted, setIsMounted] = useState(false);
   useEffect(() => {
     setIsMounted(true);
@@ -93,7 +96,7 @@ export function OpportunityBoard({
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: OPPORTUNITY_PHASE_COLORS[column.phase] }}
                     />
-                    {OPPORTUNITY_PHASE_LABELS[column.phase]}
+                    {getOppPhaseLabel(column.phase, t)}
                   </span>
                   <span className="text-[11px] font-medium text-[#C4C4C4]">
                     {formatEuro(column.value)} ({column.count})
@@ -101,10 +104,10 @@ export function OpportunityBoard({
                 </div>
                 <span
                   className="text-[10px] text-[#3F3F3F]"
-                  title="Le sole fasi da cui la macchina a stati ammette il passaggio"
+                  title={t.crm.oppPhaseRestriction}
                 >
                   {from.length > 0
-                    ? `da ${from.map(phase => OPPORTUNITY_PHASE_LABELS[phase]).join(', ')}`
+                    ? `da ${from.map(phase => getOppPhaseLabel(phase, t)).join(', ')}`
                     : 'fase iniziale'}
                 </span>
               </header>

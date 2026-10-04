@@ -3,15 +3,17 @@
 import React, { useState, useEffect } from "react";
 import { format, addDays, startOfToday, isSameDay } from "date-fns";
 import { it } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Video, User } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Video } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 export default function BookingPage({ params }: { params: { userId: string } }) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(startOfToday());
   const [slots, setSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [host, setHost] = useState<any>(null);
+  const [bookingDuration, setBookingDuration] = useState<number>(30);
   
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [guestName, setGuestName] = useState("");
@@ -33,6 +35,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
         const data = await res.json();
         setSlots(data.slots || []);
         if (data.user) setHost(data.user);
+        if (data.bookingDuration) setBookingDuration(data.bookingDuration);
       } else {
         setSlots([]);
       }
@@ -90,13 +93,12 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
       <div className="w-full md:w-1/3 bg-black/40 p-8 border-b md:border-b-0 md:border-r border-white/5">
         {host ? (
           <div className="flex items-center gap-4 mb-8">
-            {host.photoURL ? (
-              <img src={host.photoURL} alt={host.displayName} className="w-16 h-16 rounded-full" />
-            ) : (
-              <div className="w-16 h-16 bg-[#006AFF]/20 text-[#006AFF] rounded-full flex items-center justify-center">
-                <User size={32} />
-              </div>
-            )}
+            <UserAvatar
+              src={host.photoURL}
+              name={host.displayName}
+              className="w-16 h-16 bg-[#006AFF]/20 text-[#006AFF] rounded-full flex items-center justify-center overflow-hidden font-semibold text-xl"
+              imageClassName="w-full h-full rounded-full object-cover"
+            />
             <div>
               <div className="text-sm text-[#858585] mb-1">Incontra</div>
               <h2 className="text-xl font-bold">{host.displayName}</h2>
@@ -115,7 +117,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
         <div className="flex flex-col gap-4 text-white/70">
           <div className="flex items-center gap-3">
             <Clock size={20} className="text-[#858585]" />
-            <span>30 minuti</span>
+            <span>{bookingDuration} minuti</span>
           </div>
           <div className="flex items-center gap-3">
             <Video size={20} className="text-[#858585]" />

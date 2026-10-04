@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { X, ArrowLeft, ArrowRight, Check, Undo2, AlertTriangle } from 'lucide-react';
 
@@ -51,6 +52,7 @@ interface ImportModalProps {
 export function ImportModal({
   open, owners, defaultOwnerUid, existing, policyVersion, onClose, onRun, onRollback,
 }: ImportModalProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<Step>('file');
 
   const [parsing, setParsing] = useState(false);

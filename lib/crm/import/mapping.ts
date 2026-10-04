@@ -4,7 +4,8 @@
  * Funzioni pure: niente Firebase, niente React.
  */
 
-import { LEAD_STATES, LEAD_STATE_LABELS, LeadState } from '@/components/crm/constants';
+import { LEAD_STATES, LeadState } from '@/components/crm/constants';
+import { getLeadStateLabel } from '@/components/crm/shared/labels';
 import { normalizeEmail, normalizePhone, extractDomain } from '../helpers';
 
 export type ImportEntity = 'lead' | 'account' | 'contact';
@@ -262,7 +263,7 @@ export function parseLeadState(raw: string): LeadState | null {
   const byCode = LEAD_STATES.find(state => normalizeHeader(state) === value);
   if (byCode) return byCode;
 
-  const byLabel = LEAD_STATES.find(state => normalizeHeader(LEAD_STATE_LABELS[state]) === value);
+  const byLabel = LEAD_STATES.find(state => normalizeHeader(({} as any)[state]) === value);
   if (byLabel) return byLabel;
 
   // Sinonimi che ricorrono nelle esportazioni.

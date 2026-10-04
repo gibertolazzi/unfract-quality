@@ -8,6 +8,8 @@ import { LoginScreen } from "@/components/auth/LoginScreen";
 import { useProject } from "@/contexts/ProjectContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { usePathname } from "next/navigation";
+import { getWebLLMEngine } from "@/lib/webllm";
+import { useEffect } from "react";
 
 import { useState, useRef } from "react";
 
@@ -27,6 +29,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
   const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (user && typeof window !== 'undefined') {
+      const hasNativeAI = 'ai' in window && 'languageModel' in (window as any).ai;
+      const hasWebGPU = 'gpu' in navigator && Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
+      
+      if (!hasNativeAI && hasWebGPU) {
+        getWebLLMEngine((progress) => {
+          console.log("Preloading WebLLM in background:", progress);
+        }).catch(e => console.error("WebLLM Preload Error:", e));
+      }
+    }
+  }, [user]);
   
   const { activeProjectId, loading: projLoading } = useProject();
   const { activeWorkspaceId } = useWorkspace();
@@ -39,6 +54,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const isOrgRoute = pathname?.startsWith('/organization');
+  const isChatRoute = pathname === '/chat';
   const isLocked = !projLoading && !activeProjectId && !isOrgRoute;
 
   return (
@@ -59,10 +75,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[90] md:hidden transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isMobileMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
         onClick={() => setIsMobileMenuOpen(false)}
       />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <TopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 p-3 md:p-6 pt-0 overflow-hidden relative">
-          <div className={`w-full h-full bg-black/20 rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-4 md:p-8 overflow-y-auto ${isLocked ? 'filter blur-sm opacity-50 select-none' : ''}`}>
+        <main className="flex-1 min-h-0 p-3 md:p-6 pt-0 overflow-hidden relative">
+          <div className={`w-full h-full min-h-0 bg-black/20 rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-4 md:p-8 ${isChatRoute ? 'overflow-hidden' : 'overflow-y-auto'} ${isLocked ? 'filter blur-sm opacity-50 select-none' : ''}`}>
             {children}
           </div>
 

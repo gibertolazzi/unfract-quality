@@ -11,6 +11,11 @@ export interface Task {
   updatedAt?: any;
   completedAt?: any;
   projectId: string;
+  requesterUid?: string;
+  assigneeUid?: string;
+  createdBy?: string;
+  lastModifiedBy?: string;
+  mentions?: { type: string; id: string; name: string }[];
   order?: number;
   assignees?: number;
   comments?: any[];

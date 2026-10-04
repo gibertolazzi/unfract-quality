@@ -10,11 +10,9 @@
 import {
   CrmInteraction, CrmFollowup, CrmCommunication, CrmDocument,
 } from '@/types/crm';
-import {
-  INTERACTION_TYPE_LABELS, FOLLOWUP_TYPE_LABELS, FOLLOWUP_STATE_LABELS,
-  EMAIL_STATE_LABELS, FollowupState,
-} from '@/components/crm/constants';
+import { FollowupState } from '@/components/crm/constants';
 import { toMillis } from './helpers';
+import { getInteractionTypeLabel, getFollowupStateLabel, getFollowupTypeLabel, getEmailStateLabel } from '@/components/crm/shared/labels';
 
 export type TimelineKind = 'interaction' | 'followup' | 'communication' | 'document';
 
@@ -144,10 +142,10 @@ export function buildTimeline(
       id: record.id,
       kind: 'interaction',
       at: toMillis(record.occurredAt) || toMillis(record.createdAt),
-      title: summarize(record.title, INTERACTION_TYPE_LABELS[record.type]),
+      title: summarize(record.title, getInteractionTypeLabel(record.type as any, { crm: {} } as any)),
       subtitle: record.outcome || '',
       detail: summarize(record.body, record.nextStep),
-      badge: INTERACTION_TYPE_LABELS[record.type] || record.type,
+      badge: getInteractionTypeLabel(record.type as any, { crm: {} } as any) || record.type,
       actorUid: record.createdBy,
       archived: record.archived,
     });
@@ -160,9 +158,9 @@ export function buildTimeline(
       // Un follow-up si colloca alla sua scadenza, non a quando è stato creato.
       at: record.dueDate ? Date.parse(record.dueDate) : toMillis(record.createdAt),
       title: record.title,
-      subtitle: FOLLOWUP_STATE_LABELS[record.state],
+      subtitle: getFollowupStateLabel(record.state as any, { crm: {} } as any),
       detail: summarize(record.notes),
-      badge: FOLLOWUP_TYPE_LABELS[record.type] || record.type,
+      badge: getFollowupTypeLabel(record.type as any, { crm: {} } as any) || record.type,
       actorUid: record.assigneeUid || record.createdBy,
       archived: record.archived,
     });
@@ -176,7 +174,7 @@ export function buildTimeline(
       title: summarize(record.subject, '(senza oggetto)'),
       subtitle: record.toEmail,
       detail: summarize(record.bodyText, record.errorMessage),
-      badge: EMAIL_STATE_LABELS[record.state] || record.state,
+      badge: getEmailStateLabel(record.state as any, { crm: {} } as any) || record.state,
       actorUid: record.createdBy,
       archived: record.archived,
     });

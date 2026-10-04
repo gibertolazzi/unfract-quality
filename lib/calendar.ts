@@ -51,3 +51,32 @@ export const saveEventToFirestore = async (userId: string, event: CalendarEvent)
 export const deleteEventFromFirestore = async (userId: string, eventId: string) => {
   await deleteDoc(doc(db, 'users', userId, 'events', eventId));
 };
+
+export const sendCalendarNotification = async (event: CalendarEvent, action: 'create' | 'update' | 'cancel', userEmail?: string, userName?: string, toast?: any) => {
+  if (!event.guestEmail) return;
+  
+  try {
+    const res = await fetch('/api/calendar/notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        event,
+        action,
+        guestEmail: event.guestEmail,
+        userEmail,
+        userName
+      })
+    });
+    
+    if (!res.ok) {
+      const errorData = await res.json();
+      console.error('Failed to send email notification:', errorData);
+      if (toast) toast.error(`Errore invio email: ${errorData.error?.message || 'sconosciuto'}`);
+    } else {
+      if (toast) toast.success("Email inviata con successo!");
+    }
+  } catch (err) {
+    console.error('Error sending notification:', err);
+    if (toast) toast.error("Errore di rete nell'invio dell'email");
+  }
+};

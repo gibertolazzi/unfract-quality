@@ -1,5 +1,13 @@
 export type StructureMode = 'flat' | 'teams' | 'corporate';
 
+export interface WorkspaceQuotas {
+  planTier: 'free' | 'pro' | 'enterprise';
+  storageUsed: number;
+  storageLimit: number;
+  aiCreditsUsed: number;
+  aiCreditsLimit: number;
+}
+
 export interface Workspace {
   id: string;
   name: string;
@@ -8,6 +16,7 @@ export interface Workspace {
   bannerGradient?: string;
   bannerUrl?: string;
   logoUrl?: string;
+  quotas?: WorkspaceQuotas;
   createdAt?: any;
   updatedAt?: any;
 }

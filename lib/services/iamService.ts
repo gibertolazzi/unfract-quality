@@ -24,6 +24,23 @@ export async function assignUserRole(projectId: string, userId: string, roleId: 
     await deleteDoc(doc(db, MEMBERS_COLLECTION, memberId));
   } else {
     await setDoc(doc(db, MEMBERS_COLLECTION, memberId), { projectId, userId, roleId, assignedAt: serverTimestamp() });
+    
+    try {
+      const { auth } = require('@/lib/firebase');
+      const { createNotification } = require('./notificationService');
+      const currentUser = auth.currentUser;
+      if (currentUser) {
+        createNotification({
+          userId: currentUser.uid,
+          title: 'Nuovo membro',
+          description: `Un nuovo membro è stato assegnato al progetto con ruolo: ${roleId}`,
+          type: 'organization',
+          link: '/settings'
+        });
+      }
+    } catch (e) {
+      console.error("Error creating member notification:", e);
+    }
   }
 }
 

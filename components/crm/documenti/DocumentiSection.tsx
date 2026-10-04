@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { Search, X, HardDrive } from 'lucide-react';
 import {
@@ -56,6 +57,7 @@ export function DocumentiSection({
   documents, leads, accounts, contacts, customers, opportunities, ownerName, loading,
   onUpload, onUploadVersion, onUpdate, onDownload, onArchive, onRestore,
 }: DocumentiSectionProps) {
+  const { t } = useTranslation();
   const [filters, setFilters] = useState<DocumentFilters>({ ...EMPTY_DOCUMENT_FILTERS });
   const [sort, setSort] = useState<DocumentSort>({ ...DEFAULT_DOCUMENT_SORT });
   const [page, setPage] = useState(1);
@@ -180,7 +182,7 @@ export function DocumentiSection({
 
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-1">
-          <span className="mr-1 text-[10px] uppercase tracking-wide text-[#3F3F3F]">Etichette</span>
+          <span className="mr-1 text-[10px] uppercase tracking-wide text-[#3F3F3F]">{t.crm.tags}</span>
           {tags.map(tag => (
             <Chip key={tag} label={tag} active={filters.tags.includes(tag)} onClick={() => toggle('tags', tag)} />
           ))}

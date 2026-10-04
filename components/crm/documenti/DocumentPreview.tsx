@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect, useState } from 'react';
 import { FileText, Download, ExternalLink } from 'lucide-react';
 import { CrmDocument } from '@/components/crm/types';
@@ -101,6 +102,7 @@ function TextPreview({ document }: { document: CrmDocument }) {
 }
 
 export function DocumentPreview({ document }: { document: CrmDocument }) {
+  const { t } = useTranslation();
   const mime = document.mimeType || '';
 
   if (!document.downloadUrl) {

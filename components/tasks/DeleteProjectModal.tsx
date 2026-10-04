@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Trash2 } from 'lucide-react';
 import { Project } from '@/contexts/ProjectContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export function DeleteProjectModal({ 
   project, 
@@ -13,6 +14,7 @@ export function DeleteProjectModal({
   onClose: () => void;
 }) {
   const [value, setValue] = useState('');
+  const { t } = useTranslation();
   const isValid = value === project.name;
 
   if (typeof document === 'undefined') return null;
@@ -24,7 +26,7 @@ export function DeleteProjectModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between p-4 border-b border-white/5 bg-red-500/5">
-          <h3 className="text-sm font-semibold text-red-500">Elimina Progetto</h3>
+          <h3 className="text-sm font-semibold text-red-500">{t.tasks.deleteProjectTitle}</h3>
           <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors">
             <X size={18} />
           </button>
@@ -32,10 +34,10 @@ export function DeleteProjectModal({
         
         <div className="p-6 flex flex-col gap-4">
           <p className="text-sm text-white/70 leading-relaxed">
-            Questa azione è <strong className="text-white">irreversibile</strong>. Eliminerà permanentemente il progetto <strong className="text-white">{project.name}</strong>.
+            {t.tasks.deleteWarning1} <strong className="text-white">{t.tasks.irreversible}</strong>{t.tasks.deleteWarning2} <strong className="text-white">{project.name}</strong>.
           </p>
           <p className="text-xs text-[#858585]">
-            Per confermare, digita il nome del progetto di seguito:
+            {t.tasks.typeToConfirm}
           </p>
           
           <input 
@@ -55,7 +57,7 @@ export function DeleteProjectModal({
         
         <div className="p-4 border-t border-white/5 bg-black/40 flex justify-end gap-3">
           <button onClick={onClose} className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-full font-medium transition-colors">
-            Annulla
+            {t.tasks.cancel}
           </button>
           <button 
             onClick={() => {
@@ -65,7 +67,7 @@ export function DeleteProjectModal({
             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-full text-sm font-medium transition-colors"
           >
             <Trash2 size={16} />
-            Elimina progetto
+            {t.tasks.deleteProjectBtn}
           </button>
         </div>
       </div>

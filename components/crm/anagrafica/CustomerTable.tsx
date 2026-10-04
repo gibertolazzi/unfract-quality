@@ -1,5 +1,8 @@
 'use client';
 
+import { it, enUS } from 'date-fns/locale';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
 import { Archive, Users } from 'lucide-react';
 import { CrmCustomer } from '@/components/crm/types';
 import { Page } from '@/lib/crm/leadFilters';
@@ -20,19 +23,23 @@ interface CustomerTableProps {
   onOpenAccount: (accountId: string) => void;
 }
 
-const COLUMNS: ColumnDef<CustomerSortField>[] = [
-  { field: 'account',       label: 'Cliente' },
-  { field: 'status',        label: 'Stato' },
-  { field: 'customerSince', label: 'Cliente dal', initial: 'desc' },
-  { field: 'updatedAt',     label: 'Aggiornato',  initial: 'desc' },
-];
+
 
 export function CustomerTable({
   page, sort, accountNameById,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onArchive, onOpenAccount,
 }: CustomerTableProps) {
+  const { t } = useTranslation();
+
+  const COLUMNS: ColumnDef<CustomerSortField>[] = [
+    { field: 'account',       label: t.crm.colCustomer },
+    { field: 'status',        label: t.crm.colStatus },
+    { field: 'customerSince', label: t.crm.colCustomerSince, initial: 'desc' },
+    { field: 'updatedAt',     label: t.crm.colUpdated,  initial: 'desc' },
+  ];
+  const dateLocale = t.settings.language === 'it' ? it : enUS;
   if (page.totalItems === 0) {
-    return <EmptyState title="Nessun cliente corrisponde ai filtri" hint="I clienti nascono dalla conversione di un lead, oppure si creano da qui" />;
+    return <EmptyState title={t.crm.noCustomerMatches} hint="I clienti nascono dalla conversione di un lead, oppure si creano da qui" />;
   }
 
   return (
@@ -65,7 +72,7 @@ export function CustomerTable({
                   <td className="px-4 py-3">
                     <button type="button" onClick={() => onOpen(customer)} className="flex flex-col items-start text-left">
                       <span className="text-xs font-medium text-white group-hover:underline">
-                        {accountName || 'Azienda non trovata'}
+                        {accountName || t.crm.companyNotFound}
                       </span>
                       {customer.originLeadId && (
                         <span className="text-[11px] text-[#5A5A5A]">Da lead convertito</span>
@@ -81,7 +88,7 @@ export function CustomerTable({
                   <td className="px-4 py-3">
                     <Pill
                       color={CUSTOMER_STATUS_COLORS[customer.status]}
-                      label={CUSTOMER_STATUS_LABELS[customer.status]}
+                      label={getCustomerStatusLabel(customer.status, t)}
                     />
                   </td>
 
@@ -103,7 +110,7 @@ export function CustomerTable({
                         <button
                           type="button"
                           onClick={() => onOpenAccount(customer.accountId)}
-                          title="Apri la scheda azienda"
+                          title={t.crm.openCompanyCard}
                           className="rounded p-1 text-[#3F3F3F] opacity-0 transition-opacity hover:text-white group-hover:opacity-100"
                         >
                           <Users size={13} />
@@ -113,7 +120,7 @@ export function CustomerTable({
                         <button
                           type="button"
                           onClick={() => onArchive(customer)}
-                          title="Archivia"
+                          title={t.crm.archive}
                           className="rounded p-1 text-[#3F3F3F] opacity-0 transition-opacity hover:text-[#EF4444] group-hover:opacity-100"
                         >
                           <Archive size={13} />

@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, UserPlus, Link2, MoreHorizontal, MoreVertical, Pencil, PlusCircle, ImagePlus, Loader2, Copy, X, Users, Lock } from 'lucide-react';
+import { ChevronLeft, UserPlus, Link2, MoreHorizontal, MoreVertical, Pencil, PlusCircle, ImagePlus, Loader2, Copy, X, Users, Lock, Trash2 } from 'lucide-react';
 import { Organization } from './types';
 import { db, storage } from '@/lib/firebase';
-import { doc, updateDoc, arrayRemove } from 'firebase/firestore';
+import { doc, updateDoc, arrayRemove, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
@@ -23,7 +23,33 @@ import { TeamsSection } from './TeamsSection';
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const { user } = useAuth();
   const { projects } = useProject();
+  const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
   const [org, setOrg] = useState(initialOrg);
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const q = query(
+          collection(db, 'projects'),
+          where('organizationIds', 'array-contains', org.id)
+        );
+        const unsubscribe = onSnapshot(q, (snapshot: any) => {
+          const projs: Project[] = [];
+          snapshot.forEach((doc: any) => {
+            projs.push({ id: doc.id, ...doc.data() } as Project);
+          });
+          setAssignedProjects(projs);
+        });
+        return unsubscribe;
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    const unsub = fetchProjects();
+    return () => {
+      unsub.then(u => u && u());
+    };
+  }, [org.id]);
+
   
   const [isHoveringBanner, setIsHoveringBanner] = useState(false);
   const [isHoveringIcon, setIsHoveringIcon] = useState(false);
@@ -168,7 +194,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
     }
   };
 
-  const assignedProjects = projects.filter(p => p.organizationIds?.includes(org.id));
+  // assignedProjects is now fetched via onSnapshot
 
   return (
     <div className="flex flex-col h-full font-sans max-w-[1229px] mx-auto w-full ">
@@ -333,25 +359,33 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
               assignedProjects.map(project => (
                 <div 
                   key={project.id} 
-                  onClick={() => setIamProject(project)}
-                  className="flex items-center justify-between min-w-[240px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all group cursor-pointer"
+                  className="flex items-center justify-between min-w-[280px] flex-1 max-w-[400px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all group"
                 >
-                  <div className="flex items-center gap-3">
+                  <Link href={`/project/${project.id}/tasks`} className="flex items-center gap-3 flex-1 cursor-pointer">
                     <div className="w-[34px] h-[34px] rounded-full bg-[#006AFF]/10 flex items-center justify-center text-[#006AFF]">
                       <Folder size={16} />
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-[14px] text-white font-medium">{project.name}</span>
-                      <span className="text-[11px] text-[#858585]">Progetto</span>
+                      <span className="text-white font-medium text-[15px] group-hover:text-[#00A6FF] transition-colors">{project.name}</span>
+                      <span className="text-[#858585] text-xs">Apri progetto</span>
                     </div>
+                  </Link>
+                  <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIamProject(project); }}
+                      className="w-[34px] h-[34px] rounded-full hover:bg-white/10 flex items-center justify-center text-[#858585] hover:text-white transition-colors"
+                      title="Gestisci Accessi"
+                    >
+                      <Users size={16} />
+                    </button>
+                    <button 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnassignProject(project.id); }}
+                      className="w-[34px] h-[34px] rounded-full hover:bg-red-400/10 flex items-center justify-center text-[#858585] hover:text-red-400 transition-colors"
+                      title="Rimuovi dal Workspace"
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); handleUnassignProject(project.id); }}
-                    className="opacity-0 group-hover:opacity-100 p-2 text-[#858585] hover:text-red-400 hover:bg-white/5 rounded-full transition-all"
-                    title="Elimina progetto dal workspace"
-                  >
-                    <X size={16} />
-                  </button>
                 </div>
               ))
             )}

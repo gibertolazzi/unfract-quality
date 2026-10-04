@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { CrmContact, CrmAccount, CrmConsents } from '@/components/crm/types';
 import { inputClass } from '../shared/TableUtils';
 import { useCloseOnEscape } from '@/hooks/useCloseOnEscape';
@@ -59,6 +60,7 @@ function Field({ label, children, hint, wide }: {
 export function ContactFormModal({
   open, contact, accounts, defaultAccountId, policyVersion, saving, onClose, onSubmit,
 }: ContactFormModalProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !saving);
 
   const [values, setValues] = useState<ContactFormValues>(() => ({
@@ -103,7 +105,7 @@ export function ContactFormModal({
 
   const submit = () => {
     if (!values.firstName.trim() && !values.lastName.trim()) {
-      setError('Serve almeno il cognome');
+      setError(t.crm.errContactLastname);
       return;
     }
     if (!values.email.trim() && !values.phone.trim()) {
@@ -122,44 +124,44 @@ export function ContactFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[#1A1A1A] bg-[#0B0B0B]">
         <header className="flex items-center justify-between border-b border-[#1A1A1A] px-6 py-4">
-          <h2 className="text-sm font-medium text-white">{contact ? 'Modifica contatto' : 'Nuovo contatto'}</h2>
+          <h2 className="text-sm font-medium text-white">{contact ? t.crm.editContact : t.crm.createContact}</h2>
           <button type="button" onClick={onClose} className="text-[#858585] hover:text-white">
             <X size={16} />
           </button>
         </header>
 
         <div className="grid grid-cols-1 gap-4 overflow-y-auto px-6 py-5 sm:grid-cols-2">
-          <Field label="Nome">
+          <Field label={t.crm.firstName}>
             <input value={values.firstName} onChange={e => set({ firstName: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="Cognome">
+          <Field label={t.crm.lastName}>
             <input value={values.lastName} onChange={e => set({ lastName: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Email">
+          <Field label={t.crm.email}>
             <input value={values.email} onChange={e => set({ email: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="Telefono">
+          <Field label={t.crm.phone}>
             <input value={values.phone} onChange={e => set({ phone: e.target.value })} className={inputClass} />
           </Field>
 
                     <Field label="Indirizzo (via e numero)">
             <input value={values.address} onChange={e => set({ address: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="Città">
+          <Field label={t.crm.city}>
             <input value={values.city} onChange={e => set({ city: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="CAP">
+          <Field label={t.crm.zipCode}>
             <input value={values.postalCode} onChange={e => set({ postalCode: e.target.value })} className={inputClass} />
           </Field>
           <Field label="Nazione">
             <input value={values.country} onChange={e => set({ country: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Ruolo">
+          <Field label={t.crm.role}>
             <input value={values.role} onChange={e => set({ role: e.target.value })} placeholder="es. Responsabile acquisti" className={inputClass} />
           </Field>
-          <Field label="Azienda">
+          <Field label={t.crm.company}>
             <select value={values.accountId} onChange={e => set({ accountId: e.target.value })} className={inputClass}>
               <option value="">Nessuna</option>
               {sortedAccounts.map(account => (
@@ -168,23 +170,23 @@ export function ContactFormModal({
             </select>
           </Field>
 
-          <Field label="Canale preferito">
+          <Field label={t.crm.preferredChannel}>
             <select
               value={values.preferredChannel}
               onChange={e => set({ preferredChannel: e.target.value as ContactFormValues['preferredChannel'] })}
               className={inputClass}
             >
               <option value="">Non indicato</option>
-              <option value="email">Email</option>
-              <option value="phone">Telefono</option>
+              <option value="email">{t.crm.email}</option>
+              <option value="phone">{t.crm.phone}</option>
               <option value="sms">SMS</option>
             </select>
           </Field>
-          <Field label="Fascia oraria" hint="Quando preferisce essere contattato">
+          <Field label={t.crm.preferredTime} hint={t.crm.preferredTimeHint}>
             <input value={values.preferredTime} onChange={e => set({ preferredTime: e.target.value })} placeholder="es. mattina" className={inputClass} />
           </Field>
 
-          <Field label="LinkedIn" wide>
+          <Field label={t.crm.linkedin} wide>
             <input value={values.linkedinUrl} onChange={e => set({ linkedinUrl: e.target.value })} className={inputClass} />
           </Field>
 
@@ -198,7 +200,7 @@ export function ContactFormModal({
             Contatto principale dell’azienda
           </label>
 
-          <Field label="Note" wide>
+          <Field label={t.crm.notes} wide>
             <textarea
               value={values.notes}
               onChange={e => set({ notes: e.target.value })}
@@ -249,7 +251,7 @@ export function ContactFormModal({
             disabled={saving}
             className="rounded-lg bg-white px-4 py-2 text-xs font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? 'Salvataggio…' : contact ? 'Salva' : 'Crea contatto'}
+            {saving ? 'Salvataggio…' : contact ? t.crm.save : t.crm.createContact}
           </button>
         </footer>
       </div>

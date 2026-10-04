@@ -1,9 +1,11 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { Search, SlidersHorizontal, X } from 'lucide-react';
 import { LeadFilters, FollowupFilter, EMPTY_FILTERS, countActiveFilters } from '@/lib/crm/leadFilters';
-import { LEAD_STATES, LEAD_STATE_LABELS, LEAD_STATE_COLORS, LeadState } from '@/components/crm/constants';
+import { LEAD_STATES, LEAD_STATE_COLORS, LeadState } from '@/components/crm/constants';
 
 export interface OwnerOption {
   uid: string;
@@ -19,12 +21,7 @@ interface LeadFiltersBarProps {
   totalCount: number;
 }
 
-const FOLLOWUP_LABELS: Record<FollowupFilter, string> = {
-  any: 'Tutti',
-  scheduled: 'Con prossima azione',
-  missing: 'Senza prossima azione',
-  overdue: 'In ritardo',
-};
+
 
 function Chip({ active, color, onClick, children }: {
   active: boolean; color?: string; onClick: () => void; children: React.ReactNode;
@@ -48,6 +45,13 @@ function Chip({ active, color, onClick, children }: {
 export function LeadFiltersBar({
   filters, onChange, owners, sources, resultCount, totalCount,
 }: LeadFiltersBarProps) {
+  const { t } = useTranslation();
+  const FOLLOWUP_LABELS: Record<FollowupFilter, string> = {
+    any: t.crm.all,
+    scheduled: t.crm.withNextAction,
+    missing: t.crm.withoutNextAction,
+    overdue: t.crm.overdue,
+  };
   const [expanded, setExpanded] = useState(false);
   const activeCount = countActiveFilters(filters);
 
@@ -124,7 +128,7 @@ export function LeadFiltersBar({
                   onClick={() => set({ states: toggleIn<LeadState>(filters.states, state) })}
                 >
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: LEAD_STATE_COLORS[state] }} />
-                  {LEAD_STATE_LABELS[state]}
+                  {getLeadStateLabel(state, t)}
                 </Chip>
               ))}
             </div>
@@ -149,7 +153,7 @@ export function LeadFiltersBar({
 
           {sources.length > 0 && (
             <div className="flex flex-col gap-2">
-              <p className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">Fonte</p>
+              <p className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">{t.crm.source}</p>
               <div className="flex flex-wrap gap-1.5">
                 {sources.map(source => (
                   <Chip

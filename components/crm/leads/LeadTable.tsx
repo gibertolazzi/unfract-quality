@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect, useRef, useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronLeft, ChevronRight, UserCircle2, Archive, Handshake } from 'lucide-react';
 import { CrmLead } from '@/components/crm/types';
@@ -23,14 +24,7 @@ interface LeadTableProps {
   onConvert: (lead: CrmLead) => void;
 }
 
-const COLUMNS: { field: LeadSortField; label: string; align?: 'right' }[] = [
-  { field: 'fullName',       label: 'Nominativo' },
-  { field: 'companyName',    label: 'Azienda' },
-  { field: 'state',          label: 'Stato' },
-  { field: 'estimatedValue', label: 'Valore', align: 'right' },
-  { field: 'nextFollowupAt', label: 'Prossima azione' },
-  { field: 'updatedAt',      label: 'Aggiornato' },
-];
+
 
 const formatEuro = (n: number) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
@@ -105,6 +99,16 @@ export function LeadTable({
   page, sort, owners, onSortChange, onPageChange, onPageSizeChange,
   onStateChange, onAssign, onOpen, onArchive, onConvert,
 }: LeadTableProps) {
+  const { t } = useTranslation();
+
+  const COLUMNS: { field: LeadSortField; label: string; align?: 'right' }[] = [
+    { field: 'fullName',       label: t.crm.colName },
+    { field: 'companyName',    label: 'Azienda' },
+    { field: 'state',          label: 'Stato' },
+    { field: 'estimatedValue', label: t.crm.colValue, align: 'right' },
+    { field: 'nextFollowupAt', label: t.crm.colNextAction },
+    { field: 'updatedAt',      label: 'Aggiornato' },
+  ];
 
   const toggleSort = (field: LeadSortField) => {
     if (sort.field === field) {
@@ -224,7 +228,7 @@ export function LeadTable({
                         onClick={() => onConvert(lead)}
                         title={
                           lead.state === 'NEGOTIATION'
-                            ? 'Converti in cliente'
+                            ? t.crm.convertToCustomer
                             : lead.state === 'CONVERTED'
                               ? 'Vedi cosa è diventato'
                               : 'Conversione: si parte dalla negoziazione'

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect, useState } from 'react';
 import { X, Archive, ArchiveRestore, Download, Plus, History, Clock } from 'lucide-react';
 import { CrmDocument, CrmDocumentVersion } from '@/components/crm/types';
@@ -25,11 +26,11 @@ interface DocumentDrawerProps {
   onUploadVersion: UploadRunner;
 }
 
-const VISIBILITY_LABELS: Record<VisibilityLevel, string> = {
-  team: 'Tutto il team del progetto',
-  commercial: 'Solo chi ha ruolo commerciale',
+const getVisibilityLabels = (t: any): Record<VisibilityLevel, string> => ({
+  team: t.crm.entireProjectTeam,
+  commercial: t.crm.commercialRoleOnly,
   private: 'Solo chi l’ha caricato',
-};
+});
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -55,6 +56,7 @@ export function DocumentDrawer({
   document, linkName, uploaderName, knownTags,
   onClose, onUpdate, onDownload, onArchive, onRestore, onUploadVersion,
 }: DocumentDrawerProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose);
 
   const [tagDraft, setTagDraft] = useState('');
@@ -91,7 +93,7 @@ export function DocumentDrawer({
           </div>
 
           <div className="flex shrink-0 items-center gap-1">
-            <button type="button" onClick={() => onDownload()} title="Scarica" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
+            <button type="button" onClick={() => onDownload()} title={t.crm.download} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
               <Download size={14} />
             </button>
             {document.archived ? (
@@ -126,24 +128,24 @@ export function DocumentDrawer({
 
           <DocumentPreview document={document} />
 
-          <Section title="Dati">
+          <Section title={t.crm.data}>
             <div className="divide-y divide-[#131313]">
-              <Row label="Caricato">
+              <Row label={t.crm.uploaded}>
                 {formatDate(document.createdAt)} da {uploaderName(document.createdBy)}
               </Row>
               <Row label="Aggiornato">{formatDate(document.updatedAt)}</Row>
-              <Row label="Formato">{document.mimeType || '—'}</Row>
-              <Row label="Collegato a">
+              <Row label={t.crm.format}>{document.mimeType || '—'}</Row>
+              <Row label={t.crm.linkedTo}>
                 {link === 'none' ? 'nessun record' : `${linkName(document)} · ${DOCUMENT_LINK_LABELS[link]}`}
               </Row>
-              <Row label="Provenienza">{document.origin}</Row>
-              <Row label="Controllo antivirus">
+              <Row label={t.crm.origin}>{document.origin}</Row>
+              <Row label={t.crm.antivirusCheck}>
                 {document.scanStatus === 'skipped' ? 'non eseguito' : document.scanStatus}
               </Row>
             </div>
           </Section>
 
-          <Section title="Etichette" count={document.tags.length}>
+          <Section title={t.crm.tags} count={document.tags.length}>
             <div className="flex flex-wrap items-center gap-1.5">
               {document.tags.map(tag => (
                 <button
@@ -189,8 +191,8 @@ export function DocumentDrawer({
                 onChange={e => onUpdate({ visibility: e.target.value as VisibilityLevel })}
                 className={inputClass}
               >
-                {(Object.keys(VISIBILITY_LABELS) as VisibilityLevel[]).map(level => (
-                  <option key={level} value={level}>{VISIBILITY_LABELS[level]}</option>
+                {(Object.keys(getVisibilityLabels(t)) as VisibilityLevel[]).map(level => (
+                  <option key={level} value={level}>{getVisibilityLabels(t)[level]}</option>
                 ))}
               </select>
               <span className="text-[10px] text-[#5A5A5A]">

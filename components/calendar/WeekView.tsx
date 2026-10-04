@@ -1,6 +1,9 @@
 import React from 'react';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { CalendarEvent } from './types';
 import { startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, isToday } from 'date-fns';
+import { it, enUS } from 'date-fns/locale';
 
 interface WeekViewProps {
   currentDate: Date;
@@ -12,6 +15,8 @@ interface WeekViewProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }: WeekViewProps) {
+  const { t } = useTranslation();
+  const dateLocale = t.settings.language === 'it' ? it : enUS;
   const startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
   const endDate = endOfWeek(currentDate, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: startDate, end: endDate });
@@ -23,9 +28,9 @@ export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }:
         <div className="w-16 shrink-0 border-r border-white/5" /> {/* Time column header */}
         {days.map((day, i) => (
           <div key={i} className={`flex-1 text-center py-3 border-white/5 ${i !== days.length - 1 ? 'border-r' : ''}`}>
-            <div className="text-xs text-[#858585] font-medium uppercase">{format(day, 'EEE')}</div>
+            <div className="text-xs text-[#858585] font-medium uppercase">{format(day, 'EEE', { locale: dateLocale })}</div>
             <div className={`mx-auto w-8 h-8 flex items-center justify-center rounded-full text-lg font-semibold mt-1 ${isToday(day) ? 'bg-[#006AFF] text-white' : 'text-white'}`}>
-              {format(day, 'd')}
+              {format(day, 'd', { locale: dateLocale })}
             </div>
           </div>
         ))}
@@ -53,22 +58,35 @@ export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }:
                   const slotEvents = dayEvents.filter(e => parseInt(e.startTime.split(':')[0]) === hour);
                   
                   return (
-                    <div 
-                      key={hour} 
-                      onClick={() => onTimeSlotClick(day, hour)}
-                      className="h-20 border-b border-white/5 p-1 hover:bg-white/5 transition-colors cursor-pointer relative"
-                    >
-                      {slotEvents.map(ev => (
+                    <Droppable droppableId={`time_${day.toISOString()}_${hour}`} key={hour}>
+                      {(provided, snapshot) => (
                         <div 
-                          key={ev.id}
-                          onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
-                          className={`px-2 py-1 mb-1 rounded-md ${ev.color} border border-white/5 ${ev.textColor} text-[10px] font-medium leading-tight cursor-pointer hover:brightness-125 transition-all`}
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          onClick={() => onTimeSlotClick(day, hour)}
+                          className={`h-20 border-b border-white/5 p-1 hover:bg-white/5 transition-colors cursor-pointer relative ${snapshot.isDraggingOver ? 'bg-white/10' : ''}`}
                         >
-                          <div className="font-bold">{ev.startTime} - {ev.endTime}</div>
-                          <div className="truncate">{ev.title}</div>
+                          {slotEvents.map((ev, idx) => (
+                            <Draggable key={ev.id} draggableId={ev.id} index={idx}>
+                              {(provided, snapshot) => (
+                                <div id={`event-${ev.id}`} 
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  style={provided.draggableProps.style}
+                                  onClick={(e) => { e.stopPropagation(); onEventClick(ev); }}
+                                  className={`px-2 py-1 mb-1 rounded-md ${ev.color} border border-white/5 ${ev.textColor} text-[10px] font-medium leading-tight cursor-pointer hover:brightness-125 select-none transition-all ${snapshot.isDragging ? 'shadow-xl opacity-90' : ''}`}
+                                >
+                                  <div className="font-bold">{ev.startTime} - {ev.endTime}</div>
+                                  <div className="truncate">{ev.title}</div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
                         </div>
-                      ))}
-                    </div>
+                      )}
+                    </Droppable>
                   );
                 })}
               </div>

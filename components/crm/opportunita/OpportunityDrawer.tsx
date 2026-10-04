@@ -1,10 +1,12 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { X, Pencil, CalendarClock, Archive, ArchiveRestore, ChevronDown, Sparkles, History } from 'lucide-react';
 import { CrmOpportunity, CrmOpportunityChange } from '@/components/crm/types';
 import {
-  OpportunityPhase, OPPORTUNITY_PHASE_LABELS, OPPORTUNITY_PHASE_COLORS,
+  OpportunityPhase, OPPORTUNITY_PHASE_COLORS,
   OPPORTUNITY_TRANSITIONS, OPPORTUNITY_PHASE_PROBABILITY,
 } from '@/components/crm/constants';
 import {
@@ -17,6 +19,7 @@ import { useCloseOnEscape } from '@/hooks/useCloseOnEscape';
 
 interface OpportunityDrawerProps {
   opportunity: CrmOpportunity;
+  t: any;
   counterpartyName: string;
   counterpartyKind: 'cliente' | 'lead' | '';
   history: TimelineSources;
@@ -38,23 +41,23 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   );
 }
 
-const FIELD_LABELS: Record<string, string> = {
-  phase: 'Fase',
-  value: 'Valore',
+const getFieldLabels = (t: any): Record<string, string> => ({
+  phase: t.crm.phase,
+  value: t.crm.value,
   probability: 'Probabilità',
-  expectedCloseDate: 'Chiusura prevista',
+  expectedCloseDate: t.crm.expectedClose,
   ownerUid: 'Owner',
-  title: 'Titolo',
-  items: 'Voci',
-};
+  title: t.crm.title,
+  items: t.crm.items,
+});
 
 /** Rende leggibile un valore della cronologia, qualunque cosa sia. */
-function describe(field: string, value: any, ownerName: (uid: string) => string): string {
+function describe(field: string, value: any, ownerName: (uid: string) => string, t: any): string {
   if (value === null || value === undefined || value === '') return '—';
-  if (field === 'phase') return OPPORTUNITY_PHASE_LABELS[value as OpportunityPhase] || String(value);
+  if (field === 'phase') return getOppPhaseLabel(value as OpportunityPhase, t) || String(value);
   if (field === 'value') return formatEuro(Number(value));
   if (field === 'probability') return `${value}%`;
-  if (field === 'ownerUid') return ownerName(String(value)) || 'Non assegnata';
+  if (field === 'ownerUid') return ownerName(String(value)) || t.crm.unassigned;
   if (field === 'items' && typeof value === 'object') {
     return `${value.count} ${value.count === 1 ? 'voce' : 'voci'} · ${formatEuro(value.total || 0)}`;
   }
@@ -65,6 +68,7 @@ export function OpportunityDrawer({
   opportunity, counterpartyName, counterpartyKind, history, ownerName,
   onClose, onEdit, onArchive, onRestore, onChangePhase, onQuickFollowup,
 }: OpportunityDrawerProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose);
 
   const [phaseOpen, setPhaseOpen] = useState(false);
@@ -87,20 +91,20 @@ export function OpportunityDrawer({
           <div className="flex flex-col gap-0.5">
             <h2 className="text-sm font-medium text-white">{opportunity.title}</h2>
             <p className="text-[11px] text-[#5A5A5A]">
-              {counterpartyName ? `${counterpartyKind}: ${counterpartyName}` : 'Controparte non risolta'}
+              {counterpartyName ? `${counterpartyKind}: ${counterpartyName}` : t.crm.unresolvedCounterparty}
             </p>
           </div>
 
           <div className="flex items-center gap-1">
-            <button type="button" onClick={onEdit} title="Modifica" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
+            <button type="button" onClick={onEdit} title={t.crm.edit} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
               <Pencil size={14} />
             </button>
             {opportunity.archived ? (
-              <button type="button" onClick={onRestore} title="Ripristina" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
+              <button type="button" onClick={onRestore} title={t.crm.restore} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
                 <ArchiveRestore size={14} />
               </button>
             ) : (
-              <button type="button" onClick={onArchive} title="Archivia" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-[#EF4444]">
+              <button type="button" onClick={onArchive} title={t.crm.archive} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-[#EF4444]">
                 <Archive size={14} />
               </button>
             )}
@@ -132,7 +136,7 @@ export function OpportunityDrawer({
               >
                 <Pill
                   color={OPPORTUNITY_PHASE_COLORS[opportunity.phase]}
-                  label={OPPORTUNITY_PHASE_LABELS[opportunity.phase]}
+                  label={getOppPhaseLabel(opportunity.phase, t)}
                 />
                 {allowed.length > 0 && !opportunity.archived && <ChevronDown size={13} className="text-[#858585]" />}
               </button>
@@ -151,7 +155,7 @@ export function OpportunityDrawer({
                       className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[#C4C4C4] hover:bg-white/5 hover:text-white"
                     >
                       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: OPPORTUNITY_PHASE_COLORS[phase] }} />
-                      {OPPORTUNITY_PHASE_LABELS[phase]}
+                      {getOppPhaseLabel(phase, t)}
                       <span className="ml-auto text-[10px] text-[#3F3F3F]">
                         {OPPORTUNITY_PHASE_PROBABILITY[phase]}%
                       </span>
@@ -169,7 +173,7 @@ export function OpportunityDrawer({
 
             {lostFor && (
               <div className="flex flex-col gap-2 rounded-xl border border-[#EF4444]/30 bg-[#EF4444]/5 p-3">
-                <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">Motivo della perdita</span>
+                <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">{t.crm.lostReason}</span>
                 <input
                   value={lostReason}
                   onChange={e => setLostReason(e.target.value)}
@@ -198,7 +202,7 @@ export function OpportunityDrawer({
           </section>
 
           <div className="flex flex-col divide-y divide-[#131313]">
-            <Row label="Valore">
+            <Row label={t.crm.value}>
               {formatEuro(effectiveValue(opportunity))}
               {computed && <span className="ml-2 text-[10px] text-[#3F3F3F]">calcolato</span>}
             </Row>
@@ -209,14 +213,14 @@ export function OpportunityDrawer({
                 <span className="text-[10px] text-[#3F3F3F]">{manual ? 'a mano' : 'da fase'}</span>
               </span>
             </Row>
-            <Row label="Ponderato">{formatEuro(weightedValueOf(opportunity))}</Row>
-            <Row label="Chiusura prevista">
+            <Row label={t.crm.weighted}>{formatEuro(weightedValueOf(opportunity))}</Row>
+            <Row label={t.crm.expectedClose}>
               {opportunity.expectedCloseDate ? formatDate(opportunity.expectedCloseDate) : '—'}
             </Row>
-            {opportunity.closedAt && <Row label="Chiusa il">{formatDate(opportunity.closedAt)}</Row>}
-            {opportunity.lostReason && <Row label="Motivo della perdita">{opportunity.lostReason}</Row>}
+            {opportunity.closedAt && <Row label={t.crm.closedOn}>{formatDate(opportunity.closedAt)}</Row>}
+            {opportunity.lostReason && <Row label={t.crm.lostReason}>{opportunity.lostReason}</Row>}
             <Row label="Owner">{ownerName(opportunity.ownerUid) || '—'}</Row>
-            <Row label="Aggiornata">{formatDate(opportunity.updatedAt)}</Row>
+            <Row label={t.crm.updated}>{formatDate(opportunity.updatedAt)}</Row>
           </div>
 
           {opportunity.items.length > 0 && (
@@ -228,7 +232,7 @@ export function OpportunityDrawer({
                 {opportunity.items.map((item, index) => (
                   <div key={index} className="flex items-center justify-between gap-2 rounded-xl border border-[#1A1A1A] bg-black/20 px-3 py-2">
                     <span className="flex flex-col">
-                      <span className="text-xs text-white">{item.name || 'Voce senza nome'}</span>
+                      <span className="text-xs text-white">{item.name || t.crm.unnamedItem}</span>
                       <span className="text-[11px] text-[#5A5A5A]">
                         {item.quantity} × {formatEuro(item.unitPrice)}
                       </span>
@@ -287,11 +291,11 @@ export function OpportunityDrawer({
                 {changes.map((change: CrmOpportunityChange, index) => (
                   <li key={index} className="flex flex-col gap-0.5 border-l border-[#1A1A1A] pl-3">
                     <span className="text-[11px] text-white">
-                      {FIELD_LABELS[change.field] || change.field}
+                      {getFieldLabels(t)[change.field] || change.field}
                       <span className="text-[#5A5A5A]"> da </span>
-                      {describe(change.field, change.from, ownerName)}
+                      {describe(change.field, change.from, ownerName, t)}
                       <span className="text-[#5A5A5A]"> a </span>
-                      {describe(change.field, change.to, ownerName)}
+                      {describe(change.field, change.to, ownerName, t)}
                     </span>
                     <span className="text-[10px] text-[#3F3F3F]">
                       {formatDate(change.at)} · {ownerName(change.by) || 'utente sconosciuto'}

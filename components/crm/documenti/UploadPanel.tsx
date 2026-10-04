@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useRef, useState } from 'react';
 import { Upload, FileUp, CheckCircle2, AlertTriangle, X } from 'lucide-react';
 import { ALLOWED_MIME_TYPES, MAX_FILE_BYTES } from '@/lib/crm/documents';
@@ -43,6 +44,7 @@ const ACCEPT = Object.keys(ALLOWED_MIME_TYPES).join(',');
 const EXTENSIONS = Array.from(new Set(Object.values(ALLOWED_MIME_TYPES))).join(' · ');
 
 export function UploadPanel({ targetLabel, onUpload, onDone, compact, single }: UploadPanelProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);

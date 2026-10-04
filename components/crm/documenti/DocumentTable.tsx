@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import {
   Archive, Download, FileText, FileSpreadsheet, FileImage, FileAudio, FileVideo, File, Clock,
 } from 'lucide-react';
@@ -25,12 +26,7 @@ interface DocumentTableProps {
   onArchive: (document: CrmDocument) => void;
 }
 
-const COLUMNS: ColumnDef<DocumentSortField>[] = [
-  { field: 'fileName',  label: 'Documento' },
-  { field: 'versions',  label: 'Versioni', align: 'right', initial: 'desc' },
-  { field: 'sizeBytes', label: 'Dimensione', align: 'right', initial: 'desc' },
-  { field: 'createdAt', label: 'Caricato', initial: 'desc' },
-];
+
 
 const KIND_ICONS: Record<DocumentKind, any> = {
   pdf: FileText,
@@ -45,6 +41,14 @@ export function DocumentTable({
   page, sort, linkName, uploaderName,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onDownload, onArchive,
 }: DocumentTableProps) {
+  const { t } = useTranslation();
+
+  const COLUMNS: ColumnDef<DocumentSortField>[] = [
+    { field: 'fileName',  label: 'Documento' },
+    { field: 'versions',  label: 'Versioni', align: 'right', initial: 'desc' },
+    { field: 'sizeBytes', label: 'Dimensione', align: 'right', initial: 'desc' },
+    { field: 'createdAt', label: t.crm.uploaded, initial: 'desc' },
+  ];
   if (page.totalItems === 0) {
     return (
       <EmptyState
@@ -145,7 +149,7 @@ export function DocumentTable({
                     <div className="flex items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                       <button
                         type="button"
-                        title="Scarica"
+                        title={t.crm.download}
                         onClick={() => onDownload(document)}
                         className="rounded-lg p-1.5 text-[#5A5A5A] transition-colors hover:bg-white/5 hover:text-white"
                       >

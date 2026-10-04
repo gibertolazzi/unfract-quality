@@ -1,5 +1,7 @@
 'use client';
 
+import { it, enUS } from 'date-fns/locale';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Archive, Globe, Users } from 'lucide-react';
 import { CrmAccount } from '@/components/crm/types';
 import { Page } from '@/lib/crm/leadFilters';
@@ -19,20 +21,24 @@ interface AccountTableProps {
   onShowContacts: (account: CrmAccount) => void;
 }
 
-const COLUMNS: ColumnDef<AccountSortField>[] = [
-  { field: 'displayName', label: 'Azienda' },
-  { field: 'industry',    label: 'Settore' },
-  { field: 'city',        label: 'Sede' },
-  { field: 'contacts',    label: 'Contatti', align: 'right', initial: 'desc' },
-  { field: 'updatedAt',   label: 'Aggiornato', initial: 'desc' },
-];
+
 
 export function AccountTable({
   page, sort, contactCountByAccount,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onArchive, onShowContacts,
 }: AccountTableProps) {
+  const { t } = useTranslation();
+
+  const COLUMNS: ColumnDef<AccountSortField>[] = [
+    { field: 'displayName', label: t.crm.colCompany },
+    { field: 'industry',    label: t.crm.colIndustry },
+    { field: 'city',        label: t.crm.colLocation },
+    { field: 'contacts',    label: t.crm.colContacts, align: 'right', initial: 'desc' },
+    { field: 'updatedAt',   label: t.crm.colUpdated, initial: 'desc' },
+  ];
+  const dateLocale = t.settings.language === 'it' ? it : enUS;
   if (page.totalItems === 0) {
-    return <EmptyState title="Nessuna azienda corrisponde ai filtri" hint="Azzera la ricerca, importa un elenco o creane una nuova" />;
+    return <EmptyState title={t.crm.noAccountMatches} hint="Azzera la ricerca, importa un elenco o creane una nuova" />;
   }
 
   return (
@@ -62,7 +68,7 @@ export function AccountTable({
                         {account.displayName || account.legalName || '—'}
                         {account.duplicateCandidateIds.length > 0 && (
                           <span
-                            title="Possibile duplicato segnalato"
+                            title={t.crm.duplicateReported}
                             className="rounded-full bg-[#F59E0B]/15 px-1.5 py-0.5 text-[9px] text-[#F59E0B]"
                           >
                             dup
@@ -107,7 +113,7 @@ export function AccountTable({
                       type="button"
                       onClick={() => onShowContacts(account)}
                       disabled={contacts === 0}
-                      title={contacts > 0 ? 'Vedi i contatti di questa azienda' : 'Nessun contatto collegato'}
+                      title={contacts > 0 ? t.crm.seeContacts : t.crm.noContactsLinked}
                       className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs ${
                         contacts > 0
                           ? 'text-[#C4C4C4] hover:bg-white/5 hover:text-white'
@@ -125,7 +131,7 @@ export function AccountTable({
                       <button
                         type="button"
                         onClick={() => onArchive(account)}
-                        title="Archivia"
+                        title={t.crm.archive}
                         className="rounded p-1 text-[#3F3F3F] opacity-0 transition-opacity hover:text-[#EF4444] group-hover:opacity-100"
                       >
                         <Archive size={13} />

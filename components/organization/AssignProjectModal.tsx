@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Folder, PlusCircle, Search, Loader2 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { Organization } from './types';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -39,6 +40,40 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
     }
   };
 
+  const dialog = useDialog();
+  const { createProject } = useProject();
+  const [isCreating, setIsCreating] = useState(false);
+
+  const handleCreateNew = async () => {
+    const name = await dialog.prompt({
+      title: "Nuovo Progetto",
+      message: "Inserisci il nome del nuovo progetto:",
+      placeholder: "Es. Sito Web E-commerce",
+      confirmText: "Crea"
+    });
+
+    if (!name || !name.trim()) return;
+
+    setIsCreating(true);
+    try {
+      const newProjectId = await createProject(name);
+      if (newProjectId) {
+        await updateDoc(doc(db, 'projects', newProjectId), {
+          organizationIds: arrayUnion(organization.id)
+        });
+        toast.success("Progetto creato e assegnato!");
+        onClose();
+      } else {
+        toast.error("Errore durante la creazione del progetto.");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Errore imprevisto.");
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div 
@@ -55,7 +90,24 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-2">
+        <div className="p-6 overflow-y-auto custom-scrollbar flex flex-col gap-3">
+          <button
+            onClick={handleCreateNew}
+            disabled={isCreating}
+            className="w-full flex items-center justify-center gap-2 p-4 bg-white/5 hover:bg-white/10 border border-white/10 border-dashed rounded-xl transition-colors group mb-2"
+          >
+            {isCreating ? <Loader2 size={16} className="animate-spin text-[#0D6EFD]" /> : <PlusCircle size={16} className="text-[#0D6EFD]" />}
+            <span className="text-sm font-medium text-white group-hover:text-[#0D6EFD] transition-colors">
+              {isCreating ? 'Creazione in corso...' : 'Crea Nuovo Progetto'}
+            </span>
+          </button>
+          
+          <div className="relative flex items-center py-2">
+            <div className="flex-grow border-t border-white/10"></div>
+            <span className="flex-shrink-0 mx-4 text-[#858585] text-xs font-medium uppercase tracking-wider">Oppure assegna esistente</span>
+            <div className="flex-grow border-t border-white/10"></div>
+          </div>
+
           {availableProjects.length === 0 ? (
             <div className="text-center py-8">
               <Folder size={32} className="mx-auto text-[#858585] mb-3" />

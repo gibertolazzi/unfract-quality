@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState, useRef, useEffect } from 'react';
 import {
   X, Pencil, CalendarClock, Archive, ArchiveRestore, Trash2, Copy, Star, MailCheck, MailX, ExternalLink, Send, ChevronDown,
@@ -7,7 +8,8 @@ import {
 } from 'lucide-react';
 import { CrmAccount, CrmContact, CrmCustomer, CrmLead, CrmDocument as CrmDocumentType } from '@/components/crm/types';
 import { CUSTOMER_STATUS_LABELS, CUSTOMER_STATUS_COLORS } from '@/lib/crm/anagraficaFilters';
-import { LEAD_STATE_LABELS, LEAD_STATE_COLORS } from '@/components/crm/constants';
+import { getLeadStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { LEAD_STATE_COLORS } from '@/components/crm/constants';
 import { formatDate, Pill } from '../shared/TableUtils';
 import { Timeline } from '../timeline/Timeline';
 import { TimelineSources } from '@/lib/crm/timeline';
@@ -141,6 +143,7 @@ export function RecordDrawer({
   target, accounts, contacts, customers, leads, history, ownerName,
   onClose, onEdit, onArchive, onDelete, onRestore, onOpen, onAddContact, onAddCustomer, onRemoveCustomer, onConvertLead, onCompose, onUploadDocument, onDownloadDocument, onQuickFollowup,
 }: RecordDrawerProps) {
+  const { t } = useTranslation();
   const { kind, record } = target;
   const [uploading, setUploading] = useState(false);
 
@@ -166,12 +169,12 @@ export function RecordDrawer({
   const title =
     kind === 'account' ? (record as CrmAccount).displayName || (record as CrmAccount).legalName
     : kind === 'contact' ? (record as CrmContact).fullName
-    : accountById((record as CrmCustomer).accountId)?.displayName || 'Cliente';
+    : accountById((record as CrmCustomer).accountId)?.displayName || t.crm.customer;
 
   const subtitle =
-    kind === 'account' ? 'Azienda'
+    kind === 'account' ? t.crm.colCompany
     : kind === 'contact' ? ((record as CrmContact).role || 'Contatto')
-    : kind === 'customer' ? 'Cliente'
+    : kind === 'customer' ? t.crm.customer
     : 'Lead';
 
   // Duplicati segnalati: possono puntare a una qualunque delle tre anagrafiche.
@@ -197,19 +200,19 @@ export function RecordDrawer({
           </div>
 
           <div className="flex items-center gap-1">
-            <button type="button" onClick={onEdit} title="Modifica" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
+            <button type="button" onClick={onEdit} title={t.crm.edit} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
               <Pencil size={14} />
             </button>
             {record.archived ? (
-              <button type="button" onClick={onRestore} title="Ripristina" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
+              <button type="button" onClick={onRestore} title={t.crm.restore} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white">
                 <ArchiveRestore size={14} />
               </button>
             ) : (
-              <> <button type="button" onClick={onArchive} title="Archivia" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-[#EF4444]">
+              <> <button type="button" onClick={onArchive} title={t.crm.archive} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-[#EF4444]">
                 <Archive size={14} />
               </button>
               {onDelete && (
-                <button type="button" onClick={onDelete} title="Elimina definitivamente" className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-[#EF4444]">
+                <button type="button" onClick={onDelete} title={t.crm.permanentlyDelete} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-[#EF4444]">
                   <Trash2 size={14} />
                 </button>
               )} </>
@@ -290,7 +293,7 @@ export function RecordDrawer({
 
           {record.archived && (
             <p className="rounded-xl border border-[#1A1A1A] bg-black/20 px-3 py-2 text-[11px] text-[#858585]">
-              Record archiviato il {formatDate(record.archivedAt)}. Non viene cancellato: si può ripristinare.
+              {t.crm.archivedRecordNotice.replace('{date}', formatDate(record.archivedAt, t.settings.language))}
             </p>
           )}
 
@@ -308,15 +311,15 @@ export function RecordDrawer({
             return (
               <>
                 <div className="flex flex-col gap-3 rounded-2xl border border-[#1A1A1A] px-4 py-4">
-                  <Row label="Stato">
-                    <Pill color={LEAD_STATE_COLORS[lead.state]} label={LEAD_STATE_LABELS[lead.state]} />
+                  <Row label={t.crm.status}>
+                    <Pill color={LEAD_STATE_COLORS[lead.state]} label={getLeadStateLabel(lead.state, t)} />
                   </Row>
-                  {lead.fullName && <Row label="Nome Completo">{lead.fullName}</Row>}
-                  {lead.companyName && <Row label="Azienda">{lead.companyName}</Row>}
-                  {(lead as any).role && <Row label="Ruolo">{(lead as any).role}</Row>}
-                  {lead.email && <Row label="Email">{lead.email}</Row>}
-                  {lead.phone && <Row label="Telefono">{lead.phone}</Row>}
-                  {(lead as any).companyWebsite && <Row label="Sito Web">{(lead as any).companyWebsite}</Row>}
+                  {lead.fullName && <Row label={t.crm.fullName}>{lead.fullName}</Row>}
+                  {lead.companyName && <Row label={t.crm.colCompany}>{lead.companyName}</Row>}
+                  {(lead as any).role && <Row label={t.crm.colRole}>{(lead as any).role}</Row>}
+                  {lead.email && <Row label={t.crm.email}>{lead.email}</Row>}
+                  {lead.phone && <Row label={t.crm.phone}>{lead.phone}</Row>}
+                  {(lead as any).companyWebsite && <Row label={t.crm.website}>{(lead as any).companyWebsite}</Row>}
                 </div>
               </>
             );
@@ -336,30 +339,30 @@ export function RecordDrawer({
             return (
               <>
                 <div className="flex flex-col divide-y divide-[#131313]">
-                  {account.legalName && <Row label="Ragione sociale">{account.legalName}</Row>}
-                  {account.vatNumber && <Row label="Partita IVA">{account.vatNumber}</Row>}
-                  {account.taxCode && <Row label="Codice fiscale">{account.taxCode}</Row>}
-                  {account.industry && <Row label="Settore">{account.industry}</Row>}
-                  {account.sizeRange && <Row label="Dipendenti">{account.sizeRange}</Row>}
+                  {account.legalName && <Row label={t.crm.legalName}>{account.legalName}</Row>}
+                  {account.vatNumber && <Row label={t.crm.vatNumber}>{account.vatNumber}</Row>}
+                  {account.taxCode && <Row label={t.crm.taxId}>{account.taxCode}</Row>}
+                  {account.industry && <Row label={t.crm.industry}>{account.industry}</Row>}
+                  {account.sizeRange && <Row label={t.crm.employees}>{account.sizeRange}</Row>}
                   {account.domain && (
-                    <Row label="Sito">
+                    <Row label={t.crm.websiteShort}>
                       <a href={`https://${account.domain}`} target="_blank" rel="noreferrer noopener" className="hover:text-white hover:underline">
                         {account.domain}
                       </a>
                     </Row>
                   )}
                   {(account.address || account.city) && (
-                    <Row label="Sede">
+                    <Row label={t.crm.colLocation}>
                       {[account.address, account.postalCode, account.city, account.region, account.country]
                         .filter(Boolean).join(', ')}
                     </Row>
                   )}
-                  <Row label="Owner">{ownerName(account.ownerUid) || '—'}</Row>
-                  <Row label="Aggiornato">{formatDate(account.updatedAt)}</Row>
+                  <Row label={t.crm.owner}>{ownerName(account.ownerUid) || '—'}</Row>
+                  <Row label={t.crm.colUpdated}>{formatDate(account.updatedAt, t.settings.language)}</Row>
                 </div>
 
                 <Section
-                  title="Contatti"
+                  title={t.crm.colContacts}
                   count={accountContacts.length}
                   action={
                     <button
@@ -389,17 +392,17 @@ export function RecordDrawer({
                 </Section>
 
                 {linkedCustomer ? (
-                  <Section title="Cliente">
+                  <Section title={t.crm.customer}>
                     <LinkRow
-                      title={CUSTOMER_STATUS_LABELS[linkedCustomer.status]}
-                      subtitle={`Cliente dal ${formatDate(linkedCustomer.customerSince)}`}
+                      title={getCustomerStatusLabel(linkedCustomer.status, t)}
+                      subtitle={`${t.crm.customerSince} ${formatDate(linkedCustomer.customerSince, t.settings.language)}`}
                       onClick={() => onOpen({ kind: 'customer', record: linkedCustomer })}
                     />
                   </Section>
                 ) : null}
 
                 {relatedLeads.length > 0 && (
-                  <Section title="Lead con lo stesso dominio" count={relatedLeads.length}>
+                  <Section title={t.crm.sameDomainLeads} count={relatedLeads.length}>
                     <div className="flex flex-col gap-1.5">
                       {relatedLeads.map(lead => (
                         <div key={lead.id} className="flex items-center justify-between gap-2 rounded-xl border border-[#1A1A1A] bg-black/20 px-3 py-2">
@@ -407,7 +410,7 @@ export function RecordDrawer({
                             <span className="text-xs text-white">{lead.fullName || lead.companyName}</span>
                             {lead.email && <span className="text-[11px] text-[#5A5A5A]">{lead.email}</span>}
                           </span>
-                          <Pill color={LEAD_STATE_COLORS[lead.state]} label={LEAD_STATE_LABELS[lead.state]} />
+                          <Pill color={LEAD_STATE_COLORS[lead.state]} label={getLeadStateLabel(lead.state, t)} />
                         </div>
                       ))}
                     </div>
@@ -427,19 +430,19 @@ export function RecordDrawer({
               <>
                 <div className="flex flex-col divide-y divide-[#131313]">
                   {contact.email && (
-                    <Row label="Email">
+                    <Row label={t.crm.email}>
                       <a href={`mailto:${contact.email}`} className="hover:text-white hover:underline">{contact.email}</a>
                     </Row>
                   )}
                   {contact.phone && (
-                    <Row label="Telefono">
+                    <Row label={t.crm.phone}>
                       <a href={`tel:${contact.phone}`} className="hover:text-white hover:underline">{contact.phone}</a>
                     </Row>
                   )}
-                  {contact.role && <Row label="Ruolo">{contact.role}</Row>}
+                  {contact.role && <Row label={t.crm.colRole}>{contact.role}</Row>}
                   {contact.preferredChannel && <Row label="Canale preferito">{contact.preferredChannel}</Row>}
                   {contact.preferredTime && <Row label="Quando contattarlo">{contact.preferredTime}</Row>}
-                  <Row label="Aggiornato">{formatDate(contact.updatedAt)}</Row>
+                  <Row label={t.crm.colUpdated}>{formatDate(contact.updatedAt, t.settings.language)}</Row>
                 </div>
 
                 <Section
@@ -468,7 +471,7 @@ export function RecordDrawer({
                             {consent.granted
                               ? <MailCheck size={13} className="text-[#10B981]" />
                               : <MailX size={13} className="text-[#3F3F3F]" />}
-                            {channel === 'email' ? 'Email' : 'SMS'}
+                            {channel === 'email' ? t.crm.email : 'SMS'}
                           </span>
                           <span className="text-right text-[11px] text-[#5A5A5A]">
                             {consent.granted
@@ -481,7 +484,7 @@ export function RecordDrawer({
                   </div>
                 </Section>
 
-                <Section title="Azienda">
+                <Section title={t.crm.colCompany}>
                   {account ? (
                     <LinkRow
                       title={account.displayName || account.legalName}
@@ -499,8 +502,8 @@ export function RecordDrawer({
                       {asReferent.map(customer => (
                         <LinkRow
                           key={customer.id}
-                          title={accountById(customer.accountId)?.displayName || 'Cliente'}
-                          subtitle={CUSTOMER_STATUS_LABELS[customer.status]}
+                          title={accountById(customer.accountId)?.displayName || t.crm.customer}
+                          subtitle={getCustomerStatusLabel(customer.status, t)}
                           onClick={() => onOpen({ kind: 'customer', record: customer })}
                         />
                       ))}
@@ -521,19 +524,19 @@ export function RecordDrawer({
             return (
               <>
                 <div className="flex flex-col divide-y divide-[#131313]">
-                  <Row label="Stato">
-                    <Pill color={CUSTOMER_STATUS_COLORS[customer.status]} label={CUSTOMER_STATUS_LABELS[customer.status]} />
+                  <Row label={t.crm.status}>
+                    <Pill color={CUSTOMER_STATUS_COLORS[customer.status]} label={getCustomerStatusLabel(customer.status, t)} />
                   </Row>
-                  <Row label="Cliente dal">{formatDate(customer.customerSince)}</Row>
+                  <Row label={t.crm.customerSince}>{formatDate(customer.customerSince, t.settings.language)}</Row>
                   {(customer.monthlyAmount || 0) > 0 && <Row label="Mensile">{new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(customer.monthlyAmount!)}</Row>}
                   {(customer.annualAmount || 0) > 0 && <Row label="Annuale">{new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(customer.annualAmount!)}</Row>}
                   {(customer.oneTimeAmount || 0) > 0 && <Row label="Una tantum">{new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(customer.oneTimeAmount!)}</Row>}
-                  <Row label="Owner">{ownerName(customer.ownerUid) || '—'}</Row>
+                  <Row label={t.crm.owner}>{ownerName(customer.ownerUid) || '—'}</Row>
                   <Row label="Progetti collegati">{customer.linkedProjectIds.length || '—'}</Row>
-                  <Row label="Aggiornato">{formatDate(customer.updatedAt)}</Row>
+                  <Row label={t.crm.colUpdated}>{formatDate(customer.updatedAt, t.settings.language)}</Row>
                 </div>
 
-                <Section title="Azienda">
+                <Section title={t.crm.colCompany}>
                   {account ? (
                     <LinkRow
                       title={account.displayName || account.legalName}
@@ -568,7 +571,7 @@ export function RecordDrawer({
                   <Section title="Lead di origine">
                     <div className="flex items-center justify-between gap-2 rounded-xl border border-[#1A1A1A] bg-black/20 px-3 py-2">
                       <span className="text-xs text-white">{originLead.fullName || originLead.companyName}</span>
-                      <Pill color={LEAD_STATE_COLORS[originLead.state]} label={LEAD_STATE_LABELS[originLead.state]} />
+                      <Pill color={LEAD_STATE_COLORS[originLead.state]} label={getLeadStateLabel(originLead.state, t)} />
                     </div>
                   </Section>
                 )}
@@ -595,7 +598,7 @@ export function RecordDrawer({
                       title={resolved.kind === 'account'
                         ? (resolved.record as CrmAccount).displayName
                         : (resolved.record as CrmContact).fullName}
-                      subtitle={resolved.kind === 'account' ? 'Azienda' : 'Contatto'}
+                      subtitle={resolved.kind === 'account' ? t.crm.colCompany : 'Contatto'}
                       badge={<Copy size={10} className="text-[#F59E0B]" />}
                       onClick={() => onOpen(resolved)}
                     />

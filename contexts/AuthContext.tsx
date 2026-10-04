@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { auth, GoogleAuthProvider, signInWithPopup } from '@/lib/firebase';
 import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
@@ -13,6 +13,7 @@ export interface UserSettings {
   emailRequester: boolean;
   emailChanges: boolean;
   emailMentioned: boolean;
+  emailMessages: boolean;
   groupFrequency: string;
   defaultMeetingLink?: string;
 }
@@ -48,6 +49,8 @@ export const useAuth = () => useContext(AuthContext);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [settings, setSettings] = useState<UserSettings | null>(null);
+  const settingsRef = useRef<UserSettings | null>(settings);
+  settingsRef.current = settings;
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
 
@@ -61,15 +64,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (userDoc.exists()) {
           const data = userDoc.data();
           setAccessToken(data.calendarToken || null);
-          setSettings(data.settings || {
+          setSettings({
             timezone: 'Europe/Rome',
             language: 'it',
             emailAssignee: true,
             emailRequester: false,
             emailChanges: false,
             emailMentioned: true,
+            emailMessages: false,
             groupFrequency: '3min',
-            defaultMeetingLink: data.settings?.defaultMeetingLink || ''
+            defaultMeetingLink: '',
+            ...(data.settings || {}),
           });
         } else {
           setSettings({
@@ -79,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             emailRequester: false,
             emailChanges: false,
             emailMentioned: true,
+            emailMessages: false,
             groupFrequency: '3min'
           });
         }
@@ -160,12 +166,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signOut(auth);
   };
 
-  const updateSettings = async (newSettings: Partial<UserSettings>) => {
-    if (!user || !settings) return;
-    const updatedSettings = { ...settings, ...newSettings };
+  const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
+    const currentSettings = settingsRef.current;
+    if (!user || !currentSettings) return;
+    const updatedSettings = { ...currentSettings, ...newSettings };
+    settingsRef.current = updatedSettings;
     setSettings(updatedSettings);
     await setDoc(doc(db, 'users', user.uid), { settings: updatedSettings }, { merge: true });
-  };
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, settings, loading, loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, logout, accessToken, updateSettings }}>

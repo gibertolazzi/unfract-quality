@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Circle, ChevronDown, ChevronRight, PlusCircle, CheckCircle2 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import { CustomPrompt } from '@/components/shared/CustomPrompt';
 
 import { useProject } from '@/contexts/ProjectContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 const priorityConfig = {
   High: { color: 'text-[#FF2200]', border: 'border-[#FF2200]', bg: 'bg-[#FF2200]/10' },
@@ -29,6 +30,7 @@ export function TaskTimeline({
   const [expandedEpics, setExpandedEpics] = useState<string[]>([]);
   const [showEpicPrompt, setShowEpicPrompt] = useState(false);
   const { activeProjectId } = useProject();
+  const { t } = useTranslation();
 
   const toggleEpic = (epicId: string) => {
     setExpandedEpics(prev => prev.includes(epicId) ? prev.filter(id => id !== epicId) : [...prev, epicId]);
@@ -49,24 +51,77 @@ export function TaskTimeline({
 
   const getPriorityStyle = (priority: string) => priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.Medium;
 
-  // Timeline Config (Jan 1 to Dec 31 2026)
-  const timelineStart = new Date('2026-01-01T00:00:00Z').getTime();
-  const timelineEnd = new Date('2026-12-31T23:59:59Z').getTime();
-  const totalMs = timelineEnd - timelineStart;
-  const totalWidth = 2400; // px
-  const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-  const currentMonthIndex = new Date().getMonth();
+  // Dynamic Timeline Config based on Tasks
+  const { timelineStart, timelineEnd, totalMs, timelineMonths, totalWidth } = useMemo(() => {
+    let minTime = new Date(new Date().getFullYear(), 0, 1).getTime();
+    let maxTime = new Date(new Date().getFullYear(), 11, 31).getTime();
+
+    if (tasks && tasks.length > 0) {
+      tasks.forEach(task => {
+        let start = task.createdAt?.toDate ? task.createdAt.toDate().getTime() : new Date(task.createdAt).getTime();
+        if (!isNaN(start) && start < minTime) minTime = start;
+        
+        let end = new Date().getTime(); // if not done, active up to today
+        const isDone = columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
+        if (isDone && task.completedAt) {
+          end = task.completedAt.toDate ? task.completedAt.toDate().getTime() : new Date(task.completedAt).getTime();
+        }
+        if (!isNaN(end) && end > maxTime) maxTime = end;
+      });
+    }
+
+    const currentDate = new Date();
+    if (currentDate.getTime() > maxTime) maxTime = currentDate.getTime();
+    if (currentDate.getTime() < minTime) minTime = currentDate.getTime();
+
+    const startDateObj = new Date(minTime);
+    startDateObj.setMonth(startDateObj.getMonth() - 1);
+    startDateObj.setDate(1);
+    startDateObj.setHours(0,0,0,0);
+    
+    const endDateObj = new Date(maxTime);
+    endDateObj.setMonth(endDateObj.getMonth() + 2);
+    endDateObj.setDate(0);
+    endDateObj.setHours(23,59,59,999);
+
+    const start = startDateObj.getTime();
+    const end = endDateObj.getTime();
+    const ms = end - start;
+
+    const months: { label: string; isCurrent: boolean; date: Date }[] = [];
+    let iterDate = new Date(startDateObj);
+    iterDate.setDate(1);
+    iterDate.setHours(0,0,0,0);
+
+    const currentMonthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getTime();
+
+    while (iterDate.getTime() <= end) {
+      const isCurrent = iterDate.getTime() === currentMonthStart;
+      months.push({
+        label: iterDate.toLocaleString(t.settings.language === 'it' ? 'it-IT' : 'en-US', { month: 'short', year: 'numeric' }).toUpperCase(),
+        isCurrent,
+        date: new Date(iterDate)
+      });
+      iterDate.setMonth(iterDate.getMonth() + 1);
+    }
+
+    const MONTH_WIDTH = 200;
+    const width = months.length * MONTH_WIDTH;
+
+    return { timelineStart: start, timelineEnd: end, totalMs: ms, timelineMonths: months, totalWidth: width };
+  }, [tasks, columns]);
+
 
   const getTaskIntervals = (epicTasks: any[]) => {
-    const intervals = epicTasks.map(t => {
+    const intervals = epicTasks.map(task => {
       // Safely parse dates
-      let start = t.createdAt?.toDate ? t.createdAt.toDate().getTime() : new Date(t.createdAt).getTime();
+      let start = task.createdAt?.toDate ? task.createdAt.toDate().getTime() : new Date(task.createdAt).getTime();
       if (isNaN(start)) start = timelineStart;
       
-      const isDone = columns.find(c => c.id === t.columnId)?.title.toLowerCase() === 'done';
+      const isDone = columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
       let end = new Date().getTime(); // if not done, active up to today
-      if (isDone && t.completedAt) {
-        end = t.completedAt.toDate ? t.completedAt.toDate().getTime() : new Date(t.completedAt).getTime();
+      if (isDone && task.completedAt) {
+        end = task.completedAt.toDate ? task.completedAt.toDate().getTime() : new Date(task.completedAt).getTime();
       }
       if (isNaN(end)) end = new Date().getTime();
 
@@ -96,21 +151,37 @@ export function TaskTimeline({
     return merged;
   };
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      const currentMonthIndex = timelineMonths.findIndex(m => m.isCurrent);
+      if (currentMonthIndex !== -1) {
+        const scrollAmount = currentMonthIndex * 200; // 200px per month
+        setTimeout(() => {
+          if (scrollContainerRef.current) {
+            scrollContainerRef.current.scrollTo({ left: Math.max(0, scrollAmount - 100), behavior: 'smooth' });
+          }
+        }, 100);
+      }
+    }
+  }, [timelineMonths]);
+
   return (
     <div className="flex h-full w-full bg-[#0A0A0A] border-t border-white/5 font-sans overflow-hidden">
       
       {/* Left Sidebar (Epics & Tasks) */}
       <div className="w-[300px] shrink-0 border-r border-white/5 flex flex-col bg-[#0A0A0A] overflow-y-auto custom-scrollbar">
         <div className="p-4 border-b border-white/5">
-          <h2 className="text-xl font-semibold text-white">Epics</h2>
+          <h2 className="text-xl font-semibold text-white">{t.tasks.epics}</h2>
         </div>
         
         <div className="flex flex-col p-4 gap-4 pb-20">
           {epics.map(epic => {
             const isExpanded = expandedEpics.includes(epic.id);
-            const epicTasks = tasks.filter(t => t.epicId === epic.id);
+            const epicTasks = tasks.filter(task => task.epicId === epic.id);
             
-            const doneTasks = epicTasks.filter(t => columns.find(c => c.id === t.columnId)?.title.toLowerCase() === 'done');
+            const doneTasks = epicTasks.filter(task => columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done');
             const progress = epicTasks.length > 0 ? (doneTasks.length / epicTasks.length) * 100 : 0;
             
             return (
@@ -131,29 +202,29 @@ export function TaskTimeline({
                 {/* Tasks List */}
                 {isExpanded && (
                   <div className="flex flex-col gap-2 mt-2">
-                    {epicTasks.length === 0 && <span className="text-xs text-[#858585] italic px-2">Nessuna task in questo Epic</span>}
-                    {epicTasks.map(t => {
-                      const isDone = columns.find(c => c.id === t.columnId)?.title.toLowerCase() === 'done';
-                      const pStyle = getPriorityStyle(t.priority);
+                    {epicTasks.length === 0 && <span className="text-xs text-[#858585] italic px-2">{t.tasks.noTaskInEpic}</span>}
+                    {epicTasks.map(task => {
+                      const isDone = columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
+                      const pStyle = getPriorityStyle(task.priority);
                       
                       return (
                         <div 
-                          key={t.id} 
+                          key={task.id} 
                           className="flex items-center justify-between px-2 py-1.5 hover:bg-white/5 rounded-lg transition-colors cursor-pointer group"
-                          onClick={() => onTaskClick(t)}
+                          onClick={() => onTaskClick(task)}
                         >
                           <div className="flex items-center gap-2">
                             <button 
-                              onClick={(e) => { e.stopPropagation(); onToggleDone(t); }}
+                              onClick={(e) => { e.stopPropagation(); onToggleDone(task); }}
                               className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[#006AFF] border-[#006AFF]' : 'border-white/20 bg-transparent group-hover:border-[#006AFF]'}`}
                             >
                               {isDone && <CheckCircle2 size={10} className="text-white" />}
                             </button>
-                            <span className={`text-xs ${isDone ? 'text-[#858585] line-through' : 'text-white/80'}`}>{t.title || 'Untitled'}</span>
+                            <span className={`text-xs ${isDone ? 'text-[#858585] line-through' : 'text-white/80'}`}>{task.title || t.tasks.untitled}</span>
                           </div>
                           
                           <span className={`text-[9px] px-2 py-0.5 rounded-full border ${pStyle.border} ${pStyle.bg} ${pStyle.color} font-medium tracking-wide uppercase ml-2 shrink-0`}>
-                            {isDone ? 'Done' : 'To Do'}
+                            {isDone ? t.tasks.done : t.tasks.toDo}
                           </span>
                         </div>
                       );
@@ -166,21 +237,20 @@ export function TaskTimeline({
           
           <button onClick={() => setShowEpicPrompt(true)} className="flex items-center gap-2 text-[#858585] hover:text-white mt-2 px-2 transition-colors">
             <PlusCircle size={16} />
-            <span className="text-sm font-medium">Create Epic</span>
+            <span className="text-sm font-medium">{t.tasks.createEpic}</span>
           </button>
         </div>
       </div>
       
       {/* Right side Gantt chart (Timeline) */}
-      <div className="flex-1 overflow-x-auto relative flex flex-col bg-[#050505] custom-scrollbar">
+      <div ref={scrollContainerRef} className="flex-1 overflow-x-auto relative flex flex-col bg-[#050505] custom-scrollbar scroll-smooth">
         
         {/* Months Header */}
         <div className="flex items-center h-16 border-b border-white/5 shrink-0 min-w-max">
-          {months.map((month, index) => {
-            const isCurrent = index === currentMonthIndex;
+          {timelineMonths.map((month, index) => {
             return (
-              <div key={month} className={`w-[200px] px-4 text-xs font-semibold border-l border-white/5 h-full flex items-center ${isCurrent ? 'text-[#006AFF] bg-[#006AFF]/5' : 'text-[#858585]'}`}>
-                {month}
+              <div key={index} className={`w-[200px] px-4 text-xs font-semibold border-l border-white/5 h-full flex items-center ${month.isCurrent ? 'text-[#006AFF] bg-[#006AFF]/5' : 'text-[#858585]'}`}>
+                {month.label}
               </div>
             );
           })}
@@ -190,19 +260,19 @@ export function TaskTimeline({
         <div className="flex-1 relative min-w-max pb-20">
           {/* Background Grid Lines */}
           <div className="absolute inset-0 flex pointer-events-none">
-            {months.map((_, index) => (
-              <div key={index} className={`w-[200px] border-l border-white/5 h-full ${index === currentMonthIndex ? 'bg-[#006AFF]/5' : ''}`}></div>
+            {timelineMonths.map((month, index) => (
+              <div key={index} className={`w-[200px] border-l border-white/5 h-full ${month.isCurrent ? 'bg-[#006AFF]/5' : ''}`}></div>
             ))}
           </div>
           
           {/* Bars */}
           <div className="relative pt-6 px-2 flex flex-col gap-[72px]">
             {epics.map(epic => {
-              const epicTasks = tasks.filter(t => t.epicId === epic.id);
+              const epicTasks = tasks.filter(task => task.epicId === epic.id);
               const intervals = getTaskIntervals(epicTasks);
               
               return (
-                <div key={epic.id} className="relative h-6 w-[2400px]">
+                <div key={epic.id} className="relative h-6" style={{ width: `${totalWidth}px` }}>
                   {intervals.map((int, i) => {
                     // clamp to viewable timeline
                     const startClamped = Math.max(timelineStart, int.start);
@@ -227,7 +297,7 @@ export function TaskTimeline({
                     );
                   })}
                   {intervals.length === 0 && (
-                    <div className="absolute h-full flex items-center pl-4 text-xs text-[#858585] italic">No tasks assigned</div>
+                    <div className="absolute h-full flex items-center pl-4 text-xs text-[#858585] italic">{t.tasks.noTasksAssigned}</div>
                   )}
                 </div>
               );
@@ -238,8 +308,8 @@ export function TaskTimeline({
       </div>
       {showEpicPrompt && (
         <CustomPrompt 
-          title="Crea nuovo Epic" 
-          placeholder="Nome del nuovo Epic..." 
+          title={t.tasks.createNewEpic} 
+          placeholder={t.tasks.newEpicPlaceholder} 
           onConfirm={createEpic} 
           onClose={() => setShowEpicPrompt(false)}
           colors={['#006AFF', '#00FF00', '#FF0004', '#FFAE00', '#9D00FF']}

@@ -4,6 +4,7 @@ import { CalendarEvent } from './types';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -27,6 +28,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
   const [isSaving, setIsSaving] = useState(false);
   
   const { settings } = useAuth();
+  const { t } = useTranslation();
 
   const colorOptions = [
     { bg: 'bg-[#006AFF]/20', border: 'border-[#006AFF]/30', text: 'text-[#00A6FF]' },
@@ -122,8 +124,8 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'}`,
       `DTSTART:${start}`,
       `DTEND:${end}`,
-      `SUMMARY:${title || 'Nuovo Evento'}`,
-      `DESCRIPTION:${description.replace(/\n/g, '\\n')}${activeMeetLink ? `\\n\\nPartecipa alla videoconferenza: ${activeMeetLink}` : ''}`,
+      `SUMMARY:${title || t.calendar.newEvent}`,
+      `DESCRIPTION:${description.replace(/\n/g, '\\n')}${activeMeetLink ? `\\n\\n${t.calendar.joinVideoCall}: ${activeMeetLink}` : ''}`,
       activeMeetLink ? `LOCATION:${activeMeetLink}` : '',
       activeMeetLink ? `URL:${activeMeetLink}` : '',
       'END:VEVENT',
@@ -152,7 +154,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
 
         <div className="relative z-10 flex items-center justify-between p-6 border-b border-white/5">
           <h3 className="text-xl font-halfre text-white">
-            {initialEvent ? 'Modifica Evento' : 'Nuovo Evento'}
+            {initialEvent ? t.calendar.editEvent : t.calendar.newEvent}
           </h3>
           <button onClick={onClose} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full">
             <X size={20} />
@@ -165,7 +167,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="text-2xl font-halfre text-white bg-transparent border-b border-white/10 pb-2 outline-none focus:border-white/30 placeholder:text-[#858585] w-full transition-colors"
-            placeholder="Aggiungi titolo"
+            placeholder={t.calendar.addTitle}
             autoFocus
           />
 
@@ -205,7 +207,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-white/30 min-h-[100px] resize-y custom-scrollbar"
-                  placeholder="Aggiungi descrizione"
+                  placeholder={t.calendar.addDescription}
                 />
               </div>
 
@@ -216,7 +218,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
                   value={guestEmail}
                   onChange={(e) => setGuestEmail(e.target.value)}
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-white outline-none focus:border-white/30 placeholder:text-[#858585]"
-                  placeholder="Email dell'invitato (opzionale)"
+                  placeholder={t.calendar.guestEmailOptional}
                 />
               </div>
 
@@ -229,7 +231,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
                     rel="noopener noreferrer"
                     className="text-[#006AFF] hover:underline"
                   >
-                    Partecipa alla videoconferenza
+                    {t.calendar.joinVideoCall}
                   </a>
                 </div>
               )}
@@ -260,7 +262,7 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
                   className="hidden"
                 />
                 <span className="text-white/80">
-                  {settings?.defaultMeetingLink ? 'Aggiungi il mio link riunione predefinito' : 'Genera link per la videoconferenza'}
+                  {settings?.defaultMeetingLink ? t.calendar.addDefaultMeet : t.calendar.generateMeetLink}
                 </span>
               </label>
             </div>
@@ -273,31 +275,31 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
               onClick={() => { onDelete(initialEvent.id); onClose(); }}
               className="mr-auto px-4 py-2 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
             >
-              Elimina
+              {t.calendar.delete}
             </button>
           )}
           
           <button 
             onClick={downloadICS}
             className={`${(!initialEvent || !onDelete) ? 'mr-auto' : ''} flex items-center gap-2 px-4 py-2 text-sm font-medium text-[#00A6FF] hover:text-[#006AFF] hover:bg-[#006AFF]/10 rounded-full transition-colors`}
-            title="Scarica invito per Outlook, Apple Calendar, ecc."
+            title={t.calendar.exportTooltip}
           >
             <Download size={16} />
-            Esporta .ics
+            {t.calendar.exportICS}
           </button>
 
           <button 
             onClick={onClose}
             className="px-5 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors"
           >
-            Annulla
+            {t.calendar.cancel}
           </button>
           <button 
             onClick={handleSave}
             disabled={!title.trim() || isSaving}
             className="px-5 py-2 rounded-full bg-[#006AFF] text-white text-sm font-medium hover:bg-[#0055CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            {isSaving ? 'Salvataggio...' : 'Salva'}
+            {isSaving ? t.calendar.saving : t.calendar.save}
           </button>
         </div>
       </div>

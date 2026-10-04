@@ -5,6 +5,7 @@ import {
 } from '@/components/crm/types';
 import { LeadState } from '@/components/crm/constants';
 import { CrmTab } from '@/components/crm/CrmNav';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface CrmKpiBarProps {
   activeTab: CrmTab;
@@ -19,8 +20,8 @@ interface CrmKpiBarProps {
   onToggleState?: (state: LeadState) => void;
 }
 
-const formatEuro = (n: number) =>
-  new Intl.NumberFormat('it-IT', {
+const formatEuro = (n: number, lang: string) =>
+  new Intl.NumberFormat(lang === 'it' ? 'it-IT' : 'en-US', {
     style: 'currency', currency: 'EUR', maximumFractionDigits: 0, notation: n >= 1_000_000 ? 'compact' : 'standard',
   }).format(n);
 
@@ -54,7 +55,7 @@ function calculateIncrement(items: any[]): number {
   return Number((((currentMonthCount - lastMonthCount) / lastMonthCount) * 100).toFixed(1));
 }
 
-function Metric({ label, value, increment, title, neutralValue = false }: { label: string; value: string | number; increment?: number; title?: string; neutralValue?: boolean }) {
+function Metric({ label, value, increment, title, neutralValue = false, t }: { label: string; value: string | number; increment?: number; title?: string; neutralValue?: boolean; t: any }) {
   const isPositive = increment !== undefined && increment > 0;
   const isNegative = increment !== undefined && increment < 0;
   const isZero = increment === 0;
@@ -80,14 +81,14 @@ function Metric({ label, value, increment, title, neutralValue = false }: { labe
           }`}>
             {neutralValue ? '' : isPositive ? '↑' : isNegative ? '↓' : ''} {isZero ? 'NA' : `${Math.abs(increment)}%`}
           </span>
-          <span className="text-[10px] text-[#5A5A5A]">from last month</span>
+          <span className="text-[10px] text-[#5A5A5A]">{t.crm.fromLastMonth}</span>
         </div>
       ) : (
         <div className="flex items-center gap-1.5 mt-1 z-10 opacity-0 pointer-events-none select-none">
           <span className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] font-medium">
             0%
           </span>
-          <span className="text-[10px]">from last month</span>
+          <span className="text-[10px]">{t.crm.fromLastMonth}</span>
         </div>
       )}
     </div>
@@ -97,6 +98,7 @@ function Metric({ label, value, increment, title, neutralValue = false }: { labe
 export function CrmKpiBar({
   activeTab, leads, accounts, contacts, customers, opportunities, followups, documents = [],
 }: CrmKpiBarProps) {
+  const { t } = useTranslation();
 
   const live = <T extends { archived: boolean }>(records: T[]) => records.filter(r => !r.archived);
 
@@ -147,37 +149,37 @@ export function CrmKpiBar({
       <div className="flex flex-wrap items-center gap-4 w-full">
         {activeTab === 'contact' && (
           <>
-            <Metric label="Contatti" value={String(liveContacts.length + liveLeads.length)} increment={calculateIncrement(liveContacts)} />
-            <Metric label="Lead" value={String(leadsCount)} increment={calculateIncrement(liveLeads)} />
-            <Metric label="Aziende" value={String(liveAccounts.length)} increment={calculateIncrement(liveAccounts)} />
-            <Metric label="Clienti" value={String(liveCustomers.length)} increment={calculateIncrement(liveCustomers)} />
+            <Metric t={t} label={t.crm.kpiContacts} value={String(liveContacts.length + liveLeads.length)} increment={calculateIncrement(liveContacts)} />
+            <Metric t={t} label={t.crm.kpiLeads} value={String(leadsCount)} increment={calculateIncrement(liveLeads)} />
+            <Metric t={t} label={t.crm.kpiAccounts} value={String(liveAccounts.length)} increment={calculateIncrement(liveAccounts)} />
+            <Metric t={t} label={t.crm.kpiCustomers} value={String(liveCustomers.length)} increment={calculateIncrement(liveCustomers)} />
           </>
         )}
 
         {activeTab === 'opportunity' && (
           <>
-            <Metric label="Opportunità" value={String(openOpps.length)} increment={calculateIncrement(openOpps)} />
-            <Metric label="Pipeline" value={formatEuro(pipelineValue)} increment={calculateIncrement(openOpps)} />
-            <Metric label="Tasso di Conversione" value={`${winRate.toFixed(1)}%`} neutralValue />
-            <Metric label="In Trattativa" value={formatEuro(inTrattativaValue)} neutralValue />
+            <Metric t={t} label={t.crm.kpiOpportunities} value={String(openOpps.length)} increment={calculateIncrement(openOpps)} />
+            <Metric t={t} label={t.crm.kpiPipeline} value={formatEuro(pipelineValue, t.settings.language)} increment={calculateIncrement(openOpps)} />
+            <Metric t={t} label={t.crm.kpiConversionRate} value={`${winRate.toFixed(1)}%`} neutralValue />
+            <Metric t={t} label={t.crm.kpiInNegotiation} value={formatEuro(inTrattativaValue, t.settings.language)} neutralValue />
           </>
         )}
 
         {activeTab === 'followup' && (
           <>
-            <Metric label="Follow up Fatti" value={String(fattiCount)} increment={calculateIncrement(liveFollowups.filter(f => f.state === 'DONE'))} />
-            <Metric label="Follow up Da Fare" value={String(daFareCount)} increment={calculateIncrement(liveFollowups.filter(f => f.state !== 'DONE'))} />
-            <Metric label="Tempo Follow up" value={avgResponseTimeDays > 0 ? `${avgResponseTimeDays.toFixed(1)} gg` : '0 gg'} neutralValue />
-            <Metric label="Follow up per Close" value={String(followupsPerWon.toFixed(1))} neutralValue />
+            <Metric t={t} label={t.crm.kpiFollowupDone} value={String(fattiCount)} increment={calculateIncrement(liveFollowups.filter(f => f.state === 'DONE'))} />
+            <Metric t={t} label={t.crm.kpiFollowupTodo} value={String(daFareCount)} increment={calculateIncrement(liveFollowups.filter(f => f.state !== 'DONE'))} />
+            <Metric t={t} label={t.crm.kpiFollowupTime} value={avgResponseTimeDays > 0 ? `${avgResponseTimeDays.toFixed(1)} ${t.crm.daysAbbr}` : `0 ${t.crm.daysAbbr}`} neutralValue />
+            <Metric t={t} label={t.crm.kpiFollowupPerClose} value={String(followupsPerWon.toFixed(1))} neutralValue />
           </>
         )}
 
         {activeTab === 'dashboard' && (
           <>
-            <Metric label="Entità" value={String(entityCount)} increment={calculateIncrement([...liveContacts, ...liveAccounts])} />
-            <Metric label="Entrate" value={formatEuro(entrateValue)} increment={calculateIncrement(wonOpps)} />
-            <Metric label="Follow up Totali" value={String(liveFollowups.length)} neutralValue />
-            <Metric label="Documenti" value={String(liveDocs.length)} neutralValue />
+            <Metric t={t} label={t.crm.kpiEntities} value={String(entityCount)} increment={calculateIncrement([...liveContacts, ...liveAccounts])} />
+            <Metric t={t} label={t.crm.kpiRevenue} value={formatEuro(entrateValue, t.settings.language)} increment={calculateIncrement(wonOpps)} />
+            <Metric t={t} label={t.crm.kpiTotalFollowup} value={String(liveFollowups.length)} neutralValue />
+            <Metric t={t} label={t.crm.kpiDocuments} value={String(liveDocs.length)} neutralValue />
           </>
         )}
       </div>

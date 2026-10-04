@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useRef, useState } from 'react';
 import { Upload, FileSpreadsheet, FileJson, FileText, AlertTriangle } from 'lucide-react';
 import { ParsedFile } from '@/lib/crm/import/parse';
@@ -24,6 +25,7 @@ export function ImportDropzone({
   parsing, parsed, error, sheetIndex, headerRow,
   onFile, onSheetChange, onHeaderRowChange,
 }: ImportDropzoneProps) {
+  const { t } = useTranslation();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 

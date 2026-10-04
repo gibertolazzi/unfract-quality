@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { OrgMember } from '@/types/organization';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProject } from '@/contexts/ProjectContext';
@@ -60,13 +61,13 @@ export function MemberChip({ member, orgId, onClick }: MemberChipProps) {
       className="flex items-center justify-between min-w-[180px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all cursor-pointer"
     >
       <div className="flex items-center gap-3">
-        <div className="w-[34px] h-[34px] rounded-full bg-[#006AFF] flex items-center justify-center text-white text-[12px] font-bold tracking-wider overflow-hidden">
-          {member.photoURL ? (
-            <img src={member.photoURL} alt={member.displayName} className="w-full h-full object-cover" />
-          ) : (
-            member.initials || member.displayName.charAt(0).toUpperCase()
-          )}
-        </div>
+        <UserAvatar
+          src={member.photoURL}
+          name={member.displayName}
+          initials={member.initials}
+          className="w-[34px] h-[34px] rounded-full bg-[#006AFF] flex items-center justify-center text-white text-[12px] font-bold tracking-wider overflow-hidden"
+          imageClassName="w-full h-full object-cover"
+        />
         <div className="flex flex-col">
           <span className="text-[14px] text-white font-medium">{member.displayName}</span>
           <span className="text-[11px] text-[#858585] capitalize line-clamp-1">{roleLabel}</span>

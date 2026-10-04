@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { X, ArrowRightLeft, Loader2, Info } from 'lucide-react';
 import { BridgeProposal } from '@/lib/crm/prospect/bridge';
@@ -71,6 +72,7 @@ function Scelta({ label, mode, onMode, disabledModes, children }: {
 }
 
 export function BridgePanel({ proposal, onChange, onConfirm, onClose, running }: BridgePanelProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !running);
   const [nome, setNome] = useState({ firstName: '', lastName: '', role: '' });
 

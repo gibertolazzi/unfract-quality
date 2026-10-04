@@ -186,9 +186,9 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                     ))}
                   </div>
                   
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => setIsCreatingRole(false)} className="px-4 py-2 rounded-xl text-[#858585] hover:bg-white/5 text-sm">Annulla</button>
-                    <button onClick={handleCreateRole} disabled={!newRoleName.trim()} className="px-4 py-2 bg-[#006AFF] text-white rounded-xl font-medium disabled:opacity-50 text-sm">Salva Ruolo</button>
+                  <div className="flex justify-end gap-3 mt-4">
+                    <button onClick={() => setIsCreatingRole(false)} className="px-5 py-2 rounded-full text-[#858585] hover:text-white transition-colors text-sm font-medium">Annulla</button>
+                    <button onClick={handleCreateRole} disabled={!newRoleName.trim()} className="px-5 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full hover:bg-[#003B80]/80 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center">Crea Ruolo</button>
                   </div>
                 </div>
               )}

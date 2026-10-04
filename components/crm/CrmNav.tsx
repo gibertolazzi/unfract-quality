@@ -1,14 +1,15 @@
 'use client';
 
 import { LayoutDashboard, Building2, Target, CalendarClock } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export type CrmTab = 'dashboard' | 'contact' | 'opportunity' | 'followup';
 
-const TABS: { key: CrmTab; label: string; Icon: any; ready: boolean }[] = [
-  { key: 'contact',     label: 'Contatti & Aziende',    Icon: Building2,     ready: true },
-  { key: 'opportunity', label: 'Opportunità & Pipeline', Icon: Target,        ready: true },
-  { key: 'followup',    label: 'Follow up',             Icon: CalendarClock, ready: true },
-  { key: 'dashboard',   label: 'Riepilogo',             Icon: LayoutDashboard, ready: true },
+const getTabs = (t: any): { key: CrmTab, label: string, Icon: any, ready: boolean }[] => [
+  { key: 'contact',     label: t.crm.navContacts,    Icon: Building2,     ready: true },
+  { key: 'opportunity', label: t.crm.navOpportunities, Icon: Target,        ready: true },
+  { key: 'followup',    label: t.crm.navFollowup,             Icon: CalendarClock, ready: true },
+  { key: 'dashboard',   label: t.crm.navDashboard,             Icon: LayoutDashboard, ready: true },
 ];
 
 interface CrmNavProps {
@@ -18,9 +19,12 @@ interface CrmNavProps {
 }
 
 export function CrmNav({ active, onChange, counts }: CrmNavProps) {
+  const { t } = useTranslation();
+  const tabs = getTabs(t);
+
   return (
     <nav className="flex flex-wrap items-center gap-2">
-      {TABS.map(({ key, label, Icon, ready }) => {
+      {tabs.map(({ key, label, Icon, ready }) => {
         if (!ready) return null;
 
         const isActive = active === key;

@@ -1,12 +1,14 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { Plus, Search, Archive, CalendarClock, Trash2, Link2 } from 'lucide-react';
 import {
   CrmFollowup, CrmLead, CrmCustomer, CrmAccount, CrmOpportunity,
 } from '@/components/crm/types';
 import {
-  FollowupState, FOLLOWUP_TYPE_LABELS, PRIORITY_LABELS, PRIORITY_COLORS,
+  FollowupState, PRIORITY_COLORS,
 } from '@/components/crm/constants';
 import {
   FollowupFilters, EMPTY_FOLLOWUP_FILTERS, FollowupView, FOLLOWUP_VIEW_LABELS,
@@ -45,12 +47,7 @@ interface FollowupSectionProps {
 
 const VIEWS: FollowupView[] = ['today', 'overdue', 'week', 'unplanned', 'done', 'all', 'archived'];
 
-const COLUMNS: ColumnDef<FollowupSortField>[] = [
-  { field: 'title',    label: 'Da fare' },
-  { field: 'dueDate',  label: 'Scadenza' },
-  { field: 'priority', label: 'Priorità' },
-  { field: 'state',    label: 'Stato' },
-];
+
 
 /**
  * I follow-up con le viste che si usano davvero. «Oggi» include il pregresso:
@@ -60,6 +57,14 @@ export function FollowupSection({
   followups, leads, customers, accounts, opportunities, owners, currentUid,
   saving, loading, initialView, onCreate, onUpdate, onChangeState, onArchive, onDelete,
 }: FollowupSectionProps) {
+  const { t } = useTranslation();
+
+  const COLUMNS: ColumnDef<FollowupSortField>[] = [
+    { field: 'title',    label: t.crm.toDo },
+    { field: 'dueDate',  label: t.crm.dueDate },
+    { field: 'priority', label: 'Priorità' },
+    { field: 'state',    label: 'Stato' },
+  ];
   const [filters, setFilters] = useState<FollowupFilters>({
     ...EMPTY_FOLLOWUP_FILTERS,
     ...(initialView ? { view: initialView } : {}),
@@ -238,7 +243,7 @@ export function FollowupSection({
                             {followup.title}
                           </span>
                           <span className="flex items-center gap-2 text-[11px] text-[#5A5A5A]">
-                            {FOLLOWUP_TYPE_LABELS[followup.type]}
+                            {getFollowupTypeLabel(followup.type, t)}
                             {link && (
                               <span className="flex items-center gap-1">
                                 <Link2 size={9} /> {link}
@@ -266,7 +271,7 @@ export function FollowupSection({
                             backgroundColor: `${PRIORITY_COLORS[followup.priority]}1A`,
                           }}
                         >
-                          {PRIORITY_LABELS[followup.priority]}
+                          {getPriorityLabel(followup.priority, t)}
                         </span>
                       </td>
 

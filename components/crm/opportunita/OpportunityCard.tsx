@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { CalendarClock, Sparkles, Archive } from 'lucide-react';
 import { CrmOpportunity } from '@/components/crm/types';
 import { effectiveValue, effectiveProbabilityOf, weightedValueOf } from '@/lib/crm/opportunityFilters';
@@ -20,6 +21,7 @@ const isOverdue = (date: string, open: boolean) =>
 export function OpportunityCard({
   opportunity, counterpartyName, ownerName, dragging, onOpen,
 }: OpportunityCardProps) {
+  const { t } = useTranslation();
   const value = effectiveValue(opportunity);
   const probability = effectiveProbabilityOf(opportunity);
   const manual = opportunity.probability !== null;
@@ -57,7 +59,7 @@ export function OpportunityCard({
       </div>
 
       <div className="flex items-center justify-between gap-2 text-[10px]">
-        <span className="text-[#3F3F3F]">{ownerName || 'Non assegnata'}</span>
+        <span className="text-[#3F3F3F]">{ownerName || t.crm.unassigned}</span>
         {opportunity.expectedCloseDate ? (
           <span className={`flex items-center gap-1 ${
             isOverdue(opportunity.expectedCloseDate, open) ? 'text-[#EF4444]' : 'text-[#5A5A5A]'

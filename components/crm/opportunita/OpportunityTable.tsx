@@ -1,8 +1,10 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Archive, Sparkles } from 'lucide-react';
 import { CrmOpportunity } from '@/components/crm/types';
-import { OPPORTUNITY_PHASE_LABELS, OPPORTUNITY_PHASE_COLORS } from '@/components/crm/constants';
+import { OPPORTUNITY_PHASE_COLORS } from '@/components/crm/constants';
 import { Page } from '@/lib/crm/leadFilters';
 import {
   OpportunitySort, OpportunitySortField,
@@ -24,19 +26,23 @@ interface OpportunityTableProps {
   onArchive: (opportunity: CrmOpportunity) => void;
 }
 
-const COLUMNS: ColumnDef<OpportunitySortField>[] = [
-  { field: 'title',             label: 'Opportunità' },
-  { field: 'phase',             label: 'Fase' },
-  { field: 'value',             label: 'Valore',    align: 'right', initial: 'desc' },
-  { field: 'weighted',          label: 'Ponderato', align: 'right', initial: 'desc' },
-  { field: 'expectedCloseDate', label: 'Chiusura prevista' },
-  { field: 'updatedAt',         label: 'Aggiornato', initial: 'desc' },
-];
+
 
 export function OpportunityTable({
   page, sort, counterpartyName, ownerName,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onArchive,
 }: OpportunityTableProps) {
+  
+  const { t } = useTranslation();
+
+  const COLUMNS: ColumnDef<OpportunitySortField>[] = [
+    { field: 'title',             label: 'Opportunità' },
+    { field: 'phase',             label: t.crm.phase },
+    { field: 'value',             label: t.crm.value,    align: 'right', initial: 'desc' },
+    { field: 'weighted',          label: t.crm.weighted, align: 'right', initial: 'desc' },
+    { field: 'expectedCloseDate', label: t.crm.expectedClose },
+    { field: 'updatedAt',         label: t.crm.colUpdated, initial: 'desc' },
+  ];
   if (page.totalItems === 0) {
     return <EmptyState title="Nessuna opportunità corrisponde ai filtri" hint="Azzera i filtri, oppure creane una nuova da un cliente o da un lead" />;
   }
@@ -78,7 +84,7 @@ export function OpportunityTable({
                         {opportunity.title}
                       </span>
                       <span className="text-[11px] text-[#5A5A5A]">
-                        {counterpartyName(opportunity) || 'Controparte non risolta'}
+                        {counterpartyName(opportunity) || t.crm.unresolvedCounterparty}
                       </span>
                     </button>
                   </td>
@@ -86,14 +92,14 @@ export function OpportunityTable({
                   <td className="px-4 py-3">
                     <Pill
                       color={OPPORTUNITY_PHASE_COLORS[opportunity.phase]}
-                      label={OPPORTUNITY_PHASE_LABELS[opportunity.phase]}
+                      label={getOppPhaseLabel(opportunity.phase, t)}
                     />
                   </td>
 
                   <td className="px-4 py-3 text-right">
                     <span className="text-xs text-[#C4C4C4]">{formatEuro(effectiveValue(opportunity))}</span>
                     {opportunity.items.length > 0 && (
-                      <span className="block text-[10px] text-[#3F3F3F]" title="Somma delle voci">calcolato</span>
+                      <span className="block text-[10px] text-[#3F3F3F]" title={t.crm.sumOfItems}>calcolato</span>
                     )}
                   </td>
 
@@ -117,7 +123,7 @@ export function OpportunityTable({
                   <td className="px-4 py-3 text-xs text-[#5A5A5A]">{formatDate(opportunity.updatedAt)}</td>
 
                   <td className="px-4 py-3 text-right text-xs text-[#858585]">
-                    {ownerName(opportunity.ownerUid) || <span className="text-[#3F3F3F]">Non assegnata</span>}
+                    {ownerName(opportunity.ownerUid) || <span className="text-[#3F3F3F]">{t.crm.unassigned}</span>}
                   </td>
 
                   <td className="px-2 py-3">
@@ -125,7 +131,7 @@ export function OpportunityTable({
                       <button
                         type="button"
                         onClick={() => onArchive(opportunity)}
-                        title="Archivia"
+                        title={t.crm.archive}
                         className="rounded p-1 text-[#3F3F3F] opacity-0 transition-opacity hover:text-[#EF4444] group-hover:opacity-100"
                       >
                         <Archive size={13} />

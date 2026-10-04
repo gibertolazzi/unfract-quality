@@ -1,0 +1,91 @@
+import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const state = searchParams.get('state');
+  const error = searchParams.get('error');
+
+  if (error) {
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${error}`);
+  }
+
+  if (!code || !state) {
+    return NextResponse.json({ error: 'Missing code or state' }, { status: 400 });
+  }
+
+  try {
+    const { userId } = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
+    if (!userId) throw new Error("Invalid state");
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+
+    if (!clientId || !clientSecret) {
+      throw new Error('Google OAuth credentials not configured');
+    }
+
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const err = await tokenResponse.text();
+      console.error('Error fetching Google tokens:', err);
+      throw new Error('Failed to exchange code for tokens');
+    }
+
+    const tokens = await tokenResponse.json();
+    
+    const updateData: any = {
+      accessToken: tokens.access_token,
+      expiresAt: Date.now() + (tokens.expires_in * 1000),
+      updatedAt: new Date().toISOString()
+    };
+    if (tokens.refresh_token) {
+      updateData.refreshToken = tokens.refresh_token;
+    }
+
+    await adminDb.doc(`users/${userId}/integrations/google`).set(updateData, { merge: true });
+
+
+    // Register Google Calendar Webhook (Hardcore Sync)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    if (appUrl.startsWith('https://')) { // Google requires HTTPS for webhooks
+      try {
+        await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/watch', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${tokens.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            id: `google-webhook-${userId}`,
+            type: 'web_hook',
+            address: `${appUrl}/api/calendar/webhooks/google`
+          })
+        });
+      } catch (e) {
+        console.error("Failed to register Google Webhook:", e);
+      }
+    }
+
+    // Redirect to the calendar with a success message
+
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?sync=success`);
+
+  } catch (err: any) {
+    console.error('Google OAuth callback error:', err);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=oauth_failed`);
+  }
+}

@@ -1,15 +1,35 @@
-import React, { useEffect, useRef } from 'react';
-import { Type, Heading1, Heading2, List, CheckSquare, Image as ImageIcon, Link } from 'lucide-react';
-import { DocBlock } from './types';
+import React, { useEffect, useRef, useState } from 'react';
+import { Type, Heading1, Heading2, List, CheckSquare, Calendar, Users, Sparkles, FileText } from 'lucide-react';
 
 interface SlashMenuProps {
-  onSelect: (type: DocBlock['type']) => void;
+  onSelect: (type: string) => void;
   onClose: () => void;
-  position: { top: number; left: number };
+  position: { top: number; bottom: number; left: number };
 }
 
 export function SlashMenu({ onSelect, onClose, position }: SlashMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const [style, setStyle] = useState<React.CSSProperties>({});
+
+  useEffect(() => {
+    // Calculate if it should open upwards
+    const maxMenuHeight = 180;
+    const isUpwards = position.bottom + maxMenuHeight > window.innerHeight;
+    
+    if (isUpwards) {
+      // Open upwards (place bottom of menu just above the cursor's top)
+      setStyle({
+        bottom: window.innerHeight - position.top + 4,
+        left: position.left
+      });
+    } else {
+      // Open downwards (place top of menu just below the cursor's bottom)
+      setStyle({
+        top: position.bottom + 4,
+        left: position.left
+      });
+    }
+  }, [position]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -22,16 +42,25 @@ export function SlashMenu({ onSelect, onClose, position }: SlashMenuProps) {
   }, [onClose]);
 
   const options = [
-    { type: 'p' as const, label: 'Paragrafo', icon: Type, desc: 'Testo normale' },
-    { type: 'h2' as const, label: 'Titolo 1', icon: Heading1, desc: 'Titolo principale della sezione' },
-    { type: 'h3' as const, label: 'Titolo 2', icon: Heading2, desc: 'Sottotitolo' },
+    { type: 'p', label: 'Paragrafo', icon: Type, desc: 'Testo normale' },
+    { type: 'h2', label: 'Titolo 1', icon: Heading1, desc: 'Titolo principale della sezione' },
+    { type: 'h3', label: 'Titolo 2', icon: Heading2, desc: 'Sottotitolo' },
+  ];
+  
+  const advanced = [
+    { type: 'ai', label: 'Genera con AI', icon: Sparkles },
+    { type: 'list', label: 'Elenco puntato', icon: List },
+    { type: 'task', label: 'Attività', icon: CheckSquare },
+    { type: 'event', label: 'Evento', icon: Calendar },
+    { type: 'meeting', label: 'Meeting', icon: Users },
+    { type: 'document', label: 'Documento', icon: FileText },
   ];
 
   return (
     <div 
       ref={menuRef}
-      className="absolute z-50 w-64 bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-hidden py-2"
-      style={{ top: position.top, left: position.left }}
+      className="fixed z-50 w-64 bg-[#111] border border-white/10 rounded-xl shadow-2xl overflow-y-auto max-h-[180px] py-2 custom-scrollbar"
+      style={style}
     >
       <div className="px-3 pb-2 text-xs font-medium text-[#858585] border-b border-white/5 mb-1">
         Blocchi di base
@@ -40,14 +69,14 @@ export function SlashMenu({ onSelect, onClose, position }: SlashMenuProps) {
         <button
           key={opt.type}
           onClick={() => onSelect(opt.type)}
-          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[#006AFF]/10 hover:text-[#00A6FF] transition-colors text-left"
+          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-[#006AFF]/10 hover:text-[#00A6FF] transition-colors text-left group"
         >
           <div className="p-2 bg-white/5 rounded-lg text-[#858585] group-hover:text-[#00A6FF] group-hover:bg-[#006AFF]/20 transition-colors">
             <opt.icon size={16} />
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-medium text-white/90">{opt.label}</span>
-            <span className="text-xs text-[#858585]">{opt.desc}</span>
+            <span className="text-sm font-medium text-white/90 group-hover:text-[#00A6FF]">{opt.label}</span>
+            <span className="text-xs text-[#858585] group-hover:text-[#00A6FF]/70">{opt.desc}</span>
           </div>
         </button>
       ))}
@@ -56,16 +85,18 @@ export function SlashMenu({ onSelect, onClose, position }: SlashMenuProps) {
         Avanzati
       </div>
       
-      <button className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left" onClick={onClose}>
-        <div className="p-2 bg-white/5 rounded-lg text-[#858585]"><List size={16} /></div>
-        <span className="text-sm font-medium text-white/90">Elenco puntato</span>
-      </button>
-      
-      <button className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left" onClick={onClose}>
-        <div className="p-2 bg-white/5 rounded-lg text-[#858585]"><CheckSquare size={16} /></div>
-        <span className="text-sm font-medium text-white/90">Attività</span>
-      </button>
-      
+      {advanced.map(opt => (
+        <button 
+          key={opt.type}
+          className="w-full flex items-center gap-3 px-3 py-2 hover:bg-white/5 transition-colors text-left group" 
+          onClick={() => onSelect(opt.type)}
+        >
+          <div className="p-2 bg-white/5 rounded-lg text-[#858585] group-hover:text-white transition-colors">
+             <opt.icon size={16} />
+          </div>
+          <span className="text-sm font-medium text-white/90 group-hover:text-white">{opt.label}</span>
+        </button>
+      ))}
     </div>
   );
 }

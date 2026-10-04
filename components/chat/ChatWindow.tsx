@@ -1,24 +1,141 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useChat } from '@/contexts/ChatContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Message, Attachment, Mention } from '@/lib/chat';
 import { ChatInput } from './ChatInput';
-import { File as FileIcon, Play, Calendar, CheckSquare, FileText, ChevronRight, Trash2, X, Download } from 'lucide-react';
+import { File as FileIcon, Play, Calendar, CheckSquare, FileText, ChevronRight, ChevronLeft, Trash2, X, Download, Settings, Pause, Ban } from 'lucide-react';
+import { ChatSettingsModal } from './ChatSettingsModal';
+
+const CustomAudioPlayer = ({ url }: { url: string }) => {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  const togglePlay = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleTimeUpdate = () => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
+  };
+
+  const formatTime = (time: number) => {
+    if (!time || isNaN(time)) return "0:00";
+    const m = Math.floor(time / 60);
+    const s = Math.floor(time % 60);
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-3 bg-[#111] border border-white/10 rounded-full px-4 py-2 min-w-[200px] shadow-sm max-w-[260px]">
+      <button 
+        onClick={togglePlay}
+        className="w-8 h-8 rounded-full bg-[#006AFF] flex items-center justify-center text-white shrink-0 hover:bg-[#0055CC] transition-colors"
+      >
+        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+      </button>
+      
+      <div className="flex-1 flex flex-col gap-1 justify-center">
+        <div className="relative w-full h-1.5 bg-white/20 rounded-full cursor-pointer" onClick={(e) => {
+          if (audioRef.current && duration > 0) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const clickPos = (e.clientX - rect.left) / rect.width;
+            audioRef.current.currentTime = clickPos * duration;
+          }
+        }}>
+          <div 
+            className="absolute top-0 left-0 h-full bg-[#006AFF] rounded-full transition-all duration-100" 
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <div className="flex justify-between items-center text-[10px] text-[#858585] font-medium leading-none">
+          <span>{formatTime(currentTime)}</span>
+          <span>{formatTime(duration)}</span>
+        </div>
+      </div>
+      
+      <audio 
+        ref={audioRef}
+        src={url}
+        onTimeUpdate={handleTimeUpdate}
+        onLoadedMetadata={handleLoadedMetadata}
+        onEnded={() => setIsPlaying(false)}
+        className="hidden"
+      />
+    </div>
+  );
+};
+
 import { useRouter } from 'next/navigation';
 
-export function ChatWindow({ chatId }: { chatId: string }) {
+import { Menu } from "lucide-react";
+
+export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSidebar?: () => void }) {
   const { user } = useAuth();
-  const { chats } = useChat();
+  const { chats, markChatAsRead } = useChat();
   const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
+  const userId = user?.uid;
 
   const chat = chats.find(c => c.id === chatId);
+  const imageGallery = messages
+    .filter(message => !message.deletedFor?.includes(userId || '') && !message.deletedForEveryone)
+    .flatMap(message => (message.attachments || [])
+      .filter(attachment => attachment.type === 'image')
+      .map(attachment => ({ url: attachment.payload.url, name: attachment.payload.name || 'Immagine' })));
+  const selectedImage = selectedImageIndex === null ? null : imageGallery[selectedImageIndex] || null;
+
+  const showPreviousImage = () => {
+    if (imageGallery.length > 1 && selectedImageIndex !== null) {
+      setSelectedImageIndex((selectedImageIndex - 1 + imageGallery.length) % imageGallery.length);
+    }
+  };
+
+  const showNextImage = () => {
+    if (imageGallery.length > 1 && selectedImageIndex !== null) {
+      setSelectedImageIndex((selectedImageIndex + 1) % imageGallery.length);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedImageIndex === null) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'ArrowLeft') showPreviousImage();
+      if (event.key === 'ArrowRight') showNextImage();
+      if (event.key === 'Escape') setSelectedImageIndex(null);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedImageIndex, imageGallery.length]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -40,20 +157,44 @@ export function ChatWindow({ chatId }: { chatId: string }) {
       });
       setMessages(msgs);
       setIsLoading(false);
+
+      if (userId) {
+        const unreadMessageIds = msgs.filter(message =>
+          message.senderId !== userId &&
+          !message.readBy?.includes(userId) &&
+          !message.deletedFor?.includes(userId) &&
+          !message.deletedForEveryone
+        ).map(message => message.id);
+
+        void markChatAsRead(chatId, unreadMessageIds);
+      }
     }, (error) => {
       console.error("Firebase onSnapshot error in ChatWindow:", error);
       setIsLoading(false);
     });
 
     return () => unsubscribe();
-  }, [chatId]);
+  }, [chatId, userId, markChatAsRead]);
 
-  const handleDeleteMessage = async (msgId: string) => {
+  const confirmDelete = async (type: 'me' | 'everyone') => {
+    if (!messageToDelete || !user) return;
     try {
-      await deleteDoc(doc(db, 'messages', msgId));
+      if (type === 'everyone') {
+        await updateDoc(doc(db, 'messages', messageToDelete.id), {
+          deletedForEveryone: true,
+          text: 'Questo messaggio è stato eliminato',
+          attachments: [],
+          mentions: []
+        });
+      } else {
+        await updateDoc(doc(db, 'messages', messageToDelete.id), {
+          deletedFor: arrayUnion(user.uid)
+        });
+      }
     } catch (e) {
       console.error("Failed to delete message", e);
     }
+    setMessageToDelete(null);
   };
 
   const renderTextWithMentions = (text: string, mentions: Mention[]) => {
@@ -87,7 +228,7 @@ export function ChatWindow({ chatId }: { chatId: string }) {
     } else if (mention.type === 'meeting') {
       router.push(`/meetings/${mention.id}`);
     } else if (mention.type === 'task') {
-      router.push(`/?taskId=${mention.id}`);
+      router.push(`/?highlightTask=${mention.id}`);
     }
   };
 
@@ -103,27 +244,45 @@ export function ChatWindow({ chatId }: { chatId: string }) {
   };
 
   return (
-    <div className="flex-1 flex flex-col h-full relative">
+    <div className="flex-1 min-h-0 flex flex-col h-full relative">
+      {showSettings && chat && (
+        <ChatSettingsModal chat={chat} onClose={() => setShowSettings(false)} />
+      )}
       {/* Header */}
-      <div className="h-14 border-b border-white/5 flex items-center px-6 shrink-0 bg-transparent backdrop-blur-md z-20 relative">
-        <h3 className="font-semibold text-white/90">
-          {chat?.type === 'channel' ? `# ${chat?.name}` : chat?.name || 'Messaggio Diretto'}
-        </h3>
+      <div className="h-14 border-b border-white/5 flex items-center justify-between px-4 md:px-6 shrink-0 bg-transparent backdrop-blur-md z-20 relative">
+        <div className="flex items-center gap-3">
+          {onOpenSidebar && (
+            <button 
+              onClick={onOpenSidebar}
+              className="md:hidden w-8 h-8 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center backdrop-blur-sm"
+            >
+              <Menu size={16} />
+            </button>
+          )}
+          <h3 className="font-semibold text-white/90">
+            {chat?.type === 'channel' ? `# ${chat?.name}` : chat?.name || 'Messaggio Diretto'}
+          </h3>
+        </div>
+        {chat?.type === 'channel' && (
+          <button onClick={() => setShowSettings(true)} className="text-[#858585] hover:text-white transition-colors">
+            <Settings size={18} />
+          </button>
+        )}
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-6 pb-[160px] space-y-4 relative z-0">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 md:p-6 space-y-4 relative z-0">
         {isLoading ? (
           <div className="text-center text-[#858585] text-sm">Caricamento messaggi...</div>
         ) : messages.length === 0 ? (
           <div className="text-center text-[#858585] text-sm mt-10">Nessun messaggio in questa chat. Scrivi qualcosa!</div>
         ) : (
-          messages.map((msg) => (
+          messages.filter(msg => !msg.deletedFor?.includes(user?.uid || '')).map((msg) => (
             <div key={msg.id} className={`flex flex-col group w-full ${msg.senderId === user?.uid ? 'items-end' : 'items-start'}`}>
               <div className="flex items-center gap-2 mb-1">
-                {msg.senderId === user?.uid && (
+                {!msg.deletedForEveryone && (
                   <button 
-                    onClick={() => handleDeleteMessage(msg.id)}
+                    onClick={() => setMessageToDelete(msg)}
                     className="opacity-0 group-hover:opacity-100 text-[#858585] hover:text-[#FF0004] transition-all p-1"
                     title="Elimina messaggio"
                   >
@@ -135,32 +294,59 @@ export function ChatWindow({ chatId }: { chatId: string }) {
               
               <div className={`rounded-[20px] px-5 py-3 w-max max-w-[80%] text-[14px] leading-relaxed shadow-sm ${
                  msg.senderId === user?.uid 
-                   ? 'bg-[#006AFF] text-white rounded-tr-sm' 
-                   : 'bg-white/5 border border-white/5 text-[#E0E0E0] rounded-tl-sm'
+                   ? (msg.deletedForEveryone ? 'bg-transparent border border-white/10 text-[#858585] italic' : 'bg-[#006AFF] text-white rounded-tr-sm')
+                   : (msg.deletedForEveryone ? 'bg-transparent border border-white/10 text-[#858585] italic' : 'bg-white/5 border border-white/5 text-[#E0E0E0] rounded-tl-sm')
               } ${hasVisibleText(msg) ? '' : 'hidden'}`}>
-                {msg.text && renderTextWithMentions(msg.text, msg.mentions || [])}
+                {msg.deletedForEveryone ? (
+                   <div className="flex items-center gap-2">
+                     <Ban size={14} className="opacity-50" />
+                     Questo messaggio è stato eliminato
+                   </div>
+                ) : (
+                   msg.text && renderTextWithMentions(msg.text, msg.mentions || [])
+                )}
               </div>
               
               {/* Attachments */}
               {msg.attachments && msg.attachments.length > 0 && (
-                <div className="flex gap-2 mt-2 flex-wrap max-w-[80%]">
-                  {msg.attachments.map((att: Attachment, i: number) => {
-                    if (att.type === 'image') {
+                <div className="mt-2 flex w-full min-w-0 max-w-[80%] flex-col gap-2">
+                  {msg.attachments.some(att => att.type === 'image') && (
+                    <div className="grid w-full max-w-[420px] grid-cols-2 gap-2 sm:grid-cols-3">
+                      {msg.attachments.filter(att => att.type === 'image').map((att, i) => {
+                        const galleryIndex = imageGallery.findIndex(image => image.url === att.payload.url);
+                        return (
+                          <button
+                            key={`${att.payload.url}-${i}`}
+                            type="button"
+                            onClick={() => setSelectedImageIndex(galleryIndex)}
+                            className="group relative aspect-square min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#111] transition hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-[#006AFF]"
+                            aria-label={`Apri ${att.payload.name || 'immagine'}`}
+                          >
+                            <img src={att.payload.url} alt={att.payload.name || 'Immagine allegata'} className="h-full w-full object-contain p-1 transition duration-200 group-hover:scale-[1.03]" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <div className="flex flex-col items-start gap-2">
+                  {msg.attachments.filter(att => att.type !== 'image').map((att: Attachment, i: number) => {
+                    if (att.type === 'video') {
                       return (
-                        <div key={i} onClick={() => setSelectedImage(att.payload.url)} className="block max-w-[200px] rounded-lg overflow-hidden border border-white/10 hover:opacity-90 transition-opacity cursor-pointer">
-                          <img src={att.payload.url} alt={att.payload.name} className="w-full h-auto object-cover" />
+                        <div key={i} className="w-full max-w-[480px] overflow-hidden rounded-lg border border-white/10 bg-black">
+                          <video
+                            src={att.payload.url}
+                            controls
+                            playsInline
+                            preload="metadata"
+                            className="block max-h-[420px] w-full object-contain"
+                          >
+                            Il browser non supporta la riproduzione di questo video.
+                          </video>
                         </div>
                       );
                     }
-                    if (att.type === 'video') {
-                      return (
-                        <div key={i} className="max-w-[200px] relative rounded-lg overflow-hidden border border-white/10 group cursor-pointer">
-                          <video src={att.payload.url} className="w-full h-auto" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Play className="text-white" size={24} />
-                          </div>
-                        </div>
-                      );
+                    if (att.type === 'audio') {
+                      return <CustomAudioPlayer key={i} url={att.payload.url} />;
                     }
                     if (att.type === 'file') {
                       return (
@@ -177,6 +363,7 @@ export function ChatWindow({ chatId }: { chatId: string }) {
                     }
                     return null;
                   })}
+                  </div>
                 </div>
               )}
 
@@ -221,34 +408,83 @@ export function ChatWindow({ chatId }: { chatId: string }) {
         )}
       </div>
 
-      {/* Input */}
-      <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none">
-        <div className="pointer-events-auto">
-          <ChatInput chatId={chatId} />
-        </div>
+      {/* Composer occupies its own layout space so it cannot cover the last message. */}
+      <div className="z-10 w-full shrink-0 border-t border-white/5 bg-[#090909]">
+        <ChatInput chatId={chatId} />
       </div>
 
       {/* Fullscreen Image Modal */}
-      {selectedImage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4">
-          <div className="absolute top-6 right-6 flex items-center gap-4">
+      {selectedImage && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden bg-black/95 p-4 backdrop-blur-sm" onClick={() => setSelectedImageIndex(null)}>
+          <div className="absolute left-4 right-4 top-4 z-10 flex items-center justify-between md:left-8 md:right-8">
+            <span className="rounded-full bg-black/50 px-3 py-1.5 text-xs text-white/80">
+              {(selectedImageIndex ?? 0) + 1} / {imageGallery.length}
+            </span>
+            <div className="flex items-center gap-3">
             <a 
-              href={selectedImage} 
+              href={selectedImage.url} 
               download 
               target="_blank" 
               rel="noreferrer"
+              onClick={event => event.stopPropagation()}
               className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-white/20 transition-all"
             >
               <Download size={20} />
             </a>
             <button 
-              onClick={() => setSelectedImage(null)}
+              onClick={() => setSelectedImageIndex(null)}
+              aria-label="Chiudi galleria"
               className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-[#FF0004]/80 transition-all"
             >
               <X size={20} />
             </button>
+            </div>
           </div>
-          <img src={selectedImage} className="max-w-full max-h-[90vh] object-contain rounded-xl" alt="Fullscreen preview" />
+          {imageGallery.length > 1 && (
+            <button type="button" onClick={event => { event.stopPropagation(); showPreviousImage(); }} aria-label="Immagine precedente" className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 md:left-8">
+              <ChevronLeft size={24} />
+            </button>
+          )}
+          <div className="flex h-[calc(100dvh-5rem)] w-[calc(100vw-6rem)] items-center justify-center" onClick={event => event.stopPropagation()}>
+            <img src={selectedImage.url} className="block h-auto w-auto max-h-full max-w-full rounded-xl object-contain" alt={selectedImage.name} />
+          </div>
+          {imageGallery.length > 1 && (
+            <button type="button" onClick={event => { event.stopPropagation(); showNextImage(); }} aria-label="Immagine successiva" className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 md:right-8">
+              <ChevronRight size={24} />
+            </button>
+          )}
+        </div>,
+        document.body
+      )}
+      {/* Delete Modal */}
+      {messageToDelete && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col items-center shadow-xl">
+            <h3 className="text-white font-medium mb-1 text-lg">Elimina Messaggio</h3>
+            <p className="text-sm text-[#858585] mb-6 text-center">Vuoi eliminare questo messaggio solo per te o per tutti i partecipanti?</p>
+            <div className="flex flex-col gap-3 w-full">
+              {messageToDelete.senderId === user?.uid && (
+                <button 
+                  onClick={() => confirmDelete('everyone')}
+                  className="w-full py-2.5 rounded-xl bg-[#FF0004]/10 text-[#FF0004] hover:bg-[#FF0004]/20 font-medium transition-colors"
+                >
+                  Elimina per tutti
+                </button>
+              )}
+              <button 
+                onClick={() => confirmDelete('me')}
+                className="w-full py-2.5 rounded-xl bg-white/5 text-white hover:bg-white/10 font-medium transition-colors"
+              >
+                Elimina per me
+              </button>
+              <button 
+                onClick={() => setMessageToDelete(null)}
+                className="w-full py-2.5 rounded-xl bg-transparent text-[#858585] hover:text-white font-medium transition-colors mt-2"
+              >
+                Annulla
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

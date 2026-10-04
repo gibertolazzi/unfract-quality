@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { Search, Loader2, Info } from 'lucide-react';
 import { recognize, describeRecognition } from '@/lib/crm/prospect/recognize';
@@ -27,6 +28,7 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ onSearch, running, webSearchAvailable }: SearchBarProps) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
 
   const riconosciuto = useMemo(() => (value.trim() ? recognize(value) : null), [value]);

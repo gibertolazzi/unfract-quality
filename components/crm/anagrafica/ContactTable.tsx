@@ -1,5 +1,7 @@
 'use client';
 
+import { it, enUS } from 'date-fns/locale';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Archive, Star, MailX, MailCheck } from 'lucide-react';
 import { CrmContact } from '@/components/crm/types';
 import { Page } from '@/lib/crm/leadFilters';
@@ -19,19 +21,23 @@ interface ContactTableProps {
   onOpenAccount: (accountId: string) => void;
 }
 
-const COLUMNS: ColumnDef<ContactSortField>[] = [
-  { field: 'fullName',  label: 'Contatto' },
-  { field: 'role',      label: 'Ruolo' },
-  { field: 'account',   label: 'Azienda' },
-  { field: 'updatedAt', label: 'Aggiornato', initial: 'desc' },
-];
+
 
 export function ContactTable({
   page, sort, accountNameById,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onArchive, onOpenAccount,
 }: ContactTableProps) {
+  const { t } = useTranslation();
+
+  const COLUMNS: ColumnDef<ContactSortField>[] = [
+    { field: 'fullName',  label: t.crm.colContact },
+    { field: 'role',      label: t.crm.colRole },
+    { field: 'account',   label: t.crm.colCompany },
+    { field: 'updatedAt', label: t.crm.colUpdated, initial: 'desc' },
+  ];
+  const dateLocale = t.settings.language === 'it' ? it : enUS;
   if (page.totalItems === 0) {
-    return <EmptyState title="Nessun contatto corrisponde ai filtri" hint="Azzera la ricerca, importa un elenco o creane uno nuovo" />;
+    return <EmptyState title={t.crm.noContactMatches} hint="Azzera la ricerca, importa un elenco o creane uno nuovo" />;
   }
 
   return (
@@ -63,11 +69,11 @@ export function ContactTable({
                       <span className="flex items-center gap-1.5 text-xs font-medium text-white group-hover:underline">
                         {contact.fullName || '—'}
                         {contact.isPrimary && (
-                          <Star size={11} className="text-[#F59E0B]" aria-label="Contatto principale" />
+                          <Star size={11} className="text-[#F59E0B]" aria-label={t.crm.primaryContact} />
                         )}
                         {contact.duplicateCandidateIds.length > 0 && (
                           <span
-                            title="Possibile duplicato segnalato"
+                            title={t.crm.duplicateReported}
                             className="rounded-full bg-[#F59E0B]/15 px-1.5 py-0.5 text-[9px] text-[#F59E0B]"
                           >
                             dup
@@ -101,15 +107,15 @@ export function ContactTable({
 
                   <td className="px-4 py-3 text-right">
                     {contact.suppressed ? (
-                      <span title={contact.suppressedReason || 'Escluso dagli invii'} className="inline-flex text-[#EF4444]">
+                      <span title={contact.suppressedReason || t.crm.emailSuppressed} className="inline-flex text-[#EF4444]">
                         <MailX size={13} />
                       </span>
                     ) : contact.consents.email.granted ? (
-                      <span title="Consenso email registrato" className="inline-flex text-[#10B981]">
+                      <span title={t.crm.emailConsented} className="inline-flex text-[#10B981]">
                         <MailCheck size={13} />
                       </span>
                     ) : (
-                      <span title="Nessun consenso email" className="inline-flex text-[#3F3F3F]">
+                      <span title={t.crm.noEmailConsent} className="inline-flex text-[#3F3F3F]">
                         <MailX size={13} />
                       </span>
                     )}
@@ -120,7 +126,7 @@ export function ContactTable({
                       <button
                         type="button"
                         onClick={() => onArchive(contact)}
-                        title="Archivia"
+                        title={t.crm.archive}
                         className="rounded p-1 text-[#3F3F3F] opacity-0 transition-opacity hover:text-[#EF4444] group-hover:opacity-100"
                       >
                         <Archive size={13} />

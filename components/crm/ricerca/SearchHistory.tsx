@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Clock } from 'lucide-react';
 import { CrmProspectSearch } from './types';
 import { SEARCH_KIND_LABELS, SEARCH_STATE_LABELS, SearchState } from './constants';
@@ -32,6 +33,7 @@ interface SearchHistoryProps {
 }
 
 export function SearchHistory({ searches, onOpenProfile, ownerName }: SearchHistoryProps) {
+  const { t } = useTranslation();
   if (searches.length === 0) {
     return (
       <p className="rounded-lg border border-[#1A1A1A] bg-[#0F0F0F] p-4 text-[11px] text-[#585858]">
@@ -46,7 +48,7 @@ export function SearchHistory({ searches, onOpenProfile, ownerName }: SearchHist
         <thead className="border-b border-[#1A1A1A] bg-[#0F0F0F]">
           <tr className="text-left text-[10px] uppercase tracking-wide text-[#585858]">
             <th className="px-4 py-2 font-medium">Cercato</th>
-            <th className="px-4 py-2 font-medium">Tipo</th>
+            <th className="px-4 py-2 font-medium">{t.crm.type}</th>
             <th className="px-4 py-2 font-medium">Esito</th>
             <th className="px-4 py-2 font-medium">Chi</th>
             <th className="px-4 py-2 font-medium">Quando</th>

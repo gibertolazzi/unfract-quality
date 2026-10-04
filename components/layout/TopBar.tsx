@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Menu, Search, Bell, Clock, Timer, Hourglass, Play, Pause, RotateCcw, Calendar, CheckSquare, Video, FileText, Loader2, Users, Circle, Settings, Mic, Square, ExternalLink } from 'lucide-react';
+import { Menu, Search, Bell, Clock, Timer, Hourglass, Play, Pause, RotateCcw, Calendar, CheckSquare, Video, FileText, Loader2, Users, Circle, Settings, Mic, Square, ExternalLink, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClock } from '@/contexts/ClockContext';
 import { useRecording } from '@/contexts/RecordingContext';
@@ -12,15 +12,18 @@ import { useRouter } from 'next/navigation';
 import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useProject } from '@/contexts/ProjectContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { resolveAccessRequest } from '@/lib/services/iamService';
-import { Check, X, Key } from 'lucide-react';
+import { Check, X, Key, MessageSquare, HardDrive, Zap } from 'lucide-react';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 type Notification = {
   id: string;
   title: string;
   description: string;
-  type: 'task' | 'meeting' | 'transcript' | 'documentation' | 'organization' | 'access_request';
+  type: 'task' | 'meeting' | 'transcript' | 'documentation' | 'organization' | 'access_request' | 'message';
   metadata?: any;
   read: boolean;
   createdAt: any;
@@ -28,38 +31,86 @@ type Notification = {
   userId?: string;
 };
 
-const MOCK_NOTIFICATIONS = [
-  { title: 'Nuova task assegnata', description: 'Sei stato assegnato a "UI UX Design"', type: 'task', read: false, link: '/' },
-  { title: 'Nuovo meeting', description: 'Sync Settimanale programmato per domani', type: 'meeting', read: false, link: '/meetings' },
-  { title: 'Trascrizione pronta', description: 'La trascrizione del meeting è pronta', type: 'transcript', read: true, link: '/meetings' },
-  { title: 'Nuovo documento', description: 'Mario ha creato "Linee Guida Brand"', type: 'documentation', read: true, link: '/documentation' },
-  { title: 'Nuovo membro', description: 'Luigi si è unito all\'organizzazione', type: 'organization', read: true, link: '/organization' },
-];
+const UsagePreviewIcon = ({ aiPercentage = 0, storagePercentage = 0 }: { aiPercentage?: number, storagePercentage?: number }) => {
+  const ai = Math.min(Math.max(aiPercentage, 0), 100);
+  
+  const radius = 9;
+  const circumference = 2 * Math.PI * radius;
+  const aiDashoffset = circumference - (circumference * ai) / 100;
+  
+  return (
+    <div className="relative flex items-center justify-center w-6 h-6">
+      <svg width="24" height="24" viewBox="0 0 24 24" className="transform -rotate-90 absolute">
+        <circle cx="12" cy="12" r={radius} stroke="currentColor" strokeWidth="2.5" fill="none" className="text-white/10" />
+        <circle cx="12" cy="12" r={radius} stroke="currentColor" strokeWidth="2.5" fill="none" strokeDasharray={circumference} strokeDashoffset={aiDashoffset} className={ai > 80 ? "text-[#FF0004]" : "text-[#006AFF]"} strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+};
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
-  const { user, accessToken } = useAuth();
+  const { user, accessToken, settings } = useAuth();
   const { activeProjectId } = useProject();
+  const { activeWorkspace } = useWorkspace();
+  const { t } = useTranslation();
   const { 
     chronoTime, chronoRunning, toggleChrono, resetChrono,
     timerTime, timerRunning, toggleTimer, resetTimer, setCustomTimer 
   } = useClock();
   const { isRecording, isProcessing, elapsedTime, transcript, stopRecording, openPiP } = useRecording();
   
+  const [isQuotasOpen, setIsQuotasOpen] = useState(false);
+  const quotasRef = useRef<HTMLDivElement>(null);
+
+  const quotas = activeWorkspace?.quotas || {
+    planTier: 'free',
+    storageUsed: 0,
+    storageLimit: 1 * 1e9,
+    aiCreditsUsed: 0,
+    aiCreditsLimit: 120
+  };
+
   const [isExpanded, setIsExpanded] = useState(false);
   const islandRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+
+  const getRefreshCountdown = () => {
+    const now = new Date();
+    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    const diffMs = nextMonth.getTime() - now.getTime();
+
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+
+    if (days === 0 && hours === 0) return t.topbar.refillLessThanHour;
+    
+    let text = t.topbar.refillIn;
+    if (days > 0) text += `${days} ${t.topbar.days}${days === 1 ? t.topbar.daySingular : t.topbar.dayPlural}`;
+    if (days > 0 && hours > 0) text += t.topbar.and;
+    if (hours > 0) text += `${hours} ${t.topbar.hours}${hours === 1 ? t.topbar.hourSingular : t.topbar.hourPlural}`;
+    
+    return text;
+  };
 
   // Local clock state
   const [time, setTime] = useState<string>("00:00:00");
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
-      setTime(now.toLocaleTimeString("it-IT", { hour12: false }));
+      try {
+        setTime(now.toLocaleTimeString("it-IT", { 
+          hour12: false, 
+          timeZone: settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone 
+        }));
+      } catch (e) {
+        setTime(now.toLocaleTimeString("it-IT", { hour12: false }));
+      }
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [settings?.timezone]);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -77,33 +128,6 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
   useEffect(() => {
     if (!user) return;
-
-    // First time setup: Generate mock data if collection is empty
-    const checkAndPopulateMocks = async () => {
-      try {
-        const snap = await getDocs(query(collection(db, 'notifications'), where('userId', '==', user.uid)));
-        if (snap.empty) {
-          const batch = writeBatch(db);
-          MOCK_NOTIFICATIONS.forEach((n, index) => {
-            const newRef = doc(collection(db, 'notifications'));
-            // Create timestamps slightly in the past so they format nicely
-            const pastDate = new Date();
-            pastDate.setHours(pastDate.getHours() - index); 
-            
-            batch.set(newRef, {
-              ...n,
-              userId: user.uid,
-              createdAt: Timestamp.fromDate(pastDate)
-            });
-          });
-          await batch.commit();
-        }
-      } catch (err) {
-        console.error("Error populating mock notifications:", err);
-      }
-    };
-    
-    checkAndPopulateMocks();
 
     // Listen to notifications
     const q = query(
@@ -173,6 +197,19 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     }
   };
 
+  const deleteAllNotifications = async () => {
+    try {
+      const batch = writeBatch(db);
+      notifications.forEach(n => {
+        const ref = doc(db, 'notifications', n.id);
+        batch.delete(ref);
+      });
+      await batch.commit();
+    } catch (err) {
+      console.error("Error deleting all notifications:", err);
+    }
+  };
+
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (islandRef.current && !islandRef.current.contains(event.target as Node)) {
@@ -183,6 +220,9 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
       }
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setIsNotificationsOpen(false);
+      }
+      if (quotasRef.current && !quotasRef.current.contains(event.target as Node)) {
+        setIsQuotasOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -240,6 +280,19 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           const calEvents = await searchCalendarEvents(accessToken, searchQuery);
           calEvents.forEach((ev: any) => {
             results.push({ type: 'calendar', item: ev });
+          });
+        }
+
+        // 5. Search AI Hub Conversations
+        if (activeProjectId) {
+          const aiChatsSnap = await getDocs(query(collection(db, "ai_chats"), where("projectId", "==", activeProjectId)));
+          aiChatsSnap.forEach(doc => {
+            const data = doc.data();
+            const title = data.title?.toLowerCase() || '';
+            const messagesContent = data.messages?.map((m: any) => m.content).join(' ').toLowerCase() || '';
+            if (title.includes(qText) || messagesContent.includes(qText)) {
+              results.push({ type: 'ai-hub', item: { id: doc.id, ...data } });
+            }
           });
         }
         
@@ -303,7 +356,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
         )}
         <span className="text-[13px] font-bold tracking-wider tabular-nums text-red-500 drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
-          {isProcessing ? 'Elaborazione' : formatSeconds(elapsedTime)}
+          {isProcessing ? t.topbar.processing : formatSeconds(elapsedTime)}
         </span>
       </div>
     );
@@ -325,7 +378,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   );
 
   return (
-    <div className="min-h-[88px] h-auto py-4 md:py-0 w-full flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 bg-[#0B0B0B] gap-4">
+    <div className="relative z-[60] min-h-[88px] h-auto py-4 md:py-0 w-full flex flex-wrap md:flex-nowrap items-center justify-between px-4 md:px-6 bg-[#0B0B0B] gap-4">
       
       
       {/* Mobile Hamburger */}
@@ -339,7 +392,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           <Search size={16} className="text-[#858585]" />
           <input 
             type="text" 
-            placeholder="Cerca globalmente (Task, Meeting, Calendario...)" 
+            autoComplete="off"
+            spellCheck="false"
+            name="unfract_global_search_dummy"
+            id="unfract_global_search"
+            data-lpignore="true"
+            data-form-type="other"
+            placeholder={t.topbar.searchPlaceholder} 
             className="bg-transparent border-none outline-none text-[14px] text-white placeholder:text-[#858585] w-full font-normal"
             value={searchQuery}
             onChange={(e) => {
@@ -356,9 +415,9 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           <div className="absolute top-[60px] w-full max-w-[600px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 flex flex-col">
             <div className="max-h-[400px] overflow-y-auto p-2">
               {isSearching ? (
-                <div className="p-6 text-center text-[#858585] text-sm">Ricerca in corso...</div>
+                <div className="p-6 text-center text-[#858585] text-sm">{t.topbar.searching}</div>
               ) : searchResults.length === 0 ? (
-                <div className="p-6 text-center text-[#858585] text-sm">Nessun risultato trovato per "{searchQuery}".</div>
+                <div className="p-6 text-center text-[#858585] text-sm">{t.topbar.noResults} "{searchQuery}".</div>
               ) : (
                 <div className="flex flex-col gap-1">
                   {searchResults.map((res, idx) => {
@@ -370,8 +429,8 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     if (res.type === 'task') {
                       Icon = CheckSquare;
                       title = res.item.title;
-                      subtitle = `Task • ${res.item.status || 'Senza stato'} • ${res.item.assignee || 'Non assegnata'}`;
-                      onClick = () => { router.push('/'); setIsSearchOpen(false); };
+                      subtitle = `Task • ${res.item.priority || 'Medium'} • ${res.item.category || 'General'}`;
+                      onClick = () => { router.push(`/?highlightTask=${res.item.id}`); setIsSearchOpen(false); };
                     } else if (res.type === 'meeting') {
                       Icon = Video;
                       title = res.item.title;
@@ -388,6 +447,11 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       title = res.item.title;
                       subtitle = `Documento • Ultima modifica: ${res.item.lastUpdate}`;
                       onClick = () => { router.push(`/documentation/${res.item.id}`); setIsSearchOpen(false); };
+                    } else if (res.type === 'ai-hub') {
+                      Icon = MessageSquare;
+                      title = res.item.title || 'Chat AI';
+                      subtitle = 'Conversazione AI';
+                      onClick = () => { router.push(`/ai-hub?chatId=${res.item.id}`); setIsSearchOpen(false); };
                     }
                     
                     return (
@@ -411,7 +475,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             </div>
             
             <div className="p-3 border-t border-white/5 bg-black/20">
-              <span className="text-[10px] text-[#858585] uppercase tracking-wider font-semibold px-2">Cerca in Unfract</span>
+              <span className="text-[10px] text-[#858585] uppercase tracking-wider font-semibold px-2">{t.topbar.searchInUnfract}</span>
             </div>
           </div>
         )}
@@ -431,7 +495,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           {/* Expanded Menu */}
           <div className={`absolute top-[54px] right-0 md:left-1/2 md:-translate-x-1/2 w-[240px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] origin-top flex flex-col p-4 gap-4 ${isExpanded ? 'opacity-100 scale-100' : 'opacity-0 scale-95 pointer-events-none'}`}>
             <div className="flex items-center justify-between">
-              <span className="text-[#858585] text-xs font-medium uppercase tracking-wider">Orologio</span>
+              <span className="text-[#858585] text-xs font-medium uppercase tracking-wider">{t.topbar.clock}</span>
               <span className="text-white font-medium text-sm tabular-nums">{time}</span>
             </div>
             
@@ -464,7 +528,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       }
                     }}
                   />
-                  <span className="text-[10px] uppercase tracking-wider text-[#858585]/70 font-semibold ml-[-4px]">min</span>
+                  <span className="text-[10px] uppercase tracking-wider text-[#858585]/70 font-semibold ml-[-4px]">{t.topbar.min}</span>
                   </>
                 ) : (
                   <span className={`text-[15px] font-bold tracking-wider tabular-nums ${timerRunning || isTimerActive ? "text-[#00D222] drop-shadow-[0_0_8px_rgba(0,210,34,0.4)]" : "text-[#858585]"}`}>
@@ -513,7 +577,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     <div className="flex items-center gap-2 text-red-500">
                       {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Mic size={14} className="animate-pulse" />}
                       <span className="text-[15px] font-bold tracking-wider tabular-nums drop-shadow-[0_0_8px_rgba(239,68,68,0.4)]">
-                        {isProcessing ? 'Elaborazione' : formatSeconds(elapsedTime)}
+                        {isProcessing ? t.topbar.processing : formatSeconds(elapsedTime)}
                       </span>
                     </div>
                     {isRecording && (
@@ -529,7 +593,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                   </div>
                   {isRecording && (
                     <div className="text-xs text-[#858585] italic truncate">
-                      {transcript ? `"${transcript.slice(-40)}"` : "In ascolto..."}
+                      {transcript ? `"${transcript.slice(-40)}"` : t.topbar.listening}
                     </div>
                   )}
                 </div>
@@ -540,6 +604,80 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         {/* Profilo & Notifiche */}
         <div className="flex items-center gap-4">
+          
+          {/* Quotas Widget */}
+          <div className="relative flex items-center" ref={quotasRef}>
+            <button 
+              onClick={() => setIsQuotasOpen(!isQuotasOpen)}
+              className="text-white/70 hover:text-white transition-colors w-10 h-10 rounded-full flex items-center justify-center hover:bg-white/5"
+              title={t.topbar.quotasTitle}
+            >
+              <UsagePreviewIcon 
+                aiPercentage={(quotas.aiCreditsUsed / quotas.aiCreditsLimit) * 100} 
+                storagePercentage={(quotas.storageUsed / quotas.storageLimit) * 100} 
+              />
+            </button>
+            
+            {/* Dropdown Consumi */}
+            {isQuotasOpen && (
+              <div className="absolute top-[54px] right-0 w-[300px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 flex flex-col origin-top-right transition-all duration-300 p-4 gap-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-sm font-semibold text-white">{t.topbar.quotasTitle}</span>
+                  {quotas.planTier && (
+                    <span className="text-[10px] px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-md font-medium uppercase tracking-wider">
+                      {quotas.planTier}
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress Spazio */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-end">
+                    <div className="flex items-center gap-2">
+                      <HardDrive size={14} className="text-white/60" />
+                      <span className="text-xs text-white/80">{t.topbar.storage}</span>
+                    </div>
+                    <span className="text-xs font-mono text-white/60">
+                      {(quotas.storageUsed / 1e9).toFixed(1)} / {(quotas.storageLimit / 1e9).toFixed(0)} GB
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-white rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min((quotas.storageUsed / quotas.storageLimit) * 100, 100)}%` }}
+                    />
+                  </div>
+                </div>
+
+                {/* Progress AI */}
+                <div className="flex flex-col gap-2">
+                  <div className="flex justify-between items-end">
+                    <div className="flex items-center gap-2">
+                      <Zap size={14} className="text-[#006AFF]/80" />
+                      <span className="text-xs text-white/80">{t.topbar.aiCredits}</span>
+                    </div>
+                    <span className="text-xs font-mono text-white/60">
+                      {quotas.aiCreditsUsed} / {quotas.aiCreditsLimit}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-0.5">
+                    <div 
+                      className="h-full bg-[#006AFF] rounded-full transition-all duration-500"
+                      style={{ width: `${Math.min((quotas.aiCreditsUsed / quotas.aiCreditsLimit) * 100, 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-start">
+                    <span className="text-[10px] text-white/40">{getRefreshCountdown()}</span>
+                  </div>
+                </div>
+                
+                <button className="mt-2 w-full py-2 bg-white/5 hover:bg-white/10 text-xs font-medium text-white/80 rounded-lg transition-colors">
+                  {t.topbar.managePlan}
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="relative" ref={notifRef}>
             <button 
               onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}
@@ -553,19 +691,26 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             
             {/* Notifications Dropdown */}
             {isNotificationsOpen && (
-              <div className="absolute top-[54px] right-0 w-[320px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 flex flex-col origin-top-right transition-all duration-300">
+              <div className="absolute top-[54px] -right-[80px] md:right-0 w-[300px] sm:w-[320px] max-w-[95vw] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 flex flex-col origin-top-right transition-all duration-300">
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-white">Notifiche</span>
-                  {unreadCount > 0 && (
-                    <button onClick={markAllAsRead} className="text-[11px] text-[#006AFF] hover:text-[#006AFF]/80 font-medium transition-colors">
-                      Segna come lette
-                    </button>
-                  )}
+                  <span className="text-sm font-semibold text-white">{t.topbar.notifications}</span>
+                  <div className="flex items-center gap-3">
+                    {notifications.length > 0 && (
+                      <button onClick={deleteAllNotifications} className="text-[11px] text-red-500 hover:text-red-400 font-medium transition-colors">
+                        {t.topbar.clear}
+                      </button>
+                    )}
+                    {unreadCount > 0 && (
+                      <button onClick={markAllAsRead} className="text-[11px] text-[#006AFF] hover:text-[#006AFF]/80 font-medium transition-colors">
+                        {t.topbar.markRead}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div className="max-h-[360px] overflow-y-auto p-2 flex flex-col gap-1">
                   {notifications.length === 0 ? (
-                    <div className="p-6 text-center text-[#858585] text-sm">Nessuna notifica</div>
+                    <div className="p-6 text-center text-[#858585] text-sm">{t.topbar.noNotifications}</div>
                   ) : (
                     notifications.map((notif) => {
                       let Icon = Bell;
@@ -578,11 +723,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       else if (notif.type === 'documentation') { Icon = FileText; colorClass = "text-purple-400"; bgClass = "bg-purple-400/10"; }
                       else if (notif.type === 'organization') { Icon = Users; colorClass = "text-pink-400"; bgClass = "bg-pink-400/10"; }
                       else if (notif.type === 'access_request') { Icon = Key; colorClass = "text-yellow-400"; bgClass = "bg-yellow-400/10"; }
+                      else if (notif.type === 'message') { Icon = MessageSquare; colorClass = "text-teal-400"; bgClass = "bg-teal-400/10"; }
                       
                       let timeAgo = '';
                       if (notif.createdAt) {
                         try {
-                          timeAgo = formatDistanceToNow(notif.createdAt.toDate(), { addSuffix: true, locale: it });
+                           const localeArg = t.settings.language === 'it' ? it : undefined; 
+                           timeAgo = formatDistanceToNow(notif.createdAt.toDate(), { addSuffix: true, locale: localeArg });
                         } catch(e) {}
                       }
 
@@ -612,7 +759,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                                   }}
                                   className="flex items-center gap-1.5 px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors text-xs font-medium"
                                 >
-                                  <Check size={12} /> Approva
+                                  <Check size={12} /> {t.topbar.approve}
                                 </button>
                                 <button 
                                   onClick={(e) => {
@@ -622,7 +769,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                                   }}
                                   className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 text-[#858585] rounded-lg hover:bg-white/10 transition-colors text-xs font-medium"
                                 >
-                                  <X size={12} /> Rifiuta
+                                  <X size={12} /> {t.topbar.reject}
                                 </button>
                               </div>
                             )}
@@ -640,14 +787,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
           </div>
           
           <div className="flex items-center gap-3">
-            <span className="text-[14px] font-semibold text-white tracking-tight truncate max-w-[80px]">{user?.displayName || "Ospite"}</span>
-            <div className="w-[34px] h-[34px] rounded-full bg-[#006AFF] flex items-center justify-center font-bold text-[12px] text-white tracking-wider shadow-[0_0_10px_rgba(0,106,255,0.2)] overflow-hidden flex-shrink-0">
-              {user?.photoURL ? (
-                <img src={user.photoURL} alt={user.displayName || "Avatar"} className="w-full h-full object-cover" />
-              ) : (
-                (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
-              )}
-            </div>
+            <span className="text-[14px] font-semibold text-white tracking-tight truncate max-w-[80px]">{user?.displayName || t.topbar.guest}</span>
+            <UserAvatar
+              src={user?.photoURL}
+              name={user?.displayName || user?.email}
+              className="w-[34px] h-[34px] rounded-full bg-[#006AFF] flex items-center justify-center font-bold text-[12px] text-white tracking-wider shadow-[0_0_10px_rgba(0,106,255,0.2)] overflow-hidden flex-shrink-0"
+              imageClassName="w-full h-full object-cover"
+            />
           </div>
           
           <button 

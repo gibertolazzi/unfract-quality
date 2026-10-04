@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CrmProspectReport } from './types';
@@ -53,6 +54,7 @@ interface ReportPrintViewProps {
 }
 
 export function ReportPrintView({ report, companyName, onDone }: ReportPrintViewProps) {
+  const { t } = useTranslation();
   useEffect(() => {
     const stile = document.createElement('style');
     stile.media = 'print';

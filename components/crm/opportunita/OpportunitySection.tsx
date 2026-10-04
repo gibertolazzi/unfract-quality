@@ -1,12 +1,14 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { Plus, Search, LayoutGrid, List } from 'lucide-react';
 import {
   CrmOpportunity, CrmCustomer, CrmAccount, CrmLead,
 } from '@/components/crm/types';
 import {
-  OpportunityPhase, OPPORTUNITY_PHASES, OPPORTUNITY_PHASE_LABELS, OPPORTUNITY_PHASE_COLORS,
+  OpportunityPhase, OPPORTUNITY_PHASES, OPPORTUNITY_PHASE_COLORS,
 } from '@/components/crm/constants';
 import {
   OpportunityFilters, EMPTY_OPPORTUNITY_FILTERS, countOpportunityFilters,
@@ -53,6 +55,7 @@ export function OpportunitySection({
   opportunities, customers, accounts, leads, owners, history, saving, loading,
   onCreate, onUpdate, onChangePhase, onReorder, onRefusedMove, onArchive, onRestore, onCreateQuickFollowup,
 }: OpportunitySectionProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<ViewMode>('board');
   const [filters, setFilters] = useState<OpportunityFilters>({ ...EMPTY_OPPORTUNITY_FILTERS });
   const [sort, setSort] = useState<OpportunitySort>({ ...DEFAULT_OPPORTUNITY_SORT });
@@ -68,10 +71,10 @@ export function OpportunitySection({
     const map = new Map<string, string>();
     const accountName = new Map(accounts.map(a => [a.id, a.displayName || a.legalName]));
     customers.forEach(customer => {
-      map.set(customer.id, accountName.get(customer.accountId) || 'Cliente');
+      map.set(customer.id, accountName.get(customer.accountId) || t.crm.customer);
     });
     leads.forEach(lead => {
-      map.set(lead.id, lead.fullName || lead.companyName || 'Lead');
+      map.set(lead.id, lead.fullName || lead.companyName || t.crm.lead);
     });
     return map;
   }, [accounts, customers, leads]);
@@ -167,7 +170,7 @@ export function OpportunitySection({
           <button
             type="button"
             onClick={() => setMode('board')}
-            title="Lavagna"
+            title={t.crm.board}
             className={`rounded p-1.5 transition-colors ${mode === 'board' ? 'bg-white/10 text-white' : 'text-[#5A5A5A] hover:text-white'}`}
           >
             <LayoutGrid size={13} />
@@ -175,7 +178,7 @@ export function OpportunitySection({
           <button
             type="button"
             onClick={() => setMode('list')}
-            title="Elenco"
+            title={t.crm.list}
             className={`rounded p-1.5 transition-colors ${mode === 'list' ? 'bg-white/10 text-white' : 'text-[#5A5A5A] hover:text-white'}`}
           >
             <List size={13} />
@@ -198,7 +201,7 @@ export function OpportunitySection({
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: OPPORTUNITY_PHASE_COLORS[phase] }} />
-              <span className="text-[11px] text-white">{OPPORTUNITY_PHASE_LABELS[phase]}</span>
+              <span className="text-[11px] text-white">{getOppPhaseLabel(phase, t)}</span>
             </button>
           );
         })}
@@ -236,7 +239,7 @@ export function OpportunitySection({
       )}
 
       {selected && (
-        <OpportunityDrawer
+        <OpportunityDrawer t={t}
           opportunity={selected}
           counterpartyName={counterpartyName(selected)}
           counterpartyKind={counterpartyKind(selected)}

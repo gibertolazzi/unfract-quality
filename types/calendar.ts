@@ -10,6 +10,9 @@ export interface CalendarEvent {
   meetLink?: string;
   addMeet?: boolean;
   guestEmail?: string;
+  isExternal?: boolean;
+  googleEventId?: string;
+  microsoftEventId?: string;
 }
 
 export type CalendarViewType = 'day' | 'week' | 'month' | 'year';

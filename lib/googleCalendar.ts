@@ -51,13 +51,22 @@ export async function searchCalendarEvents(accessToken: string, query: string) {
     });
 
     if (!res.ok) {
-      throw new Error('Failed to search events');
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Google Calendar token expired or invalid (401/403).');
+        return [];
+      }
+      throw new Error(`Failed to search events: ${res.status}`);
     }
 
     const data = await res.json();
     return data.items || [];
-  } catch (error) {
-    console.error('Error searching calendar events:', error);
+  } catch (error: any) {
+    // Only warn to avoid console clutter if token is simply expired
+    if (error.message?.includes('401') || error.message?.includes('403')) {
+      console.warn('Calendar search skipped (token expired).');
+    } else {
+      console.warn('Error searching calendar events:', error.message);
+    }
     return [];
   }
 }

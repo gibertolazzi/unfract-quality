@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect, useMemo, useState } from 'react';
 import { Search, History, Ban, Loader2 } from 'lucide-react';
 import { CrmContextRef } from '@/lib/crm/base';
@@ -50,6 +51,7 @@ interface RicercaSectionProps {
 type Vista = 'cerca' | 'cronologia' | 'esclusioni';
 
 export function RicercaSection({ ctx, ownerName, onNotify, canManageExclusions = true }: RicercaSectionProps) {
+  const { t } = useTranslation();
   const [vista, setVista] = useState<Vista>('cerca');
   const { profiles, searches, reports, exclusions, loading } = useProspect(ctx?.projectId, true);
 

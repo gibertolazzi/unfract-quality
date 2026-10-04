@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { AlertTriangle, RefreshCw, FileText, ArrowRightLeft, ExternalLink } from 'lucide-react';
 import { CrmCompanyProfile } from './types';
 import { EvidenceField, EvidenceLegend } from './EvidenceField';
@@ -47,6 +48,7 @@ function Sezione({ titolo, sottotitolo, children }: {
 export function CompanyCard({
   profile, onRefreshEstimates, onGenerateReport, onBridge, onCorrectSector, busy,
 }: CompanyCardProps) {
+  const { t } = useTranslation();
   const { identity, declared, estimated } = profile;
 
   const vecchie = (['identity', 'declared', 'estimated'] as const)

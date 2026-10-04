@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2 } from "lucide-react";
+import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject } from "@/contexts/ProjectContext";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useAiHubChat } from "@/hooks/useAiHubChat";
 import { fetchProjectContext } from "@/lib/ai-hub";
 import { db } from "@/lib/firebase";
@@ -13,6 +14,7 @@ import remarkGfm from "remark-gfm";
 
 export function AiHubView() {
   const { user } = useAuth();
+  const router = useRouter();
   const { activeProject, activeProjectId } = useProject();
 
   const [inputMessage, setInputMessage] = useState("");
@@ -20,7 +22,31 @@ export function AiHubView() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showMCPModal, setShowMCPModal] = useState(false);
+  const [activeMcpTab, setActiveMcpTab] = useState<"host" | "server">("host");
+  const [mcpUrl, setMcpUrl] = useState("");
+  const [isConnectingMcp, setIsConnectingMcp] = useState(false);
+  const [isMcpConnected, setIsMcpConnected] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [chatToDelete, setChatToDelete] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const handleConnectMcp = async () => {
+    if (!mcpUrl) return;
+    setIsConnectingMcp(true);
+    // Simulate connection to an external MCP server
+    setTimeout(() => {
+      setIsConnectingMcp(false);
+      setIsMcpConnected(true);
+      setTimeout(() => setShowMCPModal(false), 1000);
+    }, 1500);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Load tasks when project changes
   useEffect(() => {
@@ -45,36 +71,43 @@ export function AiHubView() {
     deleteChat
   } = useAiHubChat(context, activeProject?.id, user?.uid);
 
+  const searchParams = useSearchParams();
+  const urlChatId = searchParams?.get('chatId');
+  useEffect(() => {
+    if (urlChatId && chats.find(c => c.id === urlChatId)) {
+      setActiveChatId(urlChatId);
+    }
+  }, [urlChatId, chats, setActiveChatId]);
+
   const activeChat = chats.find(c => c.id === activeChatId);
 
   const handleSend = async () => {
     if (!inputMessage.trim() && attachments.length === 0) return;
     setIsUploadingMedia(true);
-    let msg = inputMessage || "Media in allegato";
+    let textToProcess = inputMessage;
+    let uploadedFiles: { url: string; name: string; type: string }[] = [];
     
     if (attachments.length > 0 && activeProjectId) {
       try {
         const { storage } = await import('@/lib/firebase');
         const { ref, uploadBytes, getDownloadURL } = await import('firebase/storage');
         
-        const uploadedUrls = [];
         for (const file of attachments) {
           const storageRef = ref(storage, `ai-hub/${activeProjectId}/${Date.now()}_${file.name}`);
           await uploadBytes(storageRef, file);
           const url = await getDownloadURL(storageRef);
-          uploadedUrls.push(url);
+          uploadedFiles.push({ url, name: file.name, type: file.type });
         }
-        
-        msg += "\n\nAllegati:\n" + uploadedUrls.map(u => `- ${u}`).join('\n');
       } catch (e) {
         console.error("Error uploading attachments:", e);
       }
     }
     
+    const filesToSend = [...attachments];
     setInputMessage("");
     setAttachments([]);
     setIsUploadingMedia(false);
-    sendMessage(msg);
+    sendMessage(textToProcess || "Media in allegato", filesToSend, uploadedFiles);
   };
 
   const handleMicClick = () => {
@@ -147,7 +180,7 @@ export function AiHubView() {
           )}
           
           {task && (
-            <div className="flex items-center justify-between w-full max-w-[480px] bg-[#090909] border border-white/5 rounded-full px-5 py-3 hover:bg-white/5 cursor-pointer transition-all group relative overflow-hidden my-3 shadow-lg">
+            <div onClick={() => router.push(`/?highlightTask=${task.id}`)} className="flex items-center justify-between w-full max-w-[480px] bg-[#090909] border border-white/5 rounded-full px-5 py-3 hover:bg-white/5 cursor-pointer transition-all group relative overflow-hidden my-3 shadow-lg">
               {/* Dynamic subtle outer glow based on priority */}
               <div className={`absolute inset-0 rounded-full ${getPriorityGlow(task.priority || 'Medium')} opacity-[0.03] pointer-events-none`} />
               <div className={`absolute -right-10 top-1/2 -translate-y-1/2 w-32 h-32 rounded-full ${getPriorityGlow(task.priority || 'Medium')} opacity-20 blur-[30px] pointer-events-none`} />
@@ -191,8 +224,32 @@ export function AiHubView() {
         <div className="absolute bottom-[-45%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[#006AFF] opacity-[0.35] blur-[140px] rounded-full animate-[pulse_6s_ease-in-out_infinite]" />
       </div>
 
+      {/* Mobile Backdrop */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="absolute inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden rounded-[31px]"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* Inner Sidebar */}
-      <div className="w-[320px] shrink-0 my-4 ml-4 p-5 flex flex-col gap-6 relative z-10 rounded-[32px] border border-white/[0.08] bg-black/40 backdrop-blur-[40px]">
+      <div className={`
+        w-[300px] sm:w-[320px] shrink-0 p-5 flex flex-col gap-6 z-50 rounded-[32px] border border-white/[0.08] bg-[#0a0a0a] md:bg-black/40 backdrop-blur-[40px]
+        my-4 ml-4
+        absolute md:relative h-[calc(100%-2rem)] md:h-auto
+        transition-transform duration-300 ease-in-out
+        ${isMobileSidebarOpen ? 'translate-x-0' : '-translate-x-[120%] md:translate-x-0'}
+      `}>
+        {/* Mobile Sidebar Header */}
+        <div className="md:hidden flex items-center justify-between -mb-2">
+          <span className="text-[12px] font-semibold text-[#858585] tracking-wider uppercase">Menu</span>
+          <button 
+            onClick={() => setIsMobileSidebarOpen(false)}
+            className="text-[#858585] hover:text-white bg-white/5 p-1.5 rounded-full transition-colors"
+          >
+            <X size={16} />
+          </button>
+        </div>
         
         {/* Connect Button */}
         <button onClick={() => setShowMCPModal(true)} className="relative w-full h-[60px] rounded-[30px] overflow-hidden group hover:opacity-90 transition-opacity">
@@ -209,7 +266,7 @@ export function AiHubView() {
               className="w-full bg-white/5 border border-white/5 rounded-xl pl-9 pr-4 py-2 text-[13px] text-white placeholder:text-[#555555] outline-none focus:border-white/20 transition-all"
             />
           </div>
-          <button onClick={createNewChat} className="flex items-center justify-center gap-2 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-[13px] text-white hover:bg-white/10 transition-all">
+          <button onClick={() => { createNewChat(); setIsMobileSidebarOpen(false); }} className="flex items-center justify-center gap-2 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-[13px] text-white hover:bg-white/10 transition-all">
             <Edit3 size={14} />
             <span>New chat</span>
           </button>
@@ -222,7 +279,7 @@ export function AiHubView() {
             {chats.map(chat => (
               <div 
                 key={chat.id}
-                onClick={() => setActiveChatId(chat.id)}
+                onClick={() => { setActiveChatId(chat.id); setIsMobileSidebarOpen(false); }}
                 className={`group relative flex items-center justify-between px-3 py-2 rounded-lg transition-colors cursor-pointer text-[13px] ${
                   activeChatId === chat.id 
                     ? 'bg-white/10 text-white font-medium' 
@@ -233,7 +290,7 @@ export function AiHubView() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    deleteChat(chat.id);
+                    setChatToDelete(chat.id);
                   }}
                   className={`absolute right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-white/10 ${
                     activeChatId === chat.id ? 'text-white' : 'text-[#858585]'
@@ -248,12 +305,25 @@ export function AiHubView() {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent z-10">
+      <div className="flex-1 flex flex-col relative overflow-hidden bg-transparent z-10 w-full">
+        {/* Mobile Header */}
+        <div className="md:hidden flex items-center justify-between p-4 z-20 shrink-0">
+          <button 
+            onClick={() => setIsMobileSidebarOpen(true)}
+            className="w-10 h-10 rounded-full bg-white/5 border border-white/10 text-white flex items-center justify-center backdrop-blur-sm"
+          >
+            <Menu size={20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <span className="text-[14px] font-medium text-white">{activeChat?.title || "New chat"}</span>
+          </div>
+          <div className="w-10" /> {/* Spacer */}
+        </div>
         
         {/* Chat Messages Area */}
-        <div className="flex-1 overflow-y-auto p-8 flex flex-col gap-6 relative z-10 items-center">
+        <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 relative z-10 items-center">
           {/* Title from the target design */}
-          <h2 className="text-[14px] font-medium text-[#858585] mb-6 tracking-wide">{activeChat?.title || "New chat"}</h2>
+          <h2 className="text-[14px] font-medium text-[#858585] mb-6 tracking-wide hidden md:block">{activeChat?.title || "New chat"}</h2>
 
           {messages.length === 0 ? (
             <div className="flex flex-col items-center mt-auto mb-4">
@@ -275,17 +345,53 @@ export function AiHubView() {
             </div>
           ) : (
             <div className="w-full max-w-3xl flex flex-col gap-6">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[80%] rounded-[24px] px-6 py-4 text-[14px] leading-relaxed ${
-                    msg.role === 'user' 
-                      ? 'bg-white/5 border border-white/5 text-[#E0E0E0] rounded-tr-sm' 
-                      : 'text-[#CCCCCC]'
-                  }`}>
-                    {renderMessageContent(msg.content)}
+              {messages.map((msg, i) => {
+                const hasAttachments = (msg.attachments && msg.attachments.length > 0) || (msg.attachmentUrls && msg.attachmentUrls.length > 0);
+                
+                return (
+                  <div key={i} className={`flex flex-col gap-2 w-full ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                    
+                    {/* Render attachments outside and above the bubble */}
+                    {hasAttachments && (
+                      <div className={`flex flex-wrap gap-2 max-w-[80%] ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                        {msg.attachments ? msg.attachments.map((file, idx) => (
+                          <div key={idx} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 shrink-0 group bg-[#111]" title={file.name}>
+                            {file.type.startsWith('image/') ? (
+                              <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center">
+                                 <FileText size={20} className="text-[#858585]" />
+                              </div>
+                            )}
+                          </div>
+                        )) : msg.attachmentUrls?.map((url, idx) => (
+                          <div key={idx} className="relative w-16 h-16 rounded-2xl overflow-hidden border border-white/10 shrink-0 group bg-[#111]" title="Attachment">
+                            {url.includes('.pdf') || url.includes('.doc') ? (
+                              <div className="w-full h-full flex flex-col items-center justify-center">
+                                 <FileText size={20} className="text-[#858585]" />
+                              </div>
+                            ) : (
+                              <img src={url} alt="Attachment" className="w-full h-full object-cover" />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Render text bubble */}
+                    {msg.content && (
+                      <div className={`max-w-[80%] rounded-[24px] px-6 py-4 text-[14px] leading-relaxed ${
+                        msg.role === 'user' 
+                          ? 'bg-white/5 border border-white/5 text-[#E0E0E0] rounded-tr-sm' 
+                          : 'text-[#CCCCCC]'
+                      }`}>
+                        {renderMessageContent(msg.content)}
+                      </div>
+                    )}
+                    
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="max-w-[70%] rounded-2xl px-5 py-3.5 text-[15px] text-[#858585] flex items-center gap-2">
@@ -298,7 +404,7 @@ export function AiHubView() {
         </div>
 
         {/* Input Area */}
-        <div className="pb-8 pt-4 px-6 shrink-0 flex flex-col items-center justify-center relative z-10 gap-2">
+        <div className="pb-6 pt-2 px-4 md:pb-8 md:pt-4 md:px-6 shrink-0 flex flex-col items-center justify-center relative z-10 gap-2">
           {attachments.length > 0 && (
             <div className="w-full max-w-[700px] flex items-center gap-4 overflow-x-auto pb-2">
               {attachments.map((file, idx) => (
@@ -390,7 +496,7 @@ export function AiHubView() {
         </div>
       </div>
       
-      {/* MCP Modal Placeholder */}
+      {/* MCP Modal */}
       {showMCPModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-[#111] border border-white/10 rounded-3xl p-8 max-w-md w-full relative shadow-2xl">
@@ -400,15 +506,102 @@ export function AiHubView() {
             >
               <X size={20} />
             </button>
-            <h3 className="text-xl font-medium text-white mb-2">Connect Unfract Agent</h3>
-            <p className="text-[#858585] text-sm mb-6">Enter the URL of your Model Context Protocol (MCP) server to sync external tools and documents directly with this chat.</p>
-            <input type="text" placeholder="https://..." className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#006AFF] mb-4" />
-            <button 
-              onClick={() => setShowMCPModal(false)}
-              className="w-full bg-[#006AFF] hover:bg-[#0055CC] text-white font-medium py-3 rounded-xl transition-colors"
-            >
-              Connect
-            </button>
+            <h3 className="text-xl font-medium text-white mb-6">Manage MCP Integrations</h3>
+
+            {/* Custom Tabs */}
+            <div className="flex w-full mb-6 bg-white/5 rounded-xl p-1 border border-white/10">
+              <button
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeMcpTab === "host" ? "bg-[#006AFF] text-white" : "text-[#858585] hover:text-white"
+                }`}
+                onClick={() => setActiveMcpTab("host")}
+              >
+                External Tools
+              </button>
+              <button
+                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+                  activeMcpTab === "server" ? "bg-[#006AFF] text-white" : "text-[#858585] hover:text-white"
+                }`}
+                onClick={() => setActiveMcpTab("server")}
+              >
+                Use Unfract Altrove
+              </button>
+            </div>
+
+            {activeMcpTab === "host" && (
+              <div className="animate-in fade-in slide-in-from-bottom-2">
+                <p className="text-[#858585] text-sm mb-4">Enter the URL of your Model Context Protocol (MCP) server to sync external tools directly with this chat.</p>
+                <input 
+                  type="text" 
+                  value={mcpUrl}
+                  onChange={(e) => setMcpUrl(e.target.value)}
+                  placeholder="https://..." 
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#006AFF] mb-4" 
+                />
+                <button 
+                  onClick={handleConnectMcp}
+                  disabled={!mcpUrl || isConnectingMcp || isMcpConnected}
+                  className="w-full flex justify-center items-center gap-2 bg-[#006AFF] hover:bg-[#0055CC] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors"
+                >
+                  {isConnectingMcp ? (
+                    <><Loader2 className="animate-spin" size={18} /> Connecting...</>
+                  ) : isMcpConnected ? (
+                    <><Check size={18} /> Connected</>
+                  ) : (
+                    "Connect"
+                  )}
+                </button>
+              </div>
+            )}
+
+            {activeMcpTab === "server" && (
+              <div className="animate-in fade-in slide-in-from-bottom-2">
+                <p className="text-[#858585] text-sm mb-4">Connect Unfract's data (Tasks, Calendar, Docs) to external agents like Claude Desktop or Cursor.</p>
+                
+                <div className="bg-black border border-white/10 rounded-xl p-4 mb-4 flex items-center justify-between">
+                  <code className="text-[#006AFF] text-sm truncate mr-4">
+                    npx @unfract/mcp-server --token=sk_YOUR_TOKEN
+                  </code>
+                  <button 
+                    onClick={() => copyToClipboard("npx @unfract/mcp-server --token=sk_YOUR_TOKEN")}
+                    className="text-[#858585] hover:text-white transition-colors"
+                  >
+                    {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
+                  </button>
+                </div>
+                
+                <p className="text-[#858585] text-xs">Copy this command into your external agent's configuration file (e.g. <code>claude_desktop_config.json</code>) to authorize access.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {chatToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-[#111] border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-semibold text-white mb-2">Elimina chat</h3>
+            <p className="text-[#858585] text-sm mb-6">
+              Sei sicuro di voler eliminare questa chat? L'operazione è irreversibile.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setChatToDelete(null)}
+                className="px-4 py-2 rounded-xl text-sm font-medium text-white hover:bg-white/5 transition-colors"
+              >
+                Annulla
+              </button>
+              <button 
+                onClick={() => {
+                  deleteChat(chatToDelete);
+                  setChatToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl text-sm font-medium bg-[#FF0004]/10 text-[#FF0004] hover:bg-[#FF0004]/20 transition-colors"
+              >
+                Elimina
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,26 +1,129 @@
 "use client";
+import { getWebLLMEngine } from '@/lib/webllm';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import React, { useEffect, useState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getMeetingById, updateMeeting } from '@/lib/meetings';
 import { processMeetingTranscript } from '@/lib/gemini';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Download } from 'lucide-react';
 import { useDialog } from '@/contexts/DialogContext';
 import { useToast } from '@/contexts/ToastContext';
 import { Meeting } from '@/components/meetings/types';
 import { useAuth } from '@/contexts/AuthContext';
-import { Loader2, ChevronLeft, Calendar, Clock, User, CheckCircle2, FileText, Target, Pencil, Check, X } from 'lucide-react';
+import { Loader2, ChevronLeft, Calendar, Clock, User, CheckCircle2, FileText, Target, Pencil, Check, X, Sparkles } from 'lucide-react';
 import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { useProject } from '@/contexts/ProjectContext';
 import { TranscriptModal } from '@/components/meetings/TranscriptModal';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
+
+
+function FixedAudioPlayer({ src }: { src: string }) {
+  const audioRef = React.useRef<HTMLAudioElement>(null);
+
+  React.useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    let isFixed = false;
+
+    const fixDuration = () => {
+      if (isFixed) return;
+      isFixed = true;
+      
+      const originalMuted = audio.muted;
+      audio.muted = true;
+      
+      // Attempt to jump to the end so the browser calculates the true duration
+      audio.currentTime = Number.MAX_SAFE_INTEGER;
+      
+      const onTimeUpdate = () => {
+        audio.removeEventListener('timeupdate', onTimeUpdate);
+        audio.currentTime = 0;
+        audio.muted = originalMuted;
+      };
+      
+      audio.addEventListener('timeupdate', onTimeUpdate);
+    };
+
+    audio.addEventListener('loadedmetadata', fixDuration);
+    return () => {
+      audio.removeEventListener('loadedmetadata', fixDuration);
+    };
+  }, [src]);
+
+  return (
+    <div className="w-full">
+      <audio 
+        ref={audioRef}
+        controls 
+        className="w-full h-10 outline-none grayscale invert-[0.9] hue-rotate-180 opacity-80 hover:opacity-100 transition-opacity" 
+        src={src}
+      >
+        Il tuo browser non supporta l'elemento audio.
+      </audio>
+    </div>
+  );
+}
 export default function MeetingDetailPage({ params }: { params: { id: string } }) {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const dialog = useDialog();
   const toast = useToast();
+  const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
+
+  const handleGenerateTitle = async () => {
+    if (!meeting) return;
+    setIsGeneratingTitle(true);
+    toast.info("Generazione titolo in corso...");
+    let newTitle = "Nuovo Meeting";
+    const systemInstruction = "Estrai l'argomento principale dal riassunto fornito e scrivi un titolo di massimo 5 parole. Devi rispondere SOLO ed esclusivamente con il testo del titolo, senza aggiungere markdown, asterischi o prefissi come 'Titolo:'.";
+    const promptText = `Riassunto del meeting:\n\n${meeting.summary || meeting.transcript}\n\nScrivi solo il titolo (max 5 parole):`;
+
+    try {
+      if (typeof window !== 'undefined' && 'ai' in window && 'languageModel' in (window as any).ai) {
+        // 1. Native Chrome Gemini Nano
+        const session = await (window as any).ai.languageModel.create({ systemPrompt: systemInstruction });
+        const localTitle = await session.prompt(promptText);
+        if (localTitle) newTitle = localTitle.replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
+        toast.success("Titolo generato (Gemini Nano)!");
+      } else if ((navigator as any).gpu) {
+        // 2. Cross-browser Local WebLLM via WebGPU
+                const engine = await getWebLLMEngine((progress) => {
+           console.log("WebLLM Progress:", progress);
+        });
+        const reply = await engine.chat.completions.create({
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: promptText }
+          ]
+        });
+        const localTitle = reply.choices[0].message.content;
+        if (localTitle) newTitle = localTitle.replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
+        toast.success("Titolo generato (WebLLM Locale)!");
+      } else {
+        // 3. Fallback Cloud
+        const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
+        const genAI = new GoogleGenerativeAI(API_KEY);
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash', systemInstruction });
+        const res = await model.generateContent(promptText);
+        newTitle = res.response.text().replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
+        toast.success("Titolo generato (Cloud)!");
+      }
+
+      await updateMeeting(meeting.id, { title: newTitle });
+      setMeeting({ ...meeting, title: newTitle });
+      setEditedTitle(newTitle);
+    } catch (e) {
+      console.error(e);
+      toast.error("Errore durante la generazione del titolo.");
+    } finally {
+      setIsGeneratingTitle(false);
+    }
+  };
   
   const [columns, setColumns] = useState<any[]>([]);
   const [epics, setEpics] = useState<any[]>([]);
@@ -89,6 +192,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         title: task.title,
         priority: task.priority === 'CRITICAL' ? 'Critical' : (task.priority === 'HIGH' ? 'High' : (task.priority === 'MEDIUM' ? 'Medium' : 'Low')),
         assignee: user?.displayName || "Utente",
+        requesterUid: user?.uid || null,
+        assigneeUid: user?.uid || null,
+        createdBy: user?.uid || null,
+        lastModifiedBy: user?.uid || null,
         columnId: todoColId,
         date: new Date().toLocaleDateString('it-IT'),
         meetingId: params.id,
@@ -282,7 +389,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           <div className="flex items-center gap-3 mb-4 group">
             <h1 className="text-[32px] font-medium text-white tracking-wide flex items-center gap-3 flex-wrap">
               {meeting.title}
-              {meeting.title.includes('Fallita') && (
+              {(meeting.title.includes('Fallita') || meeting.summary?.includes("L'IA non è riuscita")) && (
                   <button 
                     onClick={handleRetryTranscription}
                     disabled={isRetrying}
@@ -293,13 +400,23 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                   </button>
                 )}
             </h1>
-            <button 
-              onClick={() => setIsEditingTitle(true)}
-              className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#858585] hover:text-white opacity-0 group-hover:opacity-100 transition-all"
-              title="Modifica titolo"
-            >
-              <Pencil size={18} />
-            </button>
+            <div className="opacity-0 group-hover:opacity-100 transition-all flex items-center gap-2">
+              <button 
+                onClick={() => setIsEditingTitle(true)}
+                className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#858585] hover:text-white transition-all"
+                title="Modifica titolo"
+              >
+                <Pencil size={18} />
+              </button>
+              <button 
+                onClick={handleGenerateTitle}
+                disabled={isGeneratingTitle}
+                className="p-2 rounded-full bg-[#006AFF]/10 hover:bg-[#006AFF]/20 text-[#006AFF] transition-all disabled:opacity-50"
+                title="Genera titolo con AI"
+              >
+                {isGeneratingTitle ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+              </button>
+            </div>
           </div>
         )}
         <div className="flex items-center gap-6 text-[#858585] text-[15px]">
@@ -308,15 +425,11 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           <div className="flex items-center gap-2"><User size={16} /> {meeting.manager}</div>
         </div>
         {meeting.audioUrl && (
-          <div className="mt-8 bg-[#111] p-4 rounded-2xl border border-white/5 flex flex-col gap-2">
-            <h3 className="text-sm font-medium text-white/80">Registrazione Audio</h3>
-            <audio 
-              controls 
-              className="w-full h-10 outline-none grayscale invert-[0.9] hue-rotate-180 opacity-80 hover:opacity-100 transition-opacity" 
-              src={meeting.audioUrl}
-            >
-              Il tuo browser non supporta l'elemento audio.
-            </audio>
+          <div className="mt-8 bg-[#111] p-4 rounded-2xl border border-white/5 flex flex-col gap-3">
+            <h3 className="text-sm font-medium text-white/80 flex items-center justify-between">
+              Registrazione Audio
+            </h3>
+            <FixedAudioPlayer src={meeting.audioUrl} />
           </div>
         )}
       </div>
@@ -410,13 +523,12 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div className="flex items-center -space-x-2">
-                          <div className="w-6 h-6 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-[10px]" title={user?.displayName || "Utente"}>
-                            {user?.photoURL ? (
-                              <img src={user.photoURL} alt={user.displayName || ""} className="w-full h-full object-cover" />
-                            ) : (
-                              (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
-                            )}
-                          </div>
+                          <UserAvatar
+                            src={user?.photoURL}
+                            name={user?.displayName || user?.email}
+                            className="w-6 h-6 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-[10px]"
+                            imageClassName="w-full h-full object-cover"
+                          />
                         </div>
                         <span className="text-[#858585] text-xs">{user?.displayName || 'Da assegnare'}</span>
                       </div>

@@ -10,15 +10,30 @@ export interface NotificationEmailProps {
   actionButtonText: string;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  })[character] || character);
+}
+
+function safeEmailUrl(value: string, baseUrl: string): string {
+  if (value.startsWith('/') && !value.startsWith('//')) return `${baseUrl}${value}`;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.toString() : `${baseUrl}/`;
+  } catch {
+    return `${baseUrl}/`;
+  }
+}
+
 export function getNotificationEmailHtml(props: NotificationEmailProps): string {
   // Use the application URL for images. In production, ensure NEXT_PUBLIC_APP_URL is set in .env
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tuodominio.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com';
   const bannerUrl = `${baseUrl}/email-banner.png`;
   
-  // Fallback avatar if none is provided
-  const avatarHtml = props.authorAvatarUrl 
-    ? `<img src="${props.authorAvatarUrl}" width="32" height="32" style="border-radius: 50%; display: block;" alt="${props.authorName}" />`
-    : `<div style="width: 32px; height: 32px; border-radius: 50%; background-color: #006AFF; color: #FFFFFF; font-weight: bold; text-align: center; line-height: 32px; font-family: sans-serif; font-size: 14px;">${props.authorName.charAt(0).toUpperCase()}</div>`;
+  // I client email spesso bloccano immagini remote o URL temporanei di Google:
+  // le iniziali evitano l'icona di immagine non disponibile nelle notifiche.
+  const avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background-color: #006AFF; color: #FFFFFF; font-weight: bold; text-align: center; line-height: 32px; font-family: sans-serif; font-size: 14px;">${props.authorName.trim().charAt(0).toUpperCase() || 'U'}</div>`;
 
   return `
 <!DOCTYPE html>
@@ -56,7 +71,7 @@ export function getNotificationEmailHtml(props: NotificationEmailProps): string 
               
               <!-- Action Title -->
               <h2 style="margin: 0 0 24px 0; font-size: 16px; font-weight: 500; color: #E0E0E0; text-align: left;">
-                ${props.actionTitle}
+                ${escapeHtml(props.actionTitle)}
               </h2>
 
               <!-- Inner Card (Task details) -->
@@ -66,10 +81,10 @@ export function getNotificationEmailHtml(props: NotificationEmailProps): string 
                     
                     <!-- Project & Task Name -->
                     <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 500; color: #888888; text-transform: uppercase; letter-spacing: 0.5px;">
-                      ${props.projectName}
+                      ${escapeHtml(props.projectName)}
                     </p>
                     <h3 style="margin: 0 0 20px 0; font-size: 18px; font-weight: 600; color: #006AFF; text-decoration: none;">
-                      ${props.taskTitle}
+                      ${escapeHtml(props.taskTitle)}
                     </h3>
 
                     <!-- Author & Message -->
@@ -80,10 +95,10 @@ export function getNotificationEmailHtml(props: NotificationEmailProps): string 
                         </td>
                         <td valign="top">
                           <p style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #FFFFFF;">
-                            ${props.authorName}
+                            ${escapeHtml(props.authorName)}
                           </p>
                           <div style="margin: 0; font-size: 14px; line-height: 1.5; color: #B0B0B0;">
-                            ${props.messageHtml}
+                            ${escapeHtml(props.messageHtml).replace(/\n/g, '<br>')}
                           </div>
                         </td>
                       </tr>
@@ -93,8 +108,8 @@ export function getNotificationEmailHtml(props: NotificationEmailProps): string 
                     <table border="0" cellpadding="0" cellspacing="0">
                       <tr>
                         <td align="left" style="border-radius: 6px;" bgcolor="#006AFF">
-                          <a href="${props.actionUrl}" target="_blank" style="font-size: 14px; font-family: sans-serif; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px; padding: 12px 24px; border: 1px solid #006AFF; display: inline-block;">
-                            ${props.actionButtonText}
+                          <a href="${escapeHtml(safeEmailUrl(props.actionUrl, baseUrl))}" target="_blank" style="font-size: 14px; font-family: sans-serif; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 6px; padding: 12px 24px; border: 1px solid #006AFF; display: inline-block;">
+                            ${escapeHtml(props.actionButtonText)}
                           </a>
                         </td>
                       </tr>
@@ -107,7 +122,7 @@ export function getNotificationEmailHtml(props: NotificationEmailProps): string 
               <!-- Footer Text -->
               <p style="margin: 30px 0 0 0; font-size: 12px; color: #666666; text-align: center; line-height: 1.5;">
                 Ricevi questa email perché hai abilitato le notifiche in Unfract.<br>
-                <a href="${baseUrl}/organization" style="color: #006AFF; text-decoration: underline;">Modifica le preferenze email</a>
+                <a href="${escapeHtml(baseUrl)}/organization" style="color: #006AFF; text-decoration: underline;">Modifica le preferenze email</a>
               </p>
 
             </td>
@@ -132,7 +147,7 @@ export interface OrgInviteEmailProps {
 }
 
 export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tuodominio.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com';
   const bannerUrl = `${baseUrl}/email-banner.png`;
 
   return `
@@ -229,16 +244,15 @@ export function getRecapEmailHtml(props: RecapEmailProps): string {
   const bannerUrl = `${baseUrl}/email-banner.png`;
 
   const notificationsListHtml = props.notifications.map(n => {
-    const avatarHtml = n.authorAvatarUrl 
-      ? `<img src="${n.authorAvatarUrl}" width="24" height="24" style="border-radius: 50%; display: block;" alt="${n.authorName}" />`
-      : `<div style="width: 24px; height: 24px; border-radius: 50%; background-color: #006AFF; color: #FFFFFF; font-weight: bold; text-align: center; line-height: 24px; font-family: sans-serif; font-size: 10px;">${n.authorName.charAt(0).toUpperCase()}</div>`;
+    // Non dipendere da immagini esterne: molti client email le bloccano.
+    const avatarHtml = `<div style="width: 24px; height: 24px; border-radius: 50%; background-color: #006AFF; color: #FFFFFF; font-weight: bold; text-align: center; line-height: 24px; font-family: sans-serif; font-size: 10px;">${n.authorName.trim().charAt(0).toUpperCase() || 'U'}</div>`;
 
     return `
       <table width="100%" border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 16px; background-color: #1A1A1A; border-radius: 12px; border: 1px solid #2A2A2A; width: 100%;">
         <tr>
           <td style="padding: 16px;">
             <p style="margin: 0 0 4px 0; font-size: 10px; font-weight: 500; color: #888888; text-transform: uppercase; letter-spacing: 0.5px;">
-              ${n.projectName} ${n.taskTitle ? '• ' + n.taskTitle : ''}
+              ${escapeHtml(n.projectName)} ${n.taskTitle ? '• ' + escapeHtml(n.taskTitle) : ''}
             </p>
             <table border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 12px;">
               <tr>
@@ -247,10 +261,10 @@ export function getRecapEmailHtml(props: RecapEmailProps): string {
                 </td>
                 <td valign="top">
                   <p style="margin: 0 0 2px 0; font-size: 13px; font-weight: 600; color: #FFFFFF;">
-                    ${n.authorName}
+                    ${escapeHtml(n.authorName)}
                   </p>
                   <div style="margin: 0; font-size: 13px; line-height: 1.4; color: #B0B0B0;">
-                    ${n.messageHtml}
+                    ${escapeHtml(n.messageHtml).replace(/\n/g, '<br>')}
                   </div>
                 </td>
               </tr>
@@ -258,7 +272,7 @@ export function getRecapEmailHtml(props: RecapEmailProps): string {
             <table border="0" cellpadding="0" cellspacing="0">
               <tr>
                 <td align="left">
-                  <a href="${n.actionUrl}" target="_blank" style="font-size: 12px; font-family: sans-serif; font-weight: 600; color: #006AFF; text-decoration: none;">
+                  <a href="${escapeHtml(safeEmailUrl(n.actionUrl, baseUrl))}" target="_blank" style="font-size: 12px; font-family: sans-serif; font-weight: 600; color: #006AFF; text-decoration: none;">
                     Visualizza →
                   </a>
                 </td>
@@ -291,13 +305,115 @@ export function getRecapEmailHtml(props: RecapEmailProps): string {
           <tr>
             <td style="padding: 30px 40px;">
               <h2 style="margin: 0 0 24px 0; font-size: 16px; font-weight: 500; color: #E0E0E0; text-align: left;">
-                Ciao ${props.recipientName}, hai ${props.notifications.length} nuove notifiche
+                Ciao ${escapeHtml(props.recipientName)}, hai ${props.notifications.length} nuove notifiche
               </h2>
               ${notificationsListHtml}
               <p style="margin: 30px 0 0 0; font-size: 12px; color: #666666; text-align: center; line-height: 1.5;">
                 Ricevi questa email perché hai abilitato le notifiche in Unfract.<br>
                 <a href="${baseUrl}/organization" style="color: #006AFF; text-decoration: underline;">Modifica le preferenze email</a>
               </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `;
+}
+
+export interface CalendarEmailProps {
+  eventName: string;
+  action: 'create' | 'update' | 'cancel';
+  date: string;
+  time: string;
+  inviterName?: string;
+}
+
+export function getCalendarEventEmailHtml(props: CalendarEmailProps): string {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unfract.com';
+  const bannerUrl = `${baseUrl}/email-banner.png`;
+
+  let title = `Sei stato invitato a ${props.eventName}`;
+  let message = `Ti hanno invitato all'evento <strong>${props.eventName}</strong>.`;
+  
+  if (props.action === 'update') {
+    title = `L'orario di ${props.eventName} è cambiato`;
+    message = `L'orario dell'evento <strong>${props.eventName}</strong> è stato aggiornato.`;
+  } else if (props.action === 'cancel') {
+    title = `L'evento ${props.eventName} è stato cancellato`;
+    message = `L'evento <strong>${props.eventName}</strong> è stato cancellato.`;
+  }
+
+  return `
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #FFFFFF;">
+  
+  <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #000000; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <!-- Main Email Container -->
+        <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #0A0A0A; border-radius: 24px; border: 1px solid #222222; overflow: hidden; max-width: 600px; width: 100%;">
+          <tr>
+            <td>
+              <!-- Banner Section -->
+              <img src="${bannerUrl}" alt="Unfract Banner" style="width: 100%; max-width: 600px; height: auto; display: block; background-color: #111111;">
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px;">
+              
+              <!-- Content Section -->
+              <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                <tr>
+                  <td align="center" style="padding-bottom: 30px;">
+                    <div style="width: 48px; height: 48px; border-radius: 12px; background-color: #006AFF; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+                    </div>
+                    <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #FFFFFF; letter-spacing: -0.5px; line-height: 1.3; text-align: center;">
+                      ${title}
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 24px 0; font-size: 16px; color: #A0A0A0; line-height: 1.6; text-align: center;">
+                      ${props.inviterName ? `<strong style="color: #FFFFFF;">${props.inviterName}</strong>: ` : ''}${message}
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-bottom: 20px;">
+                    <table border="0" cellspacing="0" cellpadding="0" style="background-color: #1A1A1A; border-radius: 12px; border: 1px solid #2A2A2A; width: 100%; max-width: 400px;">
+                      <tr>
+                        <td style="padding: 16px;">
+                           <p style="margin: 0 0 8px 0; font-size: 14px; color: #888888;">Data</p>
+                           <p style="margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF;">${props.date}</p>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding: 0 16px 16px 16px;">
+                           <p style="margin: 0 0 8px 0; font-size: 14px; color: #888888;">Orario</p>
+                           <p style="margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF;">${props.time}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+              
+              <!-- Footer Text -->
+              <p style="margin: 30px 0 0 0; font-size: 12px; color: #666666; text-align: center; line-height: 1.5;">
+                In allegato trovi il file .ics per aggiungere l'evento al tuo calendario.<br/>
+                Unfract - Il nuovo modo di organizzare il tuo lavoro.
+              </p>
+
             </td>
           </tr>
         </table>

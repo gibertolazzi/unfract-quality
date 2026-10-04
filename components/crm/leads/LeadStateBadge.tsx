@@ -1,9 +1,11 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useEffect, useRef, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import {
-  LeadState, LEAD_STATE_LABELS, LEAD_STATE_COLORS, LEAD_TRANSITIONS,
+  LeadState, LEAD_STATE_COLORS, LEAD_TRANSITIONS,
 } from '@/components/crm/constants';
 
 interface LeadStateBadgeProps {
@@ -19,6 +21,7 @@ interface LeadStateBadgeProps {
  * il menu stesso che non offre le mosse illegali.
  */
 export function LeadStateBadge({ state, onChange, disabled }: LeadStateBadgeProps) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -40,7 +43,7 @@ export function LeadStateBadge({ state, onChange, disabled }: LeadStateBadgeProp
       style={{ backgroundColor: `${color}1F`, color }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
-      {LEAD_STATE_LABELS[state]}
+      {getLeadStateLabel(state, t)}
       {interactive && <ChevronDown size={11} className="opacity-60" />}
     </span>
   );
@@ -72,7 +75,7 @@ export function LeadStateBadge({ state, onChange, disabled }: LeadStateBadgeProp
               className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-[#C4C4C4] hover:bg-white/5 hover:text-white"
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: LEAD_STATE_COLORS[next] }} />
-              {LEAD_STATE_LABELS[next]}
+              {getLeadStateLabel(next, t)}
             </button>
           ))}
         </div>

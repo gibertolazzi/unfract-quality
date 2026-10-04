@@ -1,5 +1,7 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo } from 'react';
 import { Phone, Users, Mail, FileText, CalendarClock, Activity, StickyNote, MessageSquare } from 'lucide-react';
 import {
@@ -7,9 +9,9 @@ import {
   CrmInteraction, CrmCommunication, CrmDocument,
 } from '@/components/crm/types';
 import {
-  LeadState, LEAD_STATE_LABELS,
-  OPPORTUNITY_PHASE_LABELS, OPPORTUNITY_PHASE_COLORS,
-  FOLLOWUP_TYPE_LABELS, PRIORITY_COLORS,
+  LeadState,
+  OPPORTUNITY_PHASE_COLORS,
+  PRIORITY_COLORS,
 } from '@/components/crm/constants';
 import { buildDashboard, MISSING_WIDGETS, todayISO } from '@/lib/crm/dashboard';
 import { TimelineKind, TIMELINE_KIND_COLORS } from '@/lib/crm/timeline';
@@ -53,8 +55,8 @@ const BADGE_ICONS: Record<string, any> = {
 };
 
 /** Barra orizzontale di una ripartizione. */
-function Bar({ label, count, share, color, onClick }: {
-  label: string; count: number; share: number; color: string; onClick?: () => void;
+function Bar({ t, label, count, share, color, onClick }: {
+  t: any; label: string; count: number; share: number; color: string; onClick?: () => void;
 }) {
   const content = (
     <>
@@ -75,7 +77,7 @@ function Bar({ label, count, share, color, onClick }: {
     <button
       type="button"
       onClick={onClick}
-      title="Apri la lista filtrata su questo stato"
+      title={t?.crm?.openListFilteredByStatus}
       className="flex flex-col gap-1 rounded-lg px-1 py-0.5 text-left transition-colors hover:bg-white/5"
     >
       {content}
@@ -102,6 +104,7 @@ function Count({ label, value, color, onClick }: {
 }
 
 export function DashboardSection(props: DashboardSectionProps) {
+  const { t } = useTranslation();
 const {
   leads, accounts, customers, opportunities, followups,
   interactions, communications, documents, ownerName, loading,
@@ -125,14 +128,15 @@ const {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <WidgetCard
-        title="Lead per stato"
+        title={t.crm.leadsByStatus}
         subtitle={`${leadStates.data.reduce((sum, slice) => sum + slice.count, 0)} lead in totale`}
         notes={leadStates.notes}
-        action={{ label: 'Vedi i lead', onClick: () => onShowLeads() }}
+        action={{ label: t.crm.viewLeads, onClick: () => onShowLeads() }}
       >
         <div className="flex flex-col gap-1.5">
           {leadStates.data.map(slice => (
             <Bar
+              t={t}
               key={slice.state}
               label={slice.label}
               count={slice.count}
@@ -148,13 +152,13 @@ const {
         title="Opportunità per fase e valore"
         subtitle={`${formatEuro(pipeline.data.totals.openValue)} aperti · previsione ${formatEuro(pipeline.data.totals.forecast)}`}
         notes={pipeline.notes}
-        action={{ label: 'Apri la pipeline', onClick: onShowOpportunities }}
+        action={{ label: t.crm.openPipeline, onClick: onShowOpportunities }}
       >
         <div className="flex flex-col gap-1.5">
           {pipeline.data.phases.map(phase => (
             <div key={phase.phase} className="flex flex-col gap-1 px-1 py-0.5">
               <span className="flex items-baseline justify-between gap-2">
-                <span className="text-[11px] text-[#C4C4C4]">{OPPORTUNITY_PHASE_LABELS[phase.phase]}</span>
+                <span className="text-[11px] text-[#C4C4C4]">{getOppPhaseLabel(phase.phase, t)}</span>
                 <span className="flex items-baseline gap-2">
                   <span className="text-[11px] text-[#5A5A5A]">{phase.count}</span>
                   <span className="text-[11px] text-white">{formatEuro(phase.value)}</span>
@@ -181,18 +185,18 @@ const {
         action={{ label: 'Apri i follow-up', onClick: () => onShowFollowups() }}
       >
         <div className="flex flex-wrap items-center divide-x divide-[#1A1A1A]">
-          <Count label="In ritardo" value={board.data.overdue.length} color="#EF4444" onClick={() => onShowFollowups('overdue')} />
-          <Count label="Oggi" value={board.data.today.length} onClick={() => onShowFollowups('today')} />
+          <Count label={t.crm.overdue} value={board.data.overdue.length} color="#EF4444" onClick={() => onShowFollowups('overdue')} />
+          <Count label={t.crm.today} value={board.data.today.length} onClick={() => onShowFollowups('today')} />
           <Count label="Prossimi 7 giorni" value={board.data.next.length} color="#3B82F6" onClick={() => onShowFollowups('week')} />
-          <Count label="Senza responsabile" value={board.data.unassigned.length} color="#F59E0B" onClick={() => onShowFollowups('all')} />
+          <Count label={t.crm.noOwner} value={board.data.unassigned.length} color="#F59E0B" onClick={() => onShowFollowups('all')} />
         </div>
       </WidgetCard>
 
       <WidgetCard
-        title="Da fare oggi"
-        subtitle="Task in ritardo o in scadenza oggi"
+        title={t.crm.toDoToday}
+        subtitle={t.crm.tasksOverdueOrDueToday}
         notes={['Lista unificata di tutti i follow-up che richiedono la tua attenzione oggi. Clicca su un task per aprire direttamente la scheda del contatto.']}
-        action={{ label: 'Vedi tutti', onClick: () => onShowFollowups('today') }}
+        action={{ label: t.crm.viewAll, onClick: () => onShowFollowups('today') }}
       >
         {(() => {
           const today = todayISO();
@@ -228,15 +232,15 @@ const {
                       className="w-full flex items-center justify-between gap-3 rounded-xl border border-[#1A1A1A] bg-[#0B0B0B] px-3 py-2.5 transition-all hover:border-white/20 hover:bg-white/5 text-left group"
                     >
                       <div className="flex flex-col gap-0.5 min-w-0">
-                        <span className="text-[12px] font-medium text-white truncate">{f.title || 'Senza titolo'}</span>
+                        <span className="text-[12px] font-medium text-white truncate">{f.title || t.crm.untitled}</span>
                         <span className="text-[10px] text-[#858585] truncate">
-                          {kind === 'lead' ? 'Lead' : kind === 'customer' ? 'Cliente' : kind === 'contact' ? 'Contatto' : kind === 'account' ? 'Azienda' : 'Generico'} 
+                          {kind === 'lead' ? t.crm.lead : kind === 'customer' ? t.crm.customer : kind === 'contact' ? t.crm.colContact : kind === 'account' ? t.crm.colCompany : t.crm.generic} 
                           {f.notes ? ` • ${f.notes}` : ''}
                         </span>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${isOverdue ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                          {isOverdue ? 'In ritardo' : 'Oggi'}
+                          {isOverdue ? t.crm.overdue : t.crm.today}
                         </span>
                         <span className="text-[9px] text-[#5A5A5A] opacity-0 group-hover:opacity-100 transition-opacity">
                           Clicca per aprire →
@@ -255,7 +259,7 @@ const {
         title="Conversioni lead → cliente"
         subtitle={`${conversions.data.reduce((sum, month) => sum + month.count, 0)} negli ultimi ${conversions.data.length} mesi`}
         notes={conversions.notes}
-        action={{ label: 'Vedi i clienti', onClick: onShowCustomers }}
+        action={{ label: t.crm.viewCustomers, onClick: onShowCustomers }}
       >
         <div className="flex h-24 items-end gap-2">
           {conversions.data.map(month => (
@@ -272,8 +276,8 @@ const {
       </WidgetCard>
 
       <WidgetCard
-        title="Comunicazioni"
-        subtitle="Email registrate nel progetto"
+        title={t.crm.communications}
+        subtitle={t.crm.emailsRecordedInProject}
         notes={dashboard.communications.notes}
       >
         <div className="flex flex-wrap items-center divide-x divide-[#1A1A1A]">
@@ -325,7 +329,7 @@ const {
         title="Opportunità senza una prossima azione"
         subtitle="Aperte e senza follow-up da fare"
         notes={dashboard.stale.notes}
-        action={{ label: 'Apri la pipeline', onClick: onShowOpportunities }}
+        action={{ label: t.crm.openPipeline, onClick: onShowOpportunities }}
       >
         {dashboard.stale.data.length === 0 ? (
           <EmptyLine text="Ogni opportunità aperta ha un follow-up da fare." />
@@ -335,7 +339,7 @@ const {
               <li key={row.opportunity.id} className="flex items-center gap-2 rounded-xl border border-[#1A1A1A] px-3 py-2">
                 <span className="min-w-0 flex-1 truncate text-[11px] text-white">{row.opportunity.title || '—'}</span>
                 <span className="shrink-0 text-[10px] text-[#5A5A5A]">
-                  {OPPORTUNITY_PHASE_LABELS[row.opportunity.phase]}
+                  {getOppPhaseLabel(row.opportunity.phase, t)}
                 </span>
                 <span className="shrink-0 text-[10px] text-[#858585]">
                   {row.idleDays === -1 ? 'mai' : row.idleDays === 0 ? 'oggi' : `${row.idleDays} g`}
@@ -348,10 +352,10 @@ const {
       </WidgetCard>
 
       <WidgetCard
-        title="Clienti recenti"
+        title={t.crm.recentCustomers}
         subtitle="Dai più nuovi"
         notes={dashboard.customers.notes}
-        action={{ label: 'Vedi i clienti', onClick: onShowCustomers }}
+        action={{ label: t.crm.viewCustomers, onClick: onShowCustomers }}
       >
         {dashboard.customers.data.length === 0 ? (
           <EmptyLine text="Nessun cliente nel progetto." />

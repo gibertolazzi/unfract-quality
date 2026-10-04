@@ -1,6 +1,8 @@
 import React from 'react';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { it } from 'date-fns/locale';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 const priorityConfig = {
   High: { color: 'text-[#FF2200]', border: 'border-[#FF2200]', bg: 'bg-[#FF2200]/10', icon: 'M12 2L2 22h20L12 2zm0 6v8m0 4h.01' },
@@ -10,9 +12,11 @@ const priorityConfig = {
 };
 
 import { useAuth } from '@/contexts/AuthContext';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks: any[]; columns: any[]; onTaskClick: (task: any) => void; onToggleDone: (task: any) => void }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const getPriorityStyle = (priority: string) => priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.Medium;
 
   return (
@@ -54,30 +58,28 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                   {isDone && <Check size={14} className="text-white" />}
                 </button>
                 <span className="text-[#006AFF] font-medium text-sm">[{index + 1}]</span>
-                <h3 className={`text-white text-base ${isDone ? 'line-through opacity-50' : ''}`}>{task.title || 'Untitled'}</h3>
+                <h3 className={`text-white text-base ${isDone ? 'line-through opacity-50' : ''}`}>{task.title || t.tasks.untitled}</h3>
               </div>
               
               <div className="flex items-center gap-6 ml-8">
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold" title={user?.displayName || "Utente"}>
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || ""} className="w-full h-full object-cover" />
-                    ) : (
-                      (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
-                    )}
-                  </div>
-                  <span className="text-white/70 text-xs">{user?.displayName || "Utente"} <span className="text-[#858585]">(R)</span></span>
+                  <UserAvatar
+                    src={user?.photoURL}
+                    name={user?.displayName || user?.email}
+                    className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
+                    imageClassName="w-full h-full object-cover"
+                  />
+                  <span className="text-white/70 text-xs">{user?.displayName || t.tasks.user} <span className="text-[#858585]">(R)</span></span>
                 </div>
                 
                 <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold" title={user?.displayName || "Utente"}>
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || ""} className="w-full h-full object-cover" />
-                    ) : (
-                      (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
-                    )}
-                  </div>
-                  <span className="text-white/70 text-xs">{user?.displayName || "Utente"} <span className="text-[#858585]">(A)</span></span>
+                  <UserAvatar
+                    src={user?.photoURL}
+                    name={user?.displayName || user?.email}
+                    className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
+                    imageClassName="w-full h-full object-cover"
+                  />
+                  <span className="text-white/70 text-xs">{user?.displayName || t.tasks.user} <span className="text-[#858585]">(A)</span></span>
                 </div>
               </div>
             </div>
@@ -95,14 +97,14 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                 
                 {/* Status Dropdown Pill */}
                 <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-colors border-blue-500/50 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">
-                  {col?.title || 'Unknown'}
+                  {col?.title || t.tasks.unknown}
                   <ChevronDown size={12} />
                 </div>
               </div>
               <div className="flex items-center gap-4 text-[11px] text-[#858585]">
-                <span>Created: {task.createdAt ? formatDistanceToNow(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), { addSuffix: true }) : 'N/A'}</span>
-                <span>Updated: {task.updatedAt ? formatDistanceToNow(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), { addSuffix: true }) : 'N/A'}</span>
-                <span>Deadline: <strong className={`font-medium ${new Date(task.date) < new Date() && !isDone ? 'text-red-500' : 'text-white'}`}>{task.date || 'N/A'}</strong></span>
+                <span>{t.tasks.created}{task.createdAt ? formatDistanceToNow(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), { addSuffix: true, locale: t.settings.language === 'it' ? it : undefined }) : t.tasks.na}</span>
+                <span>{t.tasks.updated}{task.updatedAt ? formatDistanceToNow(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), { addSuffix: true, locale: t.settings.language === 'it' ? it : undefined }) : t.tasks.na}</span>
+                <span>{t.tasks.deadline}<strong className={`font-medium ${new Date(task.date) < new Date() && !isDone ? 'text-red-500' : 'text-white'}`}>{task.date || t.tasks.na}</strong></span>
               </div>
             </div>
           </div>

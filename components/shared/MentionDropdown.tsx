@@ -3,6 +3,7 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 interface MentionDropdownProps {
   value: string;
@@ -191,13 +192,13 @@ export function MentionDropdown({ value, cursorPosition, onSelect, anchorRef, po
             }`}
           >
             {mentionType === 'user' ? (
-              <div className="w-6 h-6 rounded-full bg-[#006AFF] flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden">
-                {item.photoURL ? (
-                  <img src={item.photoURL} alt={item.displayName} className="w-full h-full object-cover" />
-                ) : (
-                  item.initials || 'U'
-                )}
-              </div>
+              <UserAvatar
+                src={item.photoURL}
+                name={item.displayName}
+                initials={item.initials}
+                className="w-6 h-6 rounded-full bg-[#006AFF] flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden"
+                imageClassName="w-full h-full object-cover"
+              />
             ) : mentionType === 'command' ? (
               <div className="w-6 h-6 rounded bg-white/10 flex items-center justify-center text-[#858585] shrink-0 font-bold">
                 /

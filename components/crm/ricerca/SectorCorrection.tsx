@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { Pencil, Check, X, RotateCcw } from 'lucide-react';
 import { SECTORS } from '@/lib/crm/prospect/estimate/ateco';
@@ -29,6 +30,7 @@ interface SectorCorrectionProps {
 }
 
 export function SectorCorrection({ override, onSave, onClear, busy }: SectorCorrectionProps) {
+  const { t } = useTranslation();
   const corretto = typeof override?.value === 'string' && override.value !== '';
   const [aperto, setAperto] = useState(false);
   const [codice, setCodice] = useState(corretto ? (override!.value as string) : '');

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { AlertTriangle, Copy, Check, ShieldAlert } from 'lucide-react';
 import { ImportPlan, DuplicatePolicy, PlanCounts, willImport } from '@/lib/crm/import/plan';
 import { ImportEntity, TARGET_FIELDS } from '@/lib/crm/import/mapping';
@@ -42,6 +43,7 @@ export function ImportReview({
   plan, counts, policy, defaultSource, ownerUid, owners, entity, excluded,
   onPolicyChange, onDefaultSourceChange, onOwnerChange, onToggleRow,
 }: ImportReviewProps) {
+  const { t } = useTranslation();
   const fields = TARGET_FIELDS[entity];
   // Le colonne dell'anteprima: i campi davvero mappati, non tutto il modello.
   const columns = plan.mappedFields

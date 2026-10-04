@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { FileText, Check, Archive, Sparkles, Cpu, AlertTriangle, Printer } from 'lucide-react';
 import { CrmProspectReport } from './types';
@@ -41,6 +42,7 @@ interface ReportPanelProps {
 }
 
 export function ReportPanel({ reports, companyName = '', onApprove, onArchive, ownerName, busy }: ReportPanelProps) {
+  const { t } = useTranslation();
   const [aperto, setAperto] = useState<string>(reports[0]?.id || '');
   const [daStampare, setDaStampare] = useState<CrmProspectReport | null>(null);
 

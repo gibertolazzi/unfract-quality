@@ -10,10 +10,12 @@ import { format, startOfDay, endOfDay } from "date-fns";
 import Link from "next/link";
 import { useProject } from "@/contexts/ProjectContext";
 import { CheckCircle2, Circle, CircleDot, ArrowRight, Video, ExternalLink } from "lucide-react";
+import { useTranslation } from "@/contexts/TranslationContext";
 
 export function DashboardView() {
   const { user, accessToken } = useAuth();
   const { activeProjectId } = useProject();
+  const { t } = useTranslation();
   
   const {
     chronoTime, chronoRunning, toggleChrono, resetChrono,
@@ -56,8 +58,8 @@ export function DashboardView() {
           const rawEvents = await fetchCalendarEvents(accessToken, start, end);
           const mapped = (rawEvents.items || []).map((ev: any) => ({
             id: ev.id,
-            title: ev.summary || "Senza Titolo",
-            startTime: ev.start.dateTime ? format(new Date(ev.start.dateTime), "HH:mm") : "Tutto il giorno",
+            title: ev.summary || t.dashboard.untitled,
+            startTime: ev.start.dateTime ? format(new Date(ev.start.dateTime), "HH:mm") : t.dashboard.allDay,
             endTime: ev.end.dateTime ? format(new Date(ev.end.dateTime), "HH:mm") : "",
             meetLink: ev.hangoutLink
           }));
@@ -173,14 +175,14 @@ export function DashboardView() {
           {/* My Tasks */}
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[16px] font-medium text-white/90">Le mie Task</h3>
+              <h3 className="text-[16px] font-medium text-white/90">{t.dashboard.myTasks}</h3>
               <Link href="/" className="flex items-center gap-1 text-[12px] text-[#858585] hover:text-white/70 transition-colors">
-                Vedi tutte <ArrowRight size={12} />
+                {t.dashboard.seeAll} <ArrowRight size={12} />
               </Link>
             </div>
             
             {userTasks.length === 0 ? (
-              <div className="py-8 text-center text-[#858585] text-sm">Nessuna task assegnata</div>
+              <div className="py-8 text-center text-[#858585] text-sm">{t.dashboard.noTasksAssigned}</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {userTasks.map((task) => {
@@ -206,7 +208,7 @@ export function DashboardView() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <span className={`text-[13px] font-medium block truncate ${status === "done" ? "text-[#858585] line-through" : "text-white/90"}`}>
-                          {task.title || "Senza titolo"}
+                          {task.title || t.dashboard.untitled}
                         </span>
                       </div>
                       <span className={`text-[10px] px-2 py-0.5 rounded-full border flex-shrink-0 ${getPriorityColor(task.priority)}`}>
@@ -222,16 +224,16 @@ export function DashboardView() {
           {/* Today's Calendar */}
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[16px] font-medium text-white/90">Oggi in Calendario</h3>
+              <h3 className="text-[16px] font-medium text-white/90">{t.dashboard.todayInCalendar}</h3>
               <Link href="/calendar" className="flex items-center gap-1 text-[12px] text-[#858585] hover:text-white/70 transition-colors">
-                Vedi calendario <ArrowRight size={12} />
+                {t.dashboard.seeCalendar} <ArrowRight size={12} />
               </Link>
             </div>
 
             {isSyncing ? (
-              <div className="py-8 text-center text-[#858585] text-sm">Sincronizzazione...</div>
+              <div className="py-8 text-center text-[#858585] text-sm">{t.dashboard.syncing}</div>
             ) : events.length === 0 ? (
-              <div className="py-8 text-center text-[#858585] text-sm">Nessun evento per oggi</div>
+              <div className="py-8 text-center text-[#858585] text-sm">{t.dashboard.noEventsToday}</div>
             ) : (
               <div className="flex flex-col gap-2">
                 {events.map((event) => (
@@ -270,7 +272,7 @@ export function DashboardView() {
 
           {/* Project Overview */}
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl min-h-[300px]">
-            <h3 className="text-[16px] font-medium text-white/90 mb-6">Project Overview</h3>
+            <h3 className="text-[16px] font-medium text-white/90 mb-6">{t.dashboard.projectOverview}</h3>
             
             <div className="flex-1 flex flex-col items-center justify-center relative">
               <svg viewBox="0 0 100 100" className="w-[180px] h-[180px] drop-shadow-[0_0_15px_rgba(0,106,255,0.1)]">
@@ -282,32 +284,32 @@ export function DashboardView() {
               
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none mt-2">
                 <span className="text-[32px] font-bold text-white tracking-tighter">{percCompleted}%</span>
-                <span className="text-[10px] text-[#858585] -mt-1 uppercase tracking-widest">Fatto</span>
+                <span className="text-[10px] text-[#858585] -mt-1 uppercase tracking-widest">{t.dashboard.doneCircle}</span>
               </div>
             </div>
 
             <div className="flex items-center justify-center gap-4 mt-6">
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-[#006AFF]" />
-                <span className="text-[10px] text-[#858585] font-medium">Fatte ({completedCount})</span>
+                <span className="text-[10px] text-[#858585] font-medium">{t.dashboard.done} ({completedCount})</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-[#FFB800]" />
-                <span className="text-[10px] text-[#858585] font-medium">In corso ({inProgressCount})</span>
+                <span className="text-[10px] text-[#858585] font-medium">{t.dashboard.inProgress} ({inProgressCount})</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-[#FF0004]" />
-                <span className="text-[10px] text-[#858585] font-medium">Da fare ({notStartedCount})</span>
+                <span className="text-[10px] text-[#858585] font-medium">{t.dashboard.todo} ({notStartedCount})</span>
               </div>
             </div>
           </div>
 
           {/* Notes */}
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl flex-1">
-            <h3 className="text-[16px] font-medium text-white/90 mb-4">Notes</h3>
+            <h3 className="text-[16px] font-medium text-white/90 mb-4">{t.dashboard.notes}</h3>
             <div className="relative w-full flex-1 min-h-[180px]">
               <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(transparent, transparent 31px, rgba(255,255,255,0.03) 31px, rgba(255,255,255,0.03) 32px)", backgroundPosition: "0 4px" }} />
-              <textarea className="w-full h-full bg-transparent resize-none outline-none text-white/70 text-[14px] leading-[32px] pt-1 custom-scrollbar" placeholder="Type your notes here..." />
+              <textarea className="w-full h-full bg-transparent resize-none outline-none text-white/70 text-[14px] leading-[32px] pt-1 custom-scrollbar" placeholder={t.dashboard.notesPlaceholder} />
             </div>
           </div>
 

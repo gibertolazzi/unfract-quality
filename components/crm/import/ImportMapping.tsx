@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { ArrowRight, CircleSlash } from 'lucide-react';
 import { Table } from '@/lib/crm/import/parse';
 import {
@@ -20,6 +21,7 @@ const selectClass =
 export function ImportMapping({
   table, entity, mapping, onEntityChange, onMappingChange,
 }: ImportMappingProps) {
+  const { t } = useTranslation();
   const fields = TARGET_FIELDS[entity];
   const identifying = IDENTIFYING_FIELDS[entity];
 

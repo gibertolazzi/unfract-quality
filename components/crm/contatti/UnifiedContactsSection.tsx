@@ -1,5 +1,7 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { createCustomList, updateCustomList } from '@/lib/crm/customLists';
@@ -28,7 +30,7 @@ import { UploadRunner } from '../documenti/UploadPanel';
 import { DocumentTarget } from '@/lib/crm/documentUpload';
 import { EmailComposer, ComposedEmail } from '../email/EmailComposer';
 import { canEmailContact, SendEmailResult } from '@/lib/crm/emailSend';
-import { LeadState, LEAD_STATE_LABELS } from '../constants';
+import { LeadState } from '../constants';
 
 type ViewFilter = 'all' | 'lead' | 'account' | 'contact' | 'customer' | string;
 
@@ -99,6 +101,7 @@ const VIEW_LABELS: Record<string, string> = {
 
 
 export function UnifiedContactsSection(props: UnifiedContactsSectionProps) {
+  const { t } = useTranslation();
   const [view, setView] = useState<ViewFilter>('all');
   const [search, setSearch] = useState('');
 
@@ -144,10 +147,10 @@ export function UnifiedContactsSection(props: UnifiedContactsSectionProps) {
     if (!props.loading) {
       const includeArchived = view === 'archived';
       all = [
-        ...props.leads.filter(l => !!l.archived === includeArchived).map(l => ({ id: l.id, type: 'lead' as const, name: l.fullName || l.companyName, email: l.email, phone: l.phone, companyName: l.companyName, status: LEAD_STATE_LABELS[l.state] || l.state, raw: l })),
+        ...props.leads.filter(l => !!l.archived === includeArchived).map(l => ({ id: l.id, type: 'lead' as const, name: l.fullName || l.companyName, email: l.email, phone: l.phone, companyName: l.companyName, status: getLeadStateLabel(l.state, t) || l.state, raw: l })),
         ...props.accounts.filter(a => !!a.archived === includeArchived).map(a => ({ id: a.id, type: 'account' as const, name: a.displayName || a.legalName, email: '', phone: '', companyName: a.displayName || a.legalName, status: a.industry, raw: a })),
         ...props.contacts.filter(c => !!c.archived === includeArchived).map(c => ({ id: c.id, type: 'contact' as const, name: c.fullName, email: c.email, phone: c.phone, companyName: indexes.accountNameById.get(c.accountId) || '', status: c.role, raw: c })),
-        ...props.customers.filter(c => !!c.archived === includeArchived).map(c => ({ id: c.id, type: 'customer' as const, name: indexes.accountNameById.get(c.accountId) || '', email: '', phone: '', companyName: indexes.accountNameById.get(c.accountId) || '', status: CUSTOMER_STATUS_LABELS[c.status] || c.status, value: ((c.monthlyAmount || 0) * 12) + (c.annualAmount || 0) + (c.oneTimeAmount || 0), raw: c })),
+        ...props.customers.filter(c => !!c.archived === includeArchived).map(c => ({ id: c.id, type: 'customer' as const, name: indexes.accountNameById.get(c.accountId) || '', email: '', phone: '', companyName: indexes.accountNameById.get(c.accountId) || '', status: getCustomerStatusLabel(c.status, t) || c.status, value: ((c.monthlyAmount || 0) * 12) + (c.annualAmount || 0) + (c.oneTimeAmount || 0), raw: c })),
       ];
       if (search) {
         const s = search.toLowerCase();

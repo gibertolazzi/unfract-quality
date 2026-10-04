@@ -155,7 +155,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                   {!isAlertMode && (
                     <button
                       onClick={handleCancel}
-                      className="px-4 py-2 text-sm font-medium text-white hover:bg-white/5 rounded-lg transition-colors"
+                      className="px-5 py-2 text-sm font-medium text-[#858585] hover:text-white transition-colors rounded-full"
                     >
                       {isPromptMode ? promptOptions?.cancelText : options?.cancelText}
                     </button>
@@ -164,10 +164,10 @@ export function DialogProvider({ children }: { children: ReactNode }) {
                   <button
                     onClick={handleConfirm}
                     disabled={isPromptMode && !promptValue.trim()}
-                    className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors shadow-lg disabled:opacity-50 ${
+                    className={`px-5 py-2 text-sm font-medium rounded-full transition-colors disabled:opacity-50 flex items-center justify-center ${
                       options?.isDestructive 
-                        ? 'bg-red-500 hover:bg-red-600 text-white shadow-red-500/20' 
-                        : 'bg-[#00FF88] hover:bg-[#00e67a] text-black shadow-[#00FF88]/20'
+                        ? 'bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20' 
+                        : 'bg-[#002451] border border-[#003B80] text-[#00A6FF] hover:bg-[#003B80]/80'
                     }`}
                   >
                     {isPromptMode ? promptOptions?.confirmText : options?.confirmText}

@@ -14,6 +14,9 @@ import { useState, useRef, useEffect } from "react";
 import { subscribeToDocuments, createDocument } from "@/lib/documentation";
 import { Document } from "@/components/documentation/types";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/contexts/TranslationContext";
+import { UserAvatar } from "@/components/shared/UserAvatar";
+import { useChat } from "@/contexts/ChatContext";
 
 type DocNode = Document & { children: DocNode[] };
 
@@ -39,6 +42,7 @@ function buildTree(documents: Document[]): DocNode[] {
 const DocTreeItem = ({ doc, activePath, depth, onAddChild }: { doc: DocNode, activePath: string, depth: number, onAddChild: (parentId: string) => void }) => {
   const [isExpanded, setIsExpanded] = useState(true);
   const isActive = activePath === `/documentation/${doc.id}`;
+  const { t } = useTranslation();
   
   return (
     <div className="flex flex-col">
@@ -76,7 +80,7 @@ const DocTreeItem = ({ doc, activePath, depth, onAddChild }: { doc: DocNode, act
             setIsExpanded(true); 
           }}
           className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-[#858585] hover:text-white transition-all shrink-0"
-          title="Aggiungi sotto-documento"
+          title={t.sidebar.addSubDocument}
         >
           <Plus size={12} />
         </button>
@@ -93,24 +97,26 @@ const DocTreeItem = ({ doc, activePath, depth, onAddChild }: { doc: DocNode, act
   );
 };
 
-const NAV_ITEMS = [
-  { id: "dashboard", label: "Dashboard", Icon: Home, href: "/dashboard" },
-  { id: "tasks", label: "Task", Icon: CheckCircle2, href: "/" },
-  { id: "calendar", label: "Calendar", Icon: Calendar, href: "/calendar" },
-  { id: "documentation", label: "Documentation", Icon: Hash, href: "/documentation" },
-  { id: "meetings", label: "Meetings", Icon: FileVideo, href: "/meetings" },
-  { id: "crm", label: "CRM", Icon: Handshake, href: "/crm" },
-  { id: "marketing", label: "Marketing", Icon: MegaphoneIcon, href: "/marketing", disabled: true },
-  { id: "organization", label: "Organization", Icon: Users, href: "/organization" },
-  { id: "chat", label: "Chat", Icon: MessageCircle, href: "/chat" },
-  { id: "ai-hub", label: "AI Hub", Icon: Sparkles, href: "/ai-hub" },
-];
-
 export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loginWithGoogle, logout, loading } = useAuth();
+  const { unreadCount } = useChat();
+  const { t } = useTranslation();
   
+  const NAV_ITEMS = [
+    { id: "dashboard", label: t.sidebar.dashboard, Icon: Home, href: "/dashboard" },
+    { id: "tasks", label: t.sidebar.tasks, Icon: CheckCircle2, href: "/" },
+    { id: "calendar", label: t.sidebar.calendar, Icon: Calendar, href: "/calendar" },
+    { id: "documentation", label: t.sidebar.documentation, Icon: Hash, href: "/documentation" },
+    { id: "meetings", label: t.sidebar.meetings, Icon: FileVideo, href: "/meetings" },
+    { id: "crm", label: t.sidebar.crm, Icon: Handshake, href: "/crm" },
+    { id: "marketing", label: t.sidebar.marketing, Icon: MegaphoneIcon, href: "/marketing", disabled: true },
+    { id: "organization", label: t.sidebar.organization, Icon: Users, href: "/organization" },
+    { id: "chat", label: t.sidebar.chat, Icon: MessageCircle, href: "/chat" },
+    { id: "ai-hub", label: t.sidebar.aiHub, Icon: Sparkles, href: "/ai-hub" },
+  ];
+
   const { 
     projects, 
     activeProject, 
@@ -138,7 +144,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, workspaces } = useWorkspace();
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
 
@@ -155,13 +161,13 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   }).map(item => {
     if (item.id === "organization") {
       if (activeWorkspace?.structureMode === 'flat') {
-        return { ...item, label: "Settings" }; // In flat mode, just call it Settings
+        return { ...item, label: t.sidebar.settings }; // In flat mode, just call it Settings
       }
       if (activeWorkspace?.structureMode === 'teams') {
-        return { ...item, label: "Teams" };
+        return { ...item, label: t.sidebar.teams };
       }
       if (activeWorkspace?.structureMode === 'corporate') {
-        return { ...item, label: "Corporate" };
+        return { ...item, label: t.sidebar.corporate };
       }
     }
     return item;
@@ -301,7 +307,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
             className="w-full flex items-center justify-center gap-2 bg-[#006AFF] hover:bg-blue-600 text-white rounded-xl px-4 py-2.5 transition-colors font-medium text-sm"
           >
             <Plus size={16} />
-            Crea Progetto
+            {t.sidebar.createProject}
           </button>
         ) : (
           <div 
@@ -329,7 +335,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   setIsEditing(true);
                 }}
               >
-                {activeProject?.name || "Untitled Project"}
+                {activeProject?.name || t.sidebar.untitledProject}
               </span>
             )}
             
@@ -357,8 +363,11 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                   }}
                   className={`flex items-center justify-between px-4 py-2 text-sm cursor-pointer hover:bg-white/5 transition-colors group ${activeProjectId === p.id ? 'text-white font-medium' : 'text-white/70'}`}
                 >
-                  <span className="truncate pr-4">{p.name}</span>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col overflow-hidden pr-4">
+                    <span className="truncate">{p.name}</span>
+                    <span className="text-[10px] text-white/40 truncate">{workspaces.find(w => w.id === p.workspaceId)?.name || t.sidebar.unknownWorkspace}</span>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
                     {activeProjectId === p.id && <Check size={14} className="text-[#006AFF] shrink-0" />}
                     <button 
                       onClick={(e) => {
@@ -379,7 +388,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
               >
                 <Plus size={14} />
-                <span>Nuovo Progetto</span>
+                <span className="truncate">{t.sidebar.newProjectIn} {activeWorkspace?.name || t.sidebar.unknownWorkspace}</span>
               </button>
             </div>
           </div>
@@ -441,10 +450,18 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                     <span className={`text-[13px] truncate font-normal`}>
                       {item.label}
                     </span>
+                    {item.id === 'chat' && unreadCount > 0 && (
+                      <span
+                        aria-label={`${unreadCount} messaggi non letti`}
+                        className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white"
+                      >
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
                     {item.disabled && (
                       <span className="text-[10px] bg-white/10 text-white/70 px-2 py-0.5 rounded flex items-center gap-1 shrink-0 ml-2">
                         <Lock size={10} />
-                        Presto
+                        {t.sidebar.soon}
                       </span>
                     )}
                   </div>
@@ -468,7 +485,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
               {isDocMenu && isDocsExpanded && (
                 <div className="flex flex-col mt-1 ml-6 border-l border-white/10 gap-0.5 overflow-hidden transition-all duration-300">
                   {docTreeRoots.length === 0 ? (
-                    <span className="text-xs text-[#858585] py-2 pl-4">Nessun documento</span>
+                    <span className="text-xs text-[#858585] py-2 pl-4">{t.sidebar.noDocuments}</span>
                   ) : (
                     docTreeRoots.map(doc => (
                       <DocTreeItem 
@@ -494,14 +511,19 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
             <div className="shrink-0">
               <ChevronUp size={16} className="text-white" />
             </div>
-            <span className="text-sm font-semibold truncate">Effettua l'Upgrade</span>
+            <span className="text-sm font-semibold truncate">{t.sidebar.upgrade}</span>
           </div>
         </div>
 
         {!loading && user && (
           <div className="flex items-center justify-between px-4 py-3 bg-white/5 rounded-2xl border border-white/10">
             <div className="flex items-center gap-3 truncate">
-              <img src={user.photoURL || ''} alt="Profile" className="w-8 h-8 rounded-full shrink-0" />
+              <UserAvatar
+                src={user.photoURL}
+                name={user.displayName || user.email}
+                className="w-8 h-8 rounded-full shrink-0 overflow-hidden bg-[#006AFF] flex items-center justify-center text-[10px] font-bold text-white"
+                imageClassName="w-full h-full rounded-full object-cover"
+              />
               <div className="flex flex-col truncate">
                 <span className="text-xs font-semibold text-white truncate">{user.displayName}</span>
                 <span className="text-[10px] text-[#858585] truncate">{user.email}</span>

@@ -120,6 +120,30 @@ export async function saveMeeting(projectId: string, meetingData: Omit<Meeting, 
       expiresAt: expiresAt
     };
     const docRef = await addDoc(collection(db, COLLECTION_NAME), dataToSave);
+
+    const { auth } = require('@/lib/firebase');
+    const { createNotification } = require('./services/notificationService');
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      if (meetingData.transcript || meetingData.audioUrl) {
+        createNotification({
+          userId: currentUser.uid,
+          title: 'Trascrizione pronta',
+          description: `La trascrizione per "${meetingData.title}" è pronta.`,
+          type: 'transcript',
+          link: `/meetings/${docRef.id}`
+        });
+      } else {
+        createNotification({
+          userId: currentUser.uid,
+          title: 'Nuovo meeting',
+          description: `Hai programmato/creato: "${meetingData.title}".`,
+          type: 'meeting',
+          link: `/meetings/${docRef.id}`
+        });
+      }
+    }
+
     return docRef.id;
   } catch (error) {
     console.error("Error saving meeting:", error);

@@ -39,18 +39,19 @@ export const LEAD_TRANSITIONS: Record<LeadState, LeadState[]> = {
   NOT_INTERESTED: [],
 };
 
-export const LEAD_STATE_LABELS: Record<LeadState, string> = {
-  NEW:            'Nuovo',
-  TO_CONTACT:     'Da contattare',
-  CONTACTED:      'Contattato',
-  FOLLOWUP:       'In follow-up',
-  QUALIFIED:      'Qualificato',
-  PROPOSAL_SENT:  'Proposta inviata',
-  NEGOTIATION:    'In negoziazione',
-  CONVERTED:      'Convertito',
-  LOST:           'Perso',
-  NOT_INTERESTED: 'Non interessato',
-};
+export const getLeadStateLabels = (t: any) => ({
+  NEW: t.crm.leadStateNew,
+  TO_CONTACT: t.crm.leadStateToContact,
+  CONTACTED: t.crm.leadStateContacted,
+  FOLLOWUP: t.crm.leadStateFollowup,
+  QUALIFIED: t.crm.leadStateQualified,
+  PROPOSAL_SENT: t.crm.leadStateProposalSent,
+  NEGOTIATION: t.crm.leadStateNegotiation,
+  CONVERTED: t.crm.leadStateConverted,
+  LOST: t.crm.leadStateLost,
+  ARCHIVED: t.crm.leadStateArchived,
+});
+
 
 export const LEAD_STATE_COLORS: Record<LeadState, string> = {
   NEW:            '#6B7280',
@@ -81,14 +82,15 @@ export const OPPORTUNITY_TRANSITIONS: Record<OpportunityPhase, OpportunityPhase[
   LOST:          ['QUALIFICATION', 'DISCOVERY', 'PROPOSAL', 'NEGOTIATION', 'WON'],
 };
 
-export const OPPORTUNITY_PHASE_LABELS: Record<OpportunityPhase, string> = {
-  QUALIFICATION: 'Qualificazione',
-  DISCOVERY:     'Analisi',
-  PROPOSAL:      'Proposta',
-  NEGOTIATION:   'Negoziazione',
-  WON:           'Vinta',
-  LOST:          'Persa',
-};
+export const getOpportunityPhaseLabels = (t: any) => ({
+  QUALIFICATION: t.crm.oppPhaseQualification,
+  DISCOVERY: t.crm.oppPhaseDiscovery,
+  PROPOSAL: t.crm.oppPhaseProposal,
+  NEGOTIATION: t.crm.oppPhaseNegotiation,
+  WON: t.crm.oppPhaseWon,
+  LOST: t.crm.oppPhaseLost,
+});
+
 
 export const OPPORTUNITY_PHASE_COLORS: Record<OpportunityPhase, string> = {
   QUALIFICATION: '#6B7280',
@@ -125,24 +127,26 @@ export const FOLLOWUP_TRANSITIONS: Record<FollowupState, FollowupState[]> = {
   CANCELLED:   [],
 };
 
-export const FOLLOWUP_STATE_LABELS: Record<FollowupState, string> = {
-  OPEN:        'Aperto',
-  IN_PROGRESS: 'In corso',
-  DONE:        'Completato',
-  SNOOZED:     'Rimandato',
-  CANCELLED:   'Annullato',
-};
+export const getFollowupStateLabels = (t: any) => ({
+  OPEN: t.crm.followupStateOpen,
+  IN_PROGRESS: t.crm.followupStateInProgress,
+  DONE: t.crm.followupStateDone,
+  SNOOZED: t.crm.followupStateSnoozed,
+  CANCELLED: t.crm.followupStateCancelled,
+});
+
 
 export const FOLLOWUP_TYPES = ['call', 'email', 'sms', 'meeting', 'internal', 'note'] as const;
 
-export const FOLLOWUP_TYPE_LABELS: Record<FollowupType, string> = {
-  call:     'Chiamata',
-  email:    'Email',
-  sms:      'SMS',
-  meeting:  'Meeting',
-  internal: 'Attività interna',
-  note:     'Nota',
-};
+export const getFollowupTypeLabels = (t: any) => ({
+  call: t.crm.followupTypeCall,
+  email: t.crm.followupTypeEmail,
+  sms: t.crm.followupTypeSms,
+  meeting: t.crm.followupTypeMeeting,
+  internal: t.crm.followupTypeInternal,
+  note: t.crm.followupTypeNote,
+});
+
 
 export const FOLLOWUP_STATE_COLORS: Record<FollowupState, string> = {
   OPEN:        '#0EA5E9',
@@ -154,12 +158,13 @@ export const FOLLOWUP_STATE_COLORS: Record<FollowupState, string> = {
 
 export const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'] as const;
 
-export const PRIORITY_LABELS: Record<Priority, string> = {
-  LOW:      'Bassa',
-  MEDIUM:   'Media',
-  HIGH:     'Alta',
-  CRITICAL: 'Critica',
-};
+export const getPriorityLabels = (t: any) => ({
+  LOW: t.crm.priorityLow,
+  MEDIUM: t.crm.priorityMedium,
+  HIGH: t.crm.priorityHigh,
+  CRITICAL: t.crm.priorityCritical,
+});
+
 
 export const PRIORITY_COLORS: Record<Priority, string> = {
   LOW:      '#71717A',
@@ -172,14 +177,15 @@ export const PRIORITY_COLORS: Record<Priority, string> = {
 
 export const INTERACTION_TYPES = ['call', 'email', 'sms', 'meeting', 'note', 'activity'] as const;
 
-export const INTERACTION_TYPE_LABELS: Record<InteractionType, string> = {
-  call:     'Telefonata',
-  email:    'Email',
-  sms:      'SMS',
-  meeting:  'Meeting',
-  note:     'Nota',
-  activity: 'Attività',
-};
+export const getInteractionTypeLabels = (t: any) => ({
+  call: t.crm.interactionTypeCall,
+  email: t.crm.interactionTypeEmail,
+  sms: t.crm.interactionTypeSms,
+  meeting: t.crm.interactionTypeMeeting,
+  note: t.crm.interactionTypeNote,
+  activity: t.crm.interactionTypeActivity,
+});
+
 
 // ------------------------------------------------------ Comunicazioni
 
@@ -203,15 +209,16 @@ export const EMAIL_TRANSITIONS: Record<EmailState, EmailState[]> = {
   CANCELLED: [],
 };
 
-export const EMAIL_STATE_LABELS: Record<EmailState, string> = {
-  DRAFT:     'Bozza',
-  QUEUED:    'In coda',
-  SENT:      'Inviata',
-  DELIVERED: 'Consegnata',
-  BOUNCED:   'Respinta',
-  FAILED:    'Fallita',
-  CANCELLED: 'Annullata',
-};
+export const getEmailStateLabels = (t: any) => ({
+  DRAFT: t.crm.emailStateDraft,
+  QUEUED: t.crm.emailStateQueued,
+  SENT: t.crm.emailStateSent,
+  DELIVERED: t.crm.emailStateDelivered,
+  BOUNCED: t.crm.emailStateBounced,
+  FAILED: t.crm.emailStateFailed,
+  CANCELLED: t.crm.emailStateCancelled,
+});
+
 
 // ----------------------------------------------------- Campi comuni
 

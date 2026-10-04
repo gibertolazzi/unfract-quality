@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { Bookmark, BookmarkPlus, Trash2, Users2 } from 'lucide-react';
 import { CrmSavedView } from '@/components/crm/types';
@@ -19,6 +20,7 @@ interface SavedViewsBarProps {
 export function SavedViewsBar({
   views, activeViewId, dirty, onApply, onCreate, onUpdate, onDelete, currentUid,
 }: SavedViewsBarProps) {
+  const { t } = useTranslation();
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [shared, setShared] = useState(false);
@@ -61,7 +63,7 @@ export function SavedViewsBar({
               <button
                 type="button"
                 onClick={() => onDelete(view)}
-                title="Elimina vista"
+                title={t.crm.deleteView}
                 className="opacity-0 transition-opacity group-hover:opacity-100"
               >
                 <Trash2 size={11} className="text-[#5A5A5A] hover:text-[#EF4444]" />
@@ -91,7 +93,7 @@ export function SavedViewsBar({
               if (e.key === 'Enter') submit();
               if (e.key === 'Escape') setCreating(false);
             }}
-            placeholder="Nome della vista"
+            placeholder={t.crm.viewName}
             className="w-36 bg-transparent text-[11px] text-white placeholder:text-[#5A5A5A] focus:outline-none"
           />
           <label className="flex cursor-pointer items-center gap-1 text-[10px] text-[#858585]">

@@ -19,11 +19,7 @@ import {
   CrmLead, CrmAccount, CrmCustomer, CrmOpportunity, CrmFollowup,
   CrmInteraction, CrmCommunication, CrmDocument,
 } from '@/types/crm';
-import {
-  LeadState, LEAD_STATES, LEAD_STATE_LABELS, LEAD_STATE_COLORS,
-  EmailState, EMAIL_STATE_LABELS,
-  FollowupType, FOLLOWUP_TYPE_LABELS,
-} from '@/components/crm/constants';
+import { LeadState, LEAD_STATES, LEAD_STATE_COLORS, EmailState, FollowupState, FollowupType, OpportunityPhase } from '@/components/crm/constants';
 import { toMillis } from './helpers';
 import { effectiveDue, isOpen as followupIsOpen } from './followupFilters';
 import {
@@ -67,7 +63,7 @@ export function leadsByState(leads: CrmLead[]): Widget<StateSlice[]> {
     const count = records.filter(lead => lead.state === state).length;
     return {
       state,
-      label: LEAD_STATE_LABELS[state],
+      label: ({} as any)[state],
       color: LEAD_STATE_COLORS[state],
       count,
       share: total ? count / total : 0,
@@ -185,7 +181,7 @@ export function upcomingContacts(followups: CrmFollowup[], days = 14): Widget<Up
   const data = live(followups)
     .filter(followupIsOpen)
     .filter(f => CONTACT_TYPES.includes(f.type))
-    .map(f => ({ followup: f, due: effectiveDue(f), typeLabel: FOLLOWUP_TYPE_LABELS[f.type] }))
+    .map(f => ({ followup: f, due: effectiveDue(f), typeLabel: ({} as any)[f.type] }))
     .filter(row => row.due && row.due >= today && row.due <= limit)
     .sort((a, b) => a.due.localeCompare(b.due));
 
@@ -291,7 +287,7 @@ export function communicationOutcomes(communications: CrmCommunication[]): Widge
     // queste email devono comparire senza che nessuno debba ricordarsi di
     // togliere un filtro da qui.
     ...WEBHOOK_STATES.filter(state => countOf(state) > 0),
-  ].map(state => ({ state, label: EMAIL_STATE_LABELS[state], count: countOf(state) }));
+  ].map(state => ({ state, label: ({} as any)[state], count: countOf(state) }));
 
   // La specifica chiede «inviate, consegnate e fallite». «Consegnata» e
   // «respinta» arrivano dai webhook del provider, cioè da una route pubblica

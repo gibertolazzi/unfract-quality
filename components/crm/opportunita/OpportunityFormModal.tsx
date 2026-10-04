@@ -1,11 +1,12 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { X, Plus, Trash2, RotateCcw } from 'lucide-react';
 import {
   CrmOpportunity, CrmOpportunityItem, CrmCustomer, CrmAccount, CrmLead,
 } from '@/components/crm/types';
-import { OPPORTUNITY_PHASE_PROBABILITY, OpportunityPhase, OPPORTUNITY_PHASES, OPPORTUNITY_PHASE_LABELS } from '@/components/crm/constants';
+import { OPPORTUNITY_PHASE_PROBABILITY, OpportunityPhase, OPPORTUNITY_PHASES } from '@/components/crm/constants';
 import { itemsTotal } from '@/lib/crm/opportunityFilters';
 import { inputClass, formatEuro } from '../shared/TableUtils';
 import { useCloseOnEscape } from '@/hooks/useCloseOnEscape';
@@ -55,6 +56,7 @@ export function OpportunityFormModal({
   open, opportunity, customers, accounts, leads, owners,
   defaultCustomerId, defaultLeadId, saving, onClose, onSubmit,
 }: OpportunityFormModalProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !saving);
 
   const [values, setValues] = useState<OpportunityFormValues>(() => ({
@@ -86,7 +88,7 @@ export function OpportunityFormModal({
 
   const submit = () => {
     if (!values.title.trim()) {
-      setError('Serve un titolo');
+      setError(t.crm.errOppTitle);
       return;
     }
     if (!values.customerId && !values.leadId) {
@@ -108,7 +110,7 @@ export function OpportunityFormModal({
       <div className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[#1A1A1A] bg-[#0B0B0B]">
         <header className="flex items-center justify-between border-b border-[#1A1A1A] px-6 py-4">
           <h2 className="text-sm font-medium text-white">
-            {opportunity ? 'Modifica opportunità' : 'Nuova opportunità'}
+            {opportunity ? t.crm.editOpp : t.crm.createOpp}
           </h2>
           <button type="button" onClick={onClose} className="text-[#858585] hover:text-white">
             <X size={16} />
@@ -116,11 +118,11 @@ export function OpportunityFormModal({
         </header>
 
         <div className="grid grid-cols-1 gap-4 overflow-y-auto px-6 py-5 sm:grid-cols-2">
-          <Field label="Titolo" wide>
+          <Field label={t.crm.title} wide>
             <input value={values.title} onChange={e => set({ title: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Cliente" hint="Oppure scegli un lead, non entrambi">
+          <Field label={t.crm.customer} hint="Oppure scegli un lead, non entrambi">
             <select
               value={values.customerId}
               onChange={e => set({ customerId: e.target.value, leadId: e.target.value ? '' : values.leadId })}
@@ -133,7 +135,7 @@ export function OpportunityFormModal({
             </select>
           </Field>
 
-          <Field label="Lead">
+          <Field label={t.crm.lead}>
             <select
               value={values.leadId}
               onChange={e => set({ leadId: e.target.value, customerId: e.target.value ? '' : values.customerId })}
@@ -148,14 +150,14 @@ export function OpportunityFormModal({
             </select>
           </Field>
 
-          <Field label="Owner">
+          <Field label={t.crm.owner}>
             <select value={values.ownerUid} onChange={e => set({ ownerUid: e.target.value })} className={inputClass}>
-              <option value="">Non assegnata</option>
+              <option value="">{t.crm.unassigned}</option>
               {owners.map(owner => <option key={owner.uid} value={owner.uid}>{owner.name}</option>)}
             </select>
           </Field>
 
-          <Field label="Chiusura prevista">
+          <Field label={t.crm.expectedClose}>
             <input
               type="date"
               value={values.expectedCloseDate}
@@ -188,7 +190,7 @@ export function OpportunityFormModal({
                     <input
                       value={item.name}
                       onChange={e => setItem(index, { name: e.target.value })}
-                      placeholder="Descrizione"
+                      placeholder={t.crm.description}
                       className={`${inputClass} flex-1`}
                     />
                     <input
@@ -205,7 +207,7 @@ export function OpportunityFormModal({
                       step="0.01"
                       value={item.unitPrice}
                       onChange={e => setItem(index, { unitPrice: Number(e.target.value) })}
-                      title="Prezzo unitario"
+                      title={t.crm.unitPrice}
                       className={`${inputClass} w-24 text-right`}
                     />
                     <span className="w-24 text-right text-xs text-[#858585]">
@@ -215,7 +217,7 @@ export function OpportunityFormModal({
                       type="button"
                       onClick={() => set({ items: values.items.filter((_, i) => i !== index) })}
                       className="rounded p-1 text-[#3F3F3F] hover:text-[#EF4444]"
-                      title="Togli la voce"
+                      title={t.crm.removeItem}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -226,7 +228,7 @@ export function OpportunityFormModal({
           </div>
 
           <Field
-            label="Valore"
+            label={t.crm.value}
             hint={computed
               ? 'Calcolato dalle voci: per cambiarlo, cambia le voci'
               : 'Scritto a mano: aggiungendo delle voci diventa la loro somma'}
@@ -269,7 +271,7 @@ export function OpportunityFormModal({
             </div>
           </Field>
 
-          <Field label="Descrizione" wide>
+          <Field label={t.crm.description} wide>
             <textarea
               value={values.description}
               onChange={e => set({ description: e.target.value })}
@@ -278,7 +280,7 @@ export function OpportunityFormModal({
             />
           </Field>
 
-          <Field label="Note" wide>
+          <Field label={t.crm.notes} wide>
             <textarea
               value={values.notes}
               onChange={e => set({ notes: e.target.value })}
@@ -304,7 +306,7 @@ export function OpportunityFormModal({
               disabled={saving}
               className="rounded-lg bg-white px-4 py-2 text-xs font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              {saving ? 'Salvataggio…' : opportunity ? 'Salva' : 'Crea opportunità'}
+              {saving ? 'Salvataggio…' : opportunity ? t.crm.save : 'Crea opportunità'}
             </button>
           </div>
         </footer>

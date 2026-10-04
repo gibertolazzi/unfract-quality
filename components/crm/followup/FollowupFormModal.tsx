@@ -1,11 +1,13 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { CrmFollowup, CrmLead, CrmCustomer, CrmAccount, CrmOpportunity } from '@/components/crm/types';
 import {
-  FollowupType, FOLLOWUP_TYPES, FOLLOWUP_TYPE_LABELS,
-  Priority, PRIORITIES, PRIORITY_LABELS,
+  FollowupType, FOLLOWUP_TYPES,
+  Priority, PRIORITIES,
 } from '@/components/crm/constants';
 import { inputClass } from '../shared/TableUtils';
 import { useCloseOnEscape } from '@/hooks/useCloseOnEscape';
@@ -52,6 +54,7 @@ export function FollowupFormModal({
   open, followup, owners, leads, customers, accounts, opportunities,
   defaultAssigneeUid, saving, onClose, onSubmit,
 }: FollowupFormModalProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !saving);
 
   const [values, setValues] = useState<FollowupFormValues>(() => ({
@@ -96,7 +99,7 @@ export function FollowupFormModal({
         </header>
 
         <div className="grid grid-cols-1 gap-4 overflow-y-auto px-6 py-5 sm:grid-cols-2">
-          <Field label="Cosa fare" wide>
+          <Field label={t.crm.whatToDo} wide>
             <input
               value={values.title}
               onChange={e => set({ title: e.target.value })}
@@ -105,14 +108,14 @@ export function FollowupFormModal({
             />
           </Field>
 
-          <Field label="Tipo">
+          <Field label={t.crm.type}>
             <select
               value={values.type}
               onChange={e => set({ type: e.target.value as FollowupType })}
               className={inputClass}
             >
               {FOLLOWUP_TYPES.map(type => (
-                <option key={type} value={type}>{FOLLOWUP_TYPE_LABELS[type]}</option>
+                <option key={type} value={type}>{getFollowupTypeLabel(type, t)}</option>
               ))}
             </select>
           </Field>
@@ -124,12 +127,12 @@ export function FollowupFormModal({
               className={inputClass}
             >
               {PRIORITIES.map(priority => (
-                <option key={priority} value={priority}>{PRIORITY_LABELS[priority]}</option>
+                <option key={priority} value={priority}>{getPriorityLabel(priority, t)}</option>
               ))}
             </select>
           </Field>
 
-          <Field label="Scadenza" hint="Si può lasciare vuota: finisce in «senza data»">
+          <Field label={t.crm.dueDate} hint="Si può lasciare vuota: finisce in «senza data»">
             <input
               type="date"
               value={values.dueDate}
@@ -138,7 +141,7 @@ export function FollowupFormModal({
             />
           </Field>
 
-          <Field label="Assegnato a">
+          <Field label={t.crm.assignedTo}>
             <select
               value={values.assigneeUid}
               onChange={e => set({ assigneeUid: e.target.value })}
@@ -149,7 +152,7 @@ export function FollowupFormModal({
             </select>
           </Field>
 
-          <Field label="Lead collegato">
+          <Field label={t.crm.linkedLead}>
             <select
               value={values.leadId}
               onChange={e => set({ leadId: e.target.value, customerId: e.target.value ? '' : values.customerId })}
@@ -162,7 +165,7 @@ export function FollowupFormModal({
             </select>
           </Field>
 
-          <Field label="Cliente collegato">
+          <Field label={t.crm.linkedCustomer}>
             <select
               value={values.customerId}
               onChange={e => set({ customerId: e.target.value, leadId: e.target.value ? '' : values.leadId })}

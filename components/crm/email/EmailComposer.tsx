@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useMemo, useState } from 'react';
 import { X, Eye, Send, AlertTriangle, ShieldAlert, Check, MailX } from 'lucide-react';
 import {
@@ -48,6 +49,7 @@ export function EmailComposer({
   open, toName, toEmail, eligibility, context, optOutAddress, optOutReference,
   sending, onClose, onSend,
 }: EmailComposerProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !sending);
 
   const [template, setTemplate] = useState<EmailTemplate>(BUILTIN_TEMPLATES[0]);

@@ -20,7 +20,7 @@ interface ProjectContextType {
   activeProjectId: string | null;
   activeProject: Project | null;
   setActiveProjectId: (id: string) => void;
-  createProject: (name: string) => Promise<string | null>;
+  createProject: (name: string, organizationIds?: string[]) => Promise<string | null>;
   renameProject: (id: string, newName: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   loading: boolean;
@@ -41,7 +41,7 @@ export const useProject = () => useContext(ProjectContext);
 
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
-  const { activeWorkspaceId, loading: workspaceLoading } = useWorkspace();
+  const { activeWorkspaceId, workspaces, loading: workspaceLoading } = useWorkspace();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,32 +69,54 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // New logic: fetch all projects for the active workspace
-    const q = query(
-      collection(db, 'projects'),
-      where('workspaceId', '==', activeWorkspaceId)
-    );
+    // Fetch projects for ALL workspaces the user has access to
+    const workspaceIds = workspaces.map(w => w.id);
+    if (workspaceIds.length === 0) {
+      setProjects([]);
+      setActiveProjectIdState(null);
+      setLoading(false);
+      return;
+    }
 
-    const unsubscribe = onSnapshot(q, async (snapshot) => {
-      if (snapshot.empty) {
-        setProjects([]);
-        setActiveProjectIdState(null);
-      } else {
-        const loadedProjects: Project[] = [];
-        snapshot.forEach(doc => {
-          loadedProjects.push({ id: doc.id, ...doc.data() } as Project);
+    const unsubscribes: Array<() => void> = [];
+    let allProjectsMap = new Map<string, Project>();
+
+    // Chunk into arrays of 10 for 'in' queries
+    const chunks = [];
+    for (let i = 0; i < workspaceIds.length; i += 10) {
+      chunks.push(workspaceIds.slice(i, i + 10));
+    }
+
+    let loadedChunks = 0;
+
+    chunks.forEach(chunk => {
+      const q = query(
+        collection(db, 'projects'),
+        where('workspaceId', 'in', chunk)
+      );
+
+      const unsub = onSnapshot(q, (snapshot) => {
+        snapshot.docs.forEach(doc => {
+          allProjectsMap.set(doc.id, { id: doc.id, ...doc.data() } as Project);
         });
         
-        // Sort client-side by createdAt asc
+        // Remove projects that were deleted in this chunk
+        snapshot.docChanges().forEach(change => {
+          if (change.type === 'removed') {
+            allProjectsMap.delete(change.doc.id);
+          }
+        });
+
+        const loadedProjects = Array.from(allProjectsMap.values());
+        
         loadedProjects.sort((a, b) => {
           const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
           const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
           return timeA - timeB;
         });
 
-        setProjects(loadedProjects);
-
-        // Validate activeProjectId
+        setProjects([...loadedProjects]);
+        
         setActiveProjectIdState((currentActiveId) => {
           const isValid = loadedProjects.find(p => p.id === currentActiveId);
           if (!isValid && loadedProjects.length > 0) {
@@ -105,31 +127,49 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
           return currentActiveId;
         });
 
-        // Migrate orphan data to first project (runs once, tracked via localStorage)
-        const firstProject = loadedProjects[0];
-        if (firstProject) {
-          import('@/lib/migration').then(({ migrateOrphanData }) => {
-            migrateOrphanData(firstProject.id);
-          });
+        loadedChunks++;
+        if (loadedChunks >= chunks.length) {
+          setLoading(false);
+          // Migrate orphan data to first project (runs once, tracked via localStorage)
+          const firstProject = loadedProjects[0];
+          if (firstProject) {
+            import('@/lib/migration').then(({ migrateOrphanData }) => {
+              migrateOrphanData(firstProject.id);
+            });
+          }
         }
-      }
-      setLoading(false);
+      });
+      unsubscribes.push(unsub);
     });
 
-    return () => unsubscribe();
-  }, [user, authLoading, workspaceLoading, activeWorkspaceId]);
+    return () => {
+      unsubscribes.forEach(unsub => unsub());
+    };
+  }, [user, authLoading, workspaceLoading, activeWorkspaceId, workspaces]);
 
-  const createProject = async (name: string) => {
+  const createProject = async (name: string, organizationIds?: string[]) => {
     if (!user || !activeWorkspaceId) return null;
     try {
       const { setDoc } = await import('firebase/firestore');
-      const docRef = await addDoc(collection(db, 'projects'), {
+      const projectData: any = {
         name,
         userId: user.uid,
         creatorId: user.uid,
         workspaceId: activeWorkspaceId,
         createdAt: serverTimestamp()
-      });
+      };
+      if (organizationIds && organizationIds.length > 0) {
+        projectData.organizationIds = organizationIds;
+      }
+      const docRef = await addDoc(collection(db, 'projects'), projectData);
+      
+      // Default Kanban Columns
+      Promise.all([
+        addDoc(collection(db, 'columns'), { projectId: docRef.id, title: 'To Do', order: 0, createdAt: serverTimestamp() }),
+        addDoc(collection(db, 'columns'), { projectId: docRef.id, title: 'Doing', order: 1, createdAt: serverTimestamp() }),
+        addDoc(collection(db, 'columns'), { projectId: docRef.id, title: 'Done', order: 2, createdAt: serverTimestamp() })
+      ]).catch(err => console.error('Error creating default columns:', err));
+
       const grantRef = doc(collection(db, 'access_grants'));
       await setDoc(grantRef, {
         workspaceId: activeWorkspaceId,

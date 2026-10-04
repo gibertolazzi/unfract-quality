@@ -130,6 +130,20 @@ export async function createDocument(projectId: string, managerName: string = 'U
     };
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), docData);
+
+    const { auth } = require('@/lib/firebase');
+    const { createNotification } = require('./services/notificationService');
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      createNotification({
+        userId: currentUser.uid,
+        title: 'Nuovo documento',
+        description: `${managerName} ha creato "${docData.title}"`,
+        type: 'documentation',
+        link: `/documentation/${docRef.id}`
+      });
+    }
+
     return docRef.id;
   } catch (error) {
     console.error("Error creating document:", error);

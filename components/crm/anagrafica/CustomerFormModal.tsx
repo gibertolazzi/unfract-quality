@@ -1,7 +1,9 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { CrmCustomer, CrmAccount, CrmContact } from '@/components/crm/types';
 import { CUSTOMER_STATUS_LABELS } from '@/lib/crm/anagraficaFilters';
 import { inputClass } from '../shared/TableUtils';
@@ -32,6 +34,7 @@ interface CustomerFormModalProps {
 export function CustomerFormModal({
   open, customer, accounts, contacts, defaultAccountId, saving, onClose, onSubmit,
 }: CustomerFormModalProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !saving);
 
   const [values, setValues] = useState<CustomerFormValues>(() => ({
@@ -79,7 +82,7 @@ export function CustomerFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[#1A1A1A] bg-[#0B0B0B]">
         <header className="flex items-center justify-between border-b border-[#1A1A1A] px-6 py-4">
-          <h2 className="text-sm font-medium text-white">{customer ? 'Modifica cliente' : 'Nuovo cliente'}</h2>
+          <h2 className="text-sm font-medium text-white">{customer ? t.crm.editCustomer : t.crm.createCustomer}</h2>
           <button type="button" onClick={onClose} className="text-[#858585] hover:text-white">
             <X size={16} />
           </button>
@@ -87,7 +90,7 @@ export function CustomerFormModal({
 
         <div className="flex flex-col gap-4 overflow-y-auto px-6 py-5">
           <label className="flex flex-col gap-1.5">
-            <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">Azienda</span>
+            <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">{t.crm.company}</span>
             <select
               value={values.accountId}
               onChange={e => set({ accountId: e.target.value, contactIds: [] })}
@@ -106,14 +109,14 @@ export function CustomerFormModal({
           </label>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">Stato</span>
+            <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">{t.crm.status}</span>
             <select
               value={values.status}
               onChange={e => set({ status: e.target.value as CrmCustomer['status'] })}
               className={inputClass}
             >
               {(Object.keys(CUSTOMER_STATUS_LABELS) as CrmCustomer['status'][]).map(status => (
-                <option key={status} value={status}>{CUSTOMER_STATUS_LABELS[status]}</option>
+                <option key={status} value={status}>{getCustomerStatusLabel(status, t)}</option>
               ))}
             </select>
           </label>
@@ -182,7 +185,7 @@ export function CustomerFormModal({
           </div>
 
           <label className="flex flex-col gap-1.5">
-            <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">Note</span>
+            <span className="text-[10px] uppercase tracking-wide text-[#5A5A5A]">{t.crm.notes}</span>
             <textarea
               value={values.notes}
               onChange={e => set({ notes: e.target.value })}
@@ -218,7 +221,7 @@ export function CustomerFormModal({
             disabled={saving}
             className="rounded-lg bg-white px-4 py-2 text-xs font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? 'Salvataggio…' : customer ? 'Salva' : 'Crea cliente'}
+            {saving ? 'Salvataggio…' : customer ? t.crm.save : t.crm.createCustomer}
           </button>
         </footer>
       </div>

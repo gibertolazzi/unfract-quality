@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { CrmAccount } from '@/components/crm/types';
 import { inputClass } from '../shared/TableUtils';
 import { useCloseOnEscape } from '@/hooks/useCloseOnEscape';
@@ -51,6 +52,7 @@ function Field({ label, children, hint, wide }: {
 export function AccountFormModal({
   open, account, industries, saving, onClose, onSubmit,
 }: AccountFormModalProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !saving);
 
   const [values, setValues] = useState<AccountFormValues>(() => ({
@@ -77,7 +79,7 @@ export function AccountFormModal({
 
   const submit = () => {
     if (!values.legalName.trim() && !values.displayName.trim()) {
-      setError('Serve almeno la ragione sociale o il nome breve');
+      setError(t.crm.errAccountName);
       return;
     }
     setError('');
@@ -92,35 +94,35 @@ export function AccountFormModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
       <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-[#1A1A1A] bg-[#0B0B0B]">
         <header className="flex items-center justify-between border-b border-[#1A1A1A] px-6 py-4">
-          <h2 className="text-sm font-medium text-white">{account ? 'Modifica azienda' : 'Nuova azienda'}</h2>
+          <h2 className="text-sm font-medium text-white">{account ? t.crm.editAccount : t.crm.createAccount}</h2>
           <button type="button" onClick={onClose} className="text-[#858585] hover:text-white">
             <X size={16} />
           </button>
         </header>
 
         <div className="grid grid-cols-1 gap-4 overflow-y-auto px-6 py-5 sm:grid-cols-2">
-          <Field label="Ragione sociale">
+          <Field label={t.crm.legalName}>
             <input value={values.legalName} onChange={e => set({ legalName: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="Nome breve" hint="Come compare negli elenchi">
+          <Field label={t.crm.displayName} hint={t.crm.displayNameHint}>
             <input value={values.displayName} onChange={e => set({ displayName: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Sito web" hint="Da qui si ricava il dominio, chiave per i duplicati">
+          <Field label={t.crm.website} hint="Da qui si ricava il dominio, chiave per i duplicati">
             <input value={values.website} onChange={e => set({ website: e.target.value })} placeholder="esempio.it" className={inputClass} />
           </Field>
-          <Field label="LinkedIn">
+          <Field label={t.crm.linkedin}>
             <input value={values.linkedinUrl} onChange={e => set({ linkedinUrl: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Partita IVA">
+          <Field label={t.crm.vatNumber}>
             <input value={values.vatNumber} onChange={e => set({ vatNumber: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="Codice fiscale">
+          <Field label={t.crm.taxId}>
             <input value={values.taxCode} onChange={e => set({ taxCode: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Settore">
+          <Field label={t.crm.industry}>
             <input
               value={values.industry}
               onChange={e => set({ industry: e.target.value })}
@@ -131,32 +133,32 @@ export function AccountFormModal({
               {industries.map(industry => <option key={industry} value={industry} />)}
             </datalist>
           </Field>
-          <Field label="Dipendenti">
+          <Field label={t.crm.employees}>
             <select value={values.sizeRange} onChange={e => set({ sizeRange: e.target.value })} className={inputClass}>
               <option value="">Non indicato</option>
               {SIZE_RANGES.map(range => <option key={range} value={range}>{range}</option>)}
             </select>
           </Field>
 
-          <Field label="Indirizzo" wide>
+          <Field label={t.crm.address} wide>
             <input value={values.address} onChange={e => set({ address: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Città">
+          <Field label={t.crm.city}>
             <input value={values.city} onChange={e => set({ city: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="CAP">
+          <Field label={t.crm.zipCode}>
             <input value={values.postalCode} onChange={e => set({ postalCode: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Provincia">
+          <Field label={t.crm.province}>
             <input value={values.region} onChange={e => set({ region: e.target.value })} className={inputClass} />
           </Field>
-          <Field label="Paese">
+          <Field label={t.crm.country}>
             <input value={values.country} onChange={e => set({ country: e.target.value })} className={inputClass} />
           </Field>
 
-          <Field label="Note" wide>
+          <Field label={t.crm.notes} wide>
             <textarea
               value={values.notes}
               onChange={e => set({ notes: e.target.value })}
@@ -178,7 +180,7 @@ export function AccountFormModal({
             disabled={saving}
             className="rounded-lg bg-white px-4 py-2 text-xs font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? 'Salvataggio…' : account ? 'Salva' : 'Crea azienda'}
+            {saving ? 'Salvataggio…' : account ? t.crm.save : t.crm.createAccount}
           </button>
         </footer>
       </div>

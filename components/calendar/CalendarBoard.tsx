@@ -1,8 +1,11 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { DragDropContext, DropResult } from '@hello-pangea/dnd';
+import { useSearchParams } from 'next/navigation';
 import { RefreshCw, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, addYears, subYears, format, setHours } from 'date-fns';
+import { it } from 'date-fns/locale';
 import { CalendarEvent, CalendarViewType } from './types';
 import { MonthView } from './MonthView';
 import { WeekView } from './WeekView';
@@ -11,6 +14,7 @@ import { YearView } from './YearView';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { EventModal } from '@/components/calendar/EventModal';
 import { fetchCalendarEvents, createCalendarEvent } from '@/lib/googleCalendar';
 import { subscribeToEvents, saveEventToFirestore, deleteEventFromFirestore } from '@/lib/calendar';
@@ -40,6 +44,9 @@ const initialEvents: CalendarEvent[] = [
 ];
 
 export function CalendarBoard() {
+  const searchParams = useSearchParams();
+  const eventId = searchParams?.get('eventId');
+  
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [view, setView] = useState<CalendarViewType>('month');
   const [firestoreEvents, setFirestoreEvents] = useState<CalendarEvent[]>([]);
@@ -63,6 +70,7 @@ export function CalendarBoard() {
   }, [firestoreEvents, googleEvents]);
   
   const { accessToken, user } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -83,6 +91,53 @@ export function CalendarBoard() {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selectedDateForNew, setSelectedDateForNew] = useState<Date | undefined>(undefined);
 
+  useEffect(() => {
+    if (eventId && events.length > 0) {
+      const targetEvent = events.find(e => e.id === eventId);
+      if (targetEvent) {
+        setCurrentDate(targetEvent.date);
+        
+        // Let the calendar re-render with the correct date first
+        setTimeout(() => {
+          const el = document.getElementById(`event-${eventId}`);
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.style.boxShadow = '0 0 0 2px #006AFF, 0 0 20px rgba(0, 106, 255, 0.4)';
+            setTimeout(() => {
+              el.style.boxShadow = 'none';
+            }, 2500);
+            
+            // Remove from URL
+            window.history.replaceState(null, '', '/calendar');
+          }
+        }, 100);
+      }
+    }
+  }, [eventId, events]);
+
+
+  const onDragEnd = async (result: DropResult) => {
+    const { destination, draggableId } = result;
+    if (!destination || !user) return;
+    
+    const event = firestoreEvents.find(e => e.id === draggableId);
+    if (!event) return;
+    
+    try {
+      const dropId = destination.droppableId; // e.g. "month_2026-10-01T..."
+      const parts = dropId.split('_');
+      if (parts.length >= 2) {
+        const newDate = new Date(parts[1]);
+        if (!isNaN(newDate.getTime())) {
+          const updatedEvent = { ...event, date: newDate };
+          await saveEventToFirestore(user.uid, updatedEvent);
+        }
+      }
+    } catch (e) {
+      console.error("Error dragging event", e);
+    }
+  };
+
   const handlePrevious = () => {
     switch(view) {
       case 'day': setCurrentDate(subDays(currentDate, 1)); break;
@@ -102,10 +157,11 @@ export function CalendarBoard() {
   };
 
   const getHeaderTitle = () => {
-    if (view === 'year') return format(currentDate, 'yyyy');
-    if (view === 'day') return format(currentDate, 'MMMM yyyy');
-    if (view === 'week') return format(currentDate, 'MMMM yyyy');
-    return format(currentDate, 'MMMM yyyy');
+    const locale = t.settings.language === 'it' ? it : undefined;
+    if (view === 'year') return format(currentDate, 'yyyy', { locale });
+    if (view === 'day') return format(currentDate, 'MMMM yyyy', { locale });
+    if (view === 'week') return format(currentDate, 'MMMM yyyy', { locale });
+    return format(currentDate, 'MMMM yyyy', { locale });
   };
 
   const loadGoogleEvents = async () => {
@@ -130,7 +186,7 @@ export function CalendarBoard() {
       
       return {
         id: e.id,
-        title: e.summary || 'Senza titolo',
+        title: e.summary || t.calendar.untitled,
         date: start,
         startTime: format(start, 'HH:mm'),
         endTime: format(end, 'HH:mm'),
@@ -224,7 +280,7 @@ export function CalendarBoard() {
 
     } catch (error) {
       console.error("Failed to create event:", error);
-      toast.error("Errore durante la creazione dell'evento.");
+      toast.error(t.calendar.createEventError);
     }
   };
 
@@ -237,6 +293,7 @@ export function CalendarBoard() {
   };
 
   return (
+  <DragDropContext onDragEnd={onDragEnd}>
     <div className="flex flex-col gap-8 font-sans min-h-full">
       {/* Header */}
       <div className="flex items-center justify-between px-2">
@@ -245,7 +302,7 @@ export function CalendarBoard() {
             onClick={() => setCurrentDate(new Date())}
             className="px-5 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors"
           >
-            Oggi
+            {t.calendar.today}
           </button>
           <div className="flex items-center gap-1">
             <button onClick={handlePrevious} className="p-2 rounded-full hover:bg-white/5 text-[#858585] hover:text-white transition-colors">
@@ -265,11 +322,11 @@ export function CalendarBoard() {
               onClick={() => {
                 const url = `${window.location.origin}/book/${auth.currentUser?.uid}`;
                 navigator.clipboard.writeText(url);
-                toast.success('Link di prenotazione copiato negli appunti');
+                toast.success(t.calendar.copyBookingLinkSuccess);
               }}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors whitespace-nowrap"
             >
-              Copia Link Prenotazione
+              {t.calendar.copyBookingLink}
             </button>
           )}
 
@@ -279,7 +336,7 @@ export function CalendarBoard() {
             className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors disabled:opacity-50"
           >
             <RefreshCw size={14} className={`text-[#006AFF] ${isSyncing ? 'animate-spin' : ''}`} />
-            Sincronizza
+            {t.calendar.sync}
           </button>
           
           <div className="relative">
@@ -287,7 +344,7 @@ export function CalendarBoard() {
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
               className="flex items-center gap-2 px-4 py-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors"
             >
-              {view === 'day' ? 'Giorno' : view === 'week' ? 'Settimana' : view === 'month' ? 'Mese' : 'Anno'}
+              {view === 'day' ? t.calendar.day : view === 'week' ? t.calendar.week : view === 'month' ? t.calendar.month : t.calendar.year}
               <ChevronDown size={16} className="text-[#858585]" />
             </button>
             
@@ -305,7 +362,7 @@ export function CalendarBoard() {
                     }}
                     className="w-full text-left px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 capitalize transition-colors"
                   >
-                    {v}
+                    {v === 'giorno' ? t.calendar.dayLower : v === 'settimana' ? t.calendar.weekLower : v === 'mese' ? t.calendar.monthLower : t.calendar.yearLower}
                   </button>
                 ))}
               </div>
@@ -357,5 +414,6 @@ export function CalendarBoard() {
         selectedDate={selectedDateForNew}
       />
     </div>
+  </DragDropContext>
   );
 }

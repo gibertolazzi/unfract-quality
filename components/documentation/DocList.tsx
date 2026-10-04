@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { Plus, ChevronDown, Loader2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Document } from './types';
 import { DocCard } from './DocCard';
@@ -17,9 +17,34 @@ interface DocListProps {
 export function DocList({ documents }: DocListProps) {
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({});
   const toast = useToast();
   const { activeProjectId } = useProject();
   const { user } = useAuth();
+
+  const getAllDescendantIds = (parentId: string): string[] => {
+    let ids: string[] = [];
+    const children = documents.filter(d => d.parentId === parentId);
+    children.forEach(c => {
+      ids.push(c.id);
+      ids = ids.concat(getAllDescendantIds(c.id));
+    });
+    return ids;
+  };
+
+  const toggleNodeDeep = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setExpandedNodes(prev => {
+      const isCurrentlyExpanded = !!prev[id];
+      const newState = !isCurrentlyExpanded;
+      const updates: Record<string, boolean> = { [id]: newState };
+      
+      const descendants = getAllDescendantIds(id);
+      descendants.forEach(dId => updates[dId] = newState);
+      
+      return { ...prev, ...updates };
+    });
+  };
 
   const handleCreateNew = async () => {
     if (!activeProjectId || !user) {
@@ -27,7 +52,6 @@ export function DocList({ documents }: DocListProps) {
       return;
     }
     setIsCreating(true);
-    // Dynamic import to avoid SSR issues if any, or just import at top.
     const { createDocument } = await import('@/lib/documentation');
     try {
       const newId = await createDocument(activeProjectId, user.displayName || "Utente Sconosciuto");
@@ -42,6 +66,38 @@ export function DocList({ documents }: DocListProps) {
       setIsCreating(false);
       toast.error('Errore durante la creazione del documento.');
     }
+  };
+
+  const renderTree = (parentId: string | null = null, level: number = 0) => {
+    const children = documents.filter(d => (d.parentId || null) === parentId);
+    if (children.length === 0) return null;
+
+    return (
+      <div className="flex flex-col gap-4 w-full">
+        {children.map(doc => {
+          const hasChildren = documents.some(d => d.parentId === doc.id);
+          const isExpanded = expandedNodes[doc.id];
+          return (
+            <div key={doc.id} className="flex flex-col gap-2 w-full">
+              <div className="w-full" style={{ paddingLeft: `${level * 2}rem` }}>
+                <div className="relative w-full group">
+                   <DocCard doc={doc} />
+                   {hasChildren && (
+                     <button 
+                       onClick={(e) => toggleNodeDeep(doc.id, e)} 
+                       className="absolute right-6 top-1/2 -translate-y-1/2 p-2 text-white/50 hover:text-white bg-[#1A1A1A] hover:bg-[#2A2A2A] rounded-full border border-white/10 transition-colors z-10 opacity-0 group-hover:opacity-100 sm:opacity-100"
+                     >
+                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                     </button>
+                   )}
+                </div>
+              </div>
+              {isExpanded && renderTree(doc.id, level + 1)}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   return (
@@ -70,9 +126,7 @@ export function DocList({ documents }: DocListProps) {
             Nessun documento trovato. Creane uno nuovo!
           </div>
         ) : (
-          documents.map(doc => (
-            <DocCard key={doc.id} doc={doc} />
-          ))
+          renderTree(null, 0)
         )}
       </div>
     </div>

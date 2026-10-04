@@ -1,3 +1,4 @@
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -23,6 +24,7 @@ export interface CrmSummaryPageProps {
 export function CrmSummaryPage({
   leads, accounts, contacts, customers, opportunities, documents, owners, loading,
 }: CrmSummaryPageProps) {
+  const { t } = useTranslation();
   const { ctx } = useCrm();
   const toast = useToast();
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
@@ -38,14 +40,14 @@ export function CrmSummaryPage({
     async (file: File, onProgress: (percent: number) => void) => {
       const outcome = await uploadDocumentVersion(ctx!, document, file, onProgress);
       if (outcome.error) toast.error(`${outcome.fileName}: ${outcome.error}`);
-      else toast.success('Nuova versione caricata');
+      else toast.success(t.crm.newVersionUploaded);
       return outcome;
     };
 
   const handleDownloadDocument = (document: CrmDocument, version?: any) => {
     const url = version?.downloadUrl || document.downloadUrl;
     if (!url) {
-      toast.error('Questo documento non ha un file collegato');
+      toast.error(t.crm.noFileLinked);
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -69,14 +71,14 @@ export function CrmSummaryPage({
             contacts={contacts}
             customers={customers}
             opportunities={opportunities}
-            ownerName={uid => owners.find(o => o.uid === uid)?.name || (uid ? 'Altro utente' : '—')}
+            ownerName={uid => owners.find(o => o.uid === uid)?.name || (uid ? t.crm.otherUser : '—')}
             loading={loading}
             onUpload={documentUploader({ accountId: selectedFolderId })}
             onUploadVersion={versionUploader}
             onUpdate={(document, updates) => updateDocument(ctx!, document.id, updates)}
             onDownload={handleDownloadDocument}
-            onArchive={document => { archiveDocument(ctx!, document.id); toast.info('Documento archiviato'); }}
-            onRestore={document => { restoreDocument(ctx!, document.id); toast.info('Documento ripristinato'); }}
+            onArchive={document => { archiveDocument(ctx!, document.id); toast.info(t.crm.documentArchived); }}
+            onRestore={document => { restoreDocument(ctx!, document.id); toast.info(t.crm.documentRestored); }}
           />
         </div>
       ) : (

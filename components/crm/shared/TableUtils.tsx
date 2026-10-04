@@ -9,17 +9,19 @@ import { Page, PAGE_SIZES } from '@/lib/crm/leadFilters';
  * clienti devono comportarsi allo stesso modo, non somigliarsi per caso.
  */
 
-export const formatEuro = (n: number) =>
-  new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
+import { useTranslation } from '@/contexts/TranslationContext';
+
+export const formatEuro = (n: number, lang: string = 'it') =>
+  new Intl.NumberFormat(lang === 'it' ? 'it-IT' : 'en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
 /** Accetta sia stringhe ISO sia Timestamp Firestore. */
-export function formatDate(value: any): string {
+export function formatDate(value: any, lang: string = 'it'): string {
   if (!value) return '—';
   const date = typeof value === 'string'
     ? new Date(value)
     : (value?.toMillis ? new Date(value.toMillis()) : null);
   if (!date || Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' });
+  return date.toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
 export interface SortState<F extends string> {
@@ -81,9 +83,10 @@ export function Pagination<T>({ page, onPageChange, onPageSizeChange }: {
   onPageChange: (page: number) => void;
   onPageSizeChange: (size: number) => void;
 }) {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <span className="text-xs text-[#5A5A5A]">Pagina {page.page} di {page.totalPages}</span>
+      <span className="text-xs text-[#5A5A5A]">{t.crm.page.replace('{page}', String(page.page)).replace('{totalPages}', String(page.totalPages))}</span>
 
       <div className="flex items-center gap-1">
         <button
@@ -105,7 +108,7 @@ export function Pagination<T>({ page, onPageChange, onPageSizeChange }: {
       </div>
 
       <label className="ml-auto flex items-center gap-2 text-xs text-[#5A5A5A]">
-        Per pagina
+        {t.crm.perPage}
         <select
           value={page.pageSize}
           onChange={e => onPageSizeChange(Number(e.target.value))}

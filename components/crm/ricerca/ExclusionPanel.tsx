@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { Ban, RotateCcw, Plus } from 'lucide-react';
 import { CrmProspectExclusion } from './types';
@@ -35,6 +36,7 @@ interface ExclusionPanelProps {
 }
 
 export function ExclusionPanel({ exclusions, onAdd, onLift, ownerName, canManage, busy }: ExclusionPanelProps) {
+  const { t } = useTranslation();
   const [kind, setKind] = useState<ExclusionKind>('vat');
   const [value, setValue] = useState('');
   const [reason, setReason] = useState('');

@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Building2, UserPlus, FileSearch, ArrowRight } from 'lucide-react';
 import { SearchCandidate } from './types';
 
@@ -30,6 +31,7 @@ interface CandidateListProps {
 }
 
 export function CandidateList({ candidates, onChoose, limitNote, busy }: CandidateListProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-2">
       {candidates.map(candidato => {

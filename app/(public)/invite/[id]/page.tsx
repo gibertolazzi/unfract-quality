@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, arrayUnion, collection, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -57,6 +57,18 @@ export default function InvitePage() {
         await updateDoc(orgRef, {
           members: arrayUnion(newMember),
           memberCount: (orgData.memberCount || 0) + 1
+        });
+
+        // Ensure they also get the workspace access grant
+        const grantRef = doc(collection(db, 'access_grants'));
+        await setDoc(grantRef, {
+          workspaceId: orgId,
+          subjectType: 'user',
+          subjectId: user.uid,
+          resourceType: 'workspace',
+          resourceId: orgId,
+          role: 'member',
+          createdAt: serverTimestamp(),
         });
         
         router.push(`/organization/${orgId}`);

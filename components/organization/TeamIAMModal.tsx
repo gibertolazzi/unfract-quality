@@ -7,6 +7,7 @@ import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, serverTim
 import { WorkspaceGroup, AccessGrant } from '@/types/workspace';
 import { OrgMember } from '@/types/organization';
 import { useToast } from '@/contexts/ToastContext';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 interface TeamIAMModalProps {
   team: WorkspaceGroup;
@@ -122,13 +123,12 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
                   return (
                     <div key={grant.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
                       <div className="flex items-center gap-3 truncate">
-                        {userObj?.photoURL ? (
-                          <img src={userObj.photoURL} alt="" className="w-8 h-8 rounded-full" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-[#111] flex items-center justify-center text-xs font-medium text-[#858585]">
-                            {userObj?.email?.charAt(0).toUpperCase() || '?'}
-                          </div>
-                        )}
+                        <UserAvatar
+                          src={userObj?.photoURL}
+                          name={userObj?.email}
+                          className="w-8 h-8 rounded-full bg-[#111] flex items-center justify-center text-xs font-medium text-[#858585] overflow-hidden shrink-0"
+                          imageClassName="w-full h-full rounded-full object-cover"
+                        />
                         <div className="flex flex-col truncate">
                           <span className="text-sm text-white font-medium truncate">{userObj?.email || grant.subjectId}</span>
                           <span className="text-xs text-[#858585]">Membro</span>
@@ -174,13 +174,12 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
                     className="flex items-center justify-between p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors group"
                   >
                     <div className="flex items-center gap-2 truncate">
-                      {member.photoURL ? (
-                        <img src={member.photoURL} alt="" className="w-6 h-6 rounded-full shrink-0" />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-[#222] flex items-center justify-center text-[10px] font-medium text-[#858585] shrink-0">
-                          {member.email.charAt(0).toUpperCase()}
-                        </div>
-                      )}
+                      <UserAvatar
+                        src={member.photoURL}
+                        name={member.email}
+                        className="w-6 h-6 rounded-full bg-[#222] flex items-center justify-center text-[10px] font-medium text-[#858585] shrink-0 overflow-hidden"
+                        imageClassName="w-full h-full rounded-full object-cover"
+                      />
                       <span className="text-xs text-white/80 truncate group-hover:text-white transition-colors">{member.email}</span>
                     </div>
                     <PlusCircle size={14} className="text-[#006AFF] opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />

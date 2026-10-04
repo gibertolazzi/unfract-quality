@@ -1,6 +1,8 @@
+import { useTranslation } from '@/contexts/TranslationContext';
 import React from 'react';
 
 export function Formattato({ testo }: { testo: string }) {
+  const { t } = useTranslation();
   if (!testo) return null;
   const parts = testo.split(/(\*\*.*?\*\*)/g);
   return (

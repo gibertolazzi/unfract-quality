@@ -31,6 +31,18 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const [activeWorkspaceIdState, setActiveWorkspaceIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Listen to active workspace changes in real-time to update quotas
+  useEffect(() => {
+    if (!activeWorkspaceIdState) return;
+    const unsub = onSnapshot(doc(db, 'workspaces', activeWorkspaceIdState), (snap) => {
+      if (snap.exists()) {
+        const updatedData = { id: snap.id, ...snap.data() } as Workspace;
+        setWorkspaces(prev => prev.map(w => w.id === updatedData.id ? updatedData : w));
+      }
+    });
+    return () => unsub();
+  }, [activeWorkspaceIdState]);
+
   // Load active workspace from localStorage on mount
   useEffect(() => {
     const saved = localStorage.getItem('unfract_active_workspace');

@@ -13,8 +13,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
+import { UserAvatar } from '@/components/shared/UserAvatar';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200] bg-[#FF2200]/10',
@@ -27,6 +29,7 @@ const availablePriorities = ['Critical', 'High', 'Medium', 'Low'];
 
 export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: { task: any; onClose: () => void; columns: any[]; epics?: any[]; onSaveLocal?: (taskData: any) => void }) {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const toast = useToast();
   const dialog = useDialog();
   const { activeProjectId } = useProject();
@@ -47,6 +50,8 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [newComment, setNewComment] = useState('');
   const [comments, setComments] = useState<any[]>([]);
+  const [descriptionMentions, setDescriptionMentions] = useState<any[]>([]);
+  const [commentMentions, setCommentMentions] = useState<any[]>([]);
   const [descCursorPos, setDescCursorPos] = useState(0);
   const [commentCursorPos, setCommentCursorPos] = useState(0);
   
@@ -58,6 +63,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     if (task) {
       setTitle(task.title || '');
       setDescription(task.description || '');
+      setDescriptionMentions(task.mentions || []);
       setPriority(task.priority || 'Medium');
       setCategory(task.category || 'General');
       setColumnId(task.columnId || (columns[0]?.id || ''));
@@ -136,10 +142,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
   const handleRemoveAttachment = async (attachment: any) => {
     const isConfirmed = await dialog.confirm({
-      title: "Elimina Allegato",
-      message: "Sei sicuro di voler eliminare questo allegato?",
+      title: t.tasks.deleteAttachment,
+      message: t.tasks.deleteAttachmentConfirm,
       isDestructive: true,
-      confirmText: "Elimina"
+      confirmText: t.tasks.delete
     });
     if (!isConfirmed) return;
     
@@ -182,18 +188,24 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const taskData = {
+      const taskData: any = {
         title,
         description,
         priority,
         category,
-        columnId,
-        epicId,
-        date: date ? format(date, 'yyyy-MM-dd') : undefined,
+        columnId: columnId || null,
+        epicId: epicId || null,
+        date: date ? format(date, 'yyyy-MM-dd') : null,
         updatedAt: serverTimestamp(),
-        projectId: activeProjectId || undefined,
         attachments,
+        mentions: descriptionMentions,
       };
+      if (task.requesterUid || (isNew && user?.uid)) taskData.requesterUid = task.requesterUid || user?.uid;
+      if (task.assigneeUid || (isNew && user?.uid)) taskData.assigneeUid = task.assigneeUid || user?.uid;
+      if (task.createdBy || (isNew && user?.uid)) taskData.createdBy = task.createdBy || user?.uid;
+      if (activeProjectId) {
+        taskData.projectId = activeProjectId;
+      }
 
       if (onSaveLocal) {
         onSaveLocal(taskData);
@@ -205,11 +217,11 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         }
       }
       setSessionUploadedPaths([]);
-      toast.success("Task aggiornato!");
+      toast.success(t.tasks.taskUpdated);
       onClose();
     } catch (error) {
       console.error("Error saving task:", error);
-      toast.error("Si è verificato un errore durante il salvataggio.");
+      toast.error(t.tasks.saveError);
     }
     setIsSaving(false);
   };
@@ -217,10 +229,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const handleDelete = async () => {
     if (isNew) return;
     const isConfirmed = await dialog.confirm({
-      title: "Elimina Task",
-      message: "Sei sicuro di voler eliminare definitivamente questo task?",
+      title: t.tasks.deleteTask,
+      message: t.tasks.deleteTaskConfirm,
       isDestructive: true,
-      confirmText: "Elimina"
+      confirmText: t.tasks.delete
     });
     if (isConfirmed) {
       try {
@@ -238,8 +250,9 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     const commentData = {
       id: Date.now().toString(),
       text: newComment,
-      author: user?.displayName || 'Utente',
+      author: user?.displayName || t.tasks.user,
       authorUid: user?.uid,
+      mentions: commentMentions,
       createdAt: new Date().toISOString()
     };
     
@@ -247,6 +260,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       await TaskService.addComment(task.id, commentData);
       setComments([...comments, commentData]);
       setNewComment('');
+      setCommentMentions([]);
     } catch(err) {
       console.error("Error adding comment", err);
     }
@@ -254,10 +268,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
   const handleDeleteComment = async (commentId: string) => {
     const isConfirmed = await dialog.confirm({
-      title: "Elimina Commento",
-      message: "Sei sicuro di voler eliminare questo commento?",
+      title: t.tasks.deleteComment,
+      message: t.tasks.deleteCommentConfirm,
       isDestructive: true,
-      confirmText: "Elimina"
+      confirmText: t.tasks.delete
     });
     if (!isConfirmed) return;
     
@@ -319,7 +333,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
             <input 
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="Reparto"
+              placeholder={t.tasks.department}
               className="px-4 py-1.5 rounded-full bg-white/10 text-white/80 text-xs font-sans outline-none focus:border-white/20 border border-transparent max-w-[120px]"
             />
 
@@ -329,7 +343,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                 onChange={(e) => setColumnId(e.target.value)}
                 className="appearance-none pr-8 pl-4 py-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 text-blue-400 text-xs font-medium cursor-pointer outline-none"
               >
-                <option value="" disabled className="bg-black text-[#858585]">Seleziona colonna</option>
+                <option value="" disabled className="bg-black text-[#858585]">{t.tasks.selectColumn}</option>
                 {columns.map(col => (
                   <option key={col.id} value={col.id} className="bg-black text-white">{col.title}</option>
                 ))}
@@ -344,7 +358,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                 onChange={(e) => setEpicId(e.target.value)}
                 className="appearance-none pr-8 pl-4 py-1.5 rounded-full border border-purple-500/50 bg-purple-500/10 text-purple-400 text-xs font-medium cursor-pointer outline-none"
               >
-                <option value="" className="bg-black text-[#858585]">Nessun Epic</option>
+                <option value="" className="bg-black text-[#858585]">{t.tasks.noEpic}</option>
                 {epics.map(epic => (
                   <option key={epic.id} value={epic.id} className="bg-black text-white">{epic.title}</option>
                 ))}
@@ -357,7 +371,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           </div>
           <div className="flex items-center gap-3">
             {!isNew && (
-              <button onClick={handleDelete} className="p-2 text-[#858585] hover:text-red-500 transition-colors hover:bg-white/5 rounded-full" title="Elimina Task">
+              <button onClick={handleDelete} className="p-2 text-[#858585] hover:text-red-500 transition-colors hover:bg-white/5 rounded-full" title={t.tasks.deleteTask}>
                 <Trash2 size={20} />
               </button>
             )}
@@ -376,18 +390,18 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="text-3xl font-halfre text-white bg-transparent border-none outline-none focus:ring-0 placeholder:text-[#858585] w-full"
-              placeholder="Titolo della Task"
+              placeholder={t.tasks.taskTitlePlaceholder}
             />
             
             <div className="flex items-center gap-6 text-sm text-[#858585] font-sans">
               <div className="flex items-center gap-2 relative">
                 <CalendarIcon size={16} />
-                <span>Scadenza: </span>
+                <span>{t.tasks.deadlineLabel}</span>
                 <button 
                   onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                   className="bg-transparent border-b border-white/20 text-white font-medium outline-none focus:border-[#006AFF] py-1 hover:border-white/40 transition-colors"
                 >
-                  {date ? format(date, 'dd MMM yyyy', { locale: it }) : 'Seleziona data'}
+                  {date ? format(date, 'dd MMM yyyy', { locale: t.settings.language === 'it' ? it : undefined }) : t.tasks.selectDate}
                 </button>
                 
                 {isCalendarOpen && (
@@ -407,28 +421,27 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                       mode="single"
                       selected={date}
                       onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }}
-                      locale={it}
+                      locale={t.settings.language === 'it' ? it : undefined}
                     />
                   </div>
                 )}
               </div>
               <div className="flex items-center gap-2">
-                <span>Assegnato a:</span>
+                <span>{t.tasks.assignedTo}</span>
                 <div className="flex items-center -space-x-2">
-                  <div className="w-6 h-6 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-[10px]" title={user?.displayName || "Utente"}>
-                    {user?.photoURL ? (
-                      <img src={user.photoURL} alt={user.displayName || ""} className="w-full h-full object-cover" />
-                    ) : (
-                      (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
-                    )}
-                  </div>
+                  <UserAvatar
+                    src={user?.photoURL}
+                    name={user?.displayName || user?.email}
+                    className="w-6 h-6 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-[10px]"
+                    imageClassName="w-full h-full object-cover"
+                  />
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-3 relative">
-            <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">Descrizione</h4>
+            <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t.tasks.description}</h4>
             <textarea 
               ref={descRef}
               value={description}
@@ -439,14 +452,20 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
               onClick={(e) => setDescCursorPos(e.currentTarget.selectionStart || 0)}
               onKeyUp={(e) => setDescCursorPos(e.currentTarget.selectionStart || 0)}
               className="w-full min-h-[120px] bg-white/5 border border-white/10 rounded-2xl p-4 text-white/80 font-sans text-sm resize-y outline-none focus:border-white/20 transition-colors"
-              placeholder="Aggiungi una descrizione dettagliata..."
+              placeholder={t.tasks.descriptionPlaceholder}
             ></textarea>
             <MentionDropdown 
               value={description}
               cursorPosition={descCursorPos}
               anchorRef={descRef}
-              onSelect={(val, pos) => {
+              onSelect={(val, pos, rawTag) => {
                 setDescription(val);
+                if (rawTag) {
+                  try {
+                    const parsed = JSON.parse(rawTag);
+                    if (parsed.type === 'user') setDescriptionMentions(current => [...current.filter(item => item.id !== parsed.id), { type: 'user', id: parsed.id, name: parsed.name }]);
+                  } catch { /* ignore malformed mention metadata */ }
+                }
                 setTimeout(() => {
                   descRef.current?.focus();
                   descRef.current?.setSelectionRange(pos, pos);
@@ -458,14 +477,14 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           {/* Attachments Section */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">Allegati</h4>
+              <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t.tasks.attachments}</h4>
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 hover:bg-white/10 text-white/80 text-xs font-medium transition-colors disabled:opacity-50"
               >
                 <Paperclip size={14} />
-                Aggiungi File
+                {t.tasks.addFile}
               </button>
               <input 
                 type="file" 
@@ -526,10 +545,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
           {!isNew && (
             <div className="flex flex-col gap-4">
-              <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">Commenti</h4>
+              <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t.tasks.comments}</h4>
               <div className="flex flex-col gap-4">
                 {comments.length === 0 ? (
-                  <p className="text-[#858585] text-sm italic">Nessun commento presente.</p>
+                  <p className="text-[#858585] text-sm italic">{t.tasks.noComments}</p>
                 ) : (
                   comments.map(comment => (
                     <div key={comment.id} className="flex items-start gap-3">
@@ -541,13 +560,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                           <span className="text-sm font-medium text-white">{comment.author}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] text-[#858585]">
-                              {comment.createdAt ? format(new Date(comment.createdAt), 'dd MMM HH:mm', { locale: it }) : ''}
+                              {comment.createdAt ? format(new Date(comment.createdAt), 'dd MMM HH:mm', { locale: t.settings.language === 'it' ? it : undefined }) : ''}
                             </span>
                             {(comment.authorUid === user?.uid || comment.author === user?.displayName) && (
                               <button
                                 onClick={() => handleDeleteComment(comment.id)}
                                 className="opacity-0 group-hover/comment:opacity-100 text-[#858585] hover:text-red-400 p-1 rounded-full transition-opacity"
-                                title="Elimina commento"
+                                title={t.tasks.deleteCommentTooltip}
                               >
                                 <Trash2 size={12} />
                               </button>
@@ -568,13 +587,12 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         <div className="relative z-10 p-4 border-t border-white/5 bg-black/40 flex flex-col md:flex-row justify-between items-center gap-4">
           {!isNew ? (
             <div className="flex items-center gap-3 w-full md:w-auto flex-1">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden">
-                {user?.photoURL ? (
-                  <img src={user.photoURL} alt={user.displayName || ""} className="w-full h-full object-cover" />
-                ) : (
-                  (user?.displayName ? user.displayName.charAt(0) : 'U').toUpperCase()
-                )}
-              </div>
+              <UserAvatar
+                src={user?.photoURL}
+                name={user?.displayName || user?.email}
+                className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold shrink-0 overflow-hidden"
+                imageClassName="w-full h-full object-cover"
+              />
               <div className="flex-1 relative max-w-md">
                 <input 
                   ref={commentRef}
@@ -587,7 +605,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   onClick={(e) => setCommentCursorPos(e.currentTarget.selectionStart || 0)}
                   onKeyUp={(e) => setCommentCursorPos(e.currentTarget.selectionStart || 0)}
                   onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                  placeholder="Scrivi un commento..." 
+                  placeholder={t.tasks.writeComment}
                   className="w-full bg-white/10 border border-white/10 rounded-full py-2.5 pl-4 pr-12 text-sm text-white outline-none focus:border-white/20 transition-colors"
                 />
                 <MentionDropdown 
@@ -595,8 +613,14 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   cursorPosition={commentCursorPos}
                   anchorRef={commentRef}
                   position="top"
-                  onSelect={(val, pos) => {
+                  onSelect={(val, pos, rawTag) => {
                     setNewComment(val);
+                    if (rawTag) {
+                      try {
+                        const parsed = JSON.parse(rawTag);
+                        if (parsed.type === 'user') setCommentMentions(current => [...current.filter(item => item.id !== parsed.id), { type: 'user', id: parsed.id, name: parsed.name }]);
+                      } catch { /* ignore malformed mention metadata */ }
+                    }
                     setTimeout(() => {
                       commentRef.current?.focus();
                       commentRef.current?.setSelectionRange(pos, pos);
@@ -618,7 +642,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
           <div className="flex gap-3 shrink-0">
             <button onClick={handleClose} className="px-5 py-2.5 rounded-full text-white/70 font-medium hover:text-white hover:bg-white/5 transition-colors">
-              Annulla
+              {t.tasks.cancel}
             </button>
             <button 
               onClick={handleSave} 
@@ -626,7 +650,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
               className="flex items-center gap-2 px-5 py-2.5 bg-[#006AFF] hover:bg-blue-600 disabled:bg-blue-600/50 text-white rounded-full font-medium transition-colors"
             >
               <CheckCircle2 size={18} />
-              {isSaving ? 'Salvataggio...' : (isNew ? 'Crea Task' : 'Salva Modifiche')}
+              {isSaving ? t.tasks.saving : (isNew ? t.tasks.createTask : t.tasks.saveChanges)}
             </button>
           </div>
         </div>

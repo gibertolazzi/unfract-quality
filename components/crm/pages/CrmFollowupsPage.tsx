@@ -1,3 +1,4 @@
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -26,6 +27,7 @@ export function CrmFollowupsPage({
   followups, leads, customers, accounts, opportunities, owners,
   currentUid, loading, followupView, createModal, onCloseModal,
 }: CrmFollowupsPageProps) {
+  const { t } = useTranslation();
   const { ctx } = useCrm();
   const toast = useToast();
   const [saving, setSaving] = useState(false);
@@ -53,7 +55,7 @@ export function CrmFollowupsPage({
         onChangeState={async (followup, next) => {
           if (!ctx) return;
           await changeFollowupState(ctx, followup.id, next);
-          toast.success('Stato aggiornato');
+          toast.success(t.crm.statusUpdated);
         }}
         onArchive={followup => { archiveFollowup(ctx!, followup.id); toast.info('Follow-up archiviato'); }}
         onDelete={ids => { Promise.all(ids.map(id => deleteFollowup(ctx!, id))); toast.info(ids.length > 1 ? `${ids.length} follow-up eliminati` : 'Follow-up eliminato'); }}

@@ -1,10 +1,12 @@
 'use client';
 
+import { getLeadStateLabel, getOppPhaseLabel, getFollowupStateLabel, getFollowupTypeLabel, getPriorityLabel, getInteractionTypeLabel, getEmailStateLabel, getCustomerStatusLabel } from '@/components/crm/shared/labels';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Folder, Folders, CheckCircle2, DollarSign } from 'lucide-react';
 import { CrmAccount, CrmContact, CrmDocument, CrmLead, CrmOpportunity } from '@/components/crm/types';
 import { Folder as FolderInteraction } from '@/components/ui/folder-components';
 import { FileText } from 'lucide-react';
-import { LEAD_STATES, LEAD_STATE_LABELS, OPPORTUNITY_PHASES, OPPORTUNITY_PHASE_LABELS } from '@/components/crm/constants';
+import { LEAD_STATES, OPPORTUNITY_PHASES } from '@/components/crm/constants';
 import { formatEuro } from '../shared/TableUtils';
 
 interface RiepilogoSectionProps {
@@ -18,6 +20,7 @@ interface RiepilogoSectionProps {
 export function RiepilogoSection({
   accounts, documents, leads, opportunities, onFolderClick
 }: RiepilogoSectionProps) {
+  const { t } = useTranslation();
 
   const liveAccounts = accounts.filter(a => !a.archived);
   const liveDocs = documents.filter(d => !d.archived);
@@ -39,7 +42,7 @@ export function RiepilogoSection({
   // Lead per stato
   const leadStats = LEAD_STATES.map(state => ({
     state,
-    label: LEAD_STATE_LABELS[state],
+    label: getLeadStateLabel(state, t),
     count: liveLeads.filter(l => l.state === state).length
   }));
 
@@ -48,7 +51,7 @@ export function RiepilogoSection({
     const oppsInPhase = liveOpps.filter(o => o.phase === phase);
     return {
       phase,
-      label: OPPORTUNITY_PHASE_LABELS[phase],
+      label: getOppPhaseLabel(phase, t),
       count: oppsInPhase.length,
       value: oppsInPhase.reduce((sum, o) => sum + o.value, 0)
     };
@@ -70,7 +73,7 @@ export function RiepilogoSection({
               return (
                 <div key={account.id} className="shrink-0 flex flex-col items-center gap-3 cursor-pointer group" onClick={() => onFolderClick(account.id)}>
                   <FolderInteraction 
-                    label={account.displayName || account.legalName || 'Senza nome'}
+                    label={account.displayName || account.legalName || t.crm.unnamed}
                     color="blue"
                     size="lg"
                   />
@@ -94,7 +97,7 @@ export function RiepilogoSection({
           <div className="rounded-2xl border border-[#1A1A1A] bg-[#0B0B0B] p-5">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle2 size={16} className="text-[#858585]" />
-              <h3 className="text-[13px] font-medium text-white">Lead per stato</h3>
+              <h3 className="text-[13px] font-medium text-white">{t.crm.leadsByStatus}</h3>
             </div>
             <div className="flex flex-col gap-2">
               {leadStats.map(stat => (

@@ -1,3 +1,4 @@
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { useCrm } from '@/contexts/CrmContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -49,6 +50,7 @@ export function CrmContactsPage({
   loading, policyVersion, optOutAddress, senderName,
   createModal, onCloseModal, importOpen, onCloseImport, userUid,
 }: CrmContactsPageProps) {
+  const { t } = useTranslation();
   const { ctx } = useCrm();
   const toast = useToast();
   const { activeProjectId } = useProject();
@@ -70,7 +72,7 @@ export function CrmContactsPage({
   const handleDownloadDocument = (document: any, version?: any) => {
     const url = version?.downloadUrl || document.downloadUrl;
     if (!url) {
-      toast.error('Questo documento non ha un file collegato');
+      toast.error(t.crm.noFileLinked);
       return;
     }
     window.open(url, '_blank', 'noopener,noreferrer');
@@ -95,8 +97,8 @@ export function CrmContactsPage({
     setConversionRunning(true);
     try {
       const outcome = await convertLead(ctx!, lead, proposal, records);
-      if (outcome.errors.length === 0) toast.success('Lead convertito');
-      else toast.error('Conversione non completata');
+      if (outcome.errors.length === 0) toast.success(t.crm.leadConverted);
+      else toast.error(t.crm.conversionFailed);
       return outcome;
     } finally {
       setConversionRunning(false);
@@ -113,10 +115,10 @@ export function CrmContactsPage({
     }
     try {
       await changeLeadState(ctx, lead.id, next);
-      toast.success('Stato aggiornato');
+      toast.success(t.crm.statusUpdated);
     } catch (error) {
       if (error instanceof InvalidTransitionError) toast.error(error.message);
-      else toast.error('Cambio di stato non riuscito');
+      else toast.error(t.crm.statusUpdateFailed);
     }
   };
 
@@ -170,25 +172,25 @@ export function CrmContactsPage({
         senderName={senderName}
         loading={loading}
         saving={saving}
-        onCreateAccount={async v => { if (ctx) { const r = await createAccount(ctx, v); toast.success(r.duplicates.length > 0 ? 'Azienda creata: possibili duplicati segnalati' : 'Azienda creata'); } }}
+        onCreateAccount={async v => { if (ctx) { const r = await createAccount(ctx, v); toast.success(r.duplicates.length > 0 ? 'Azienda creata: possibili duplicati segnalati' : t.crm.accountCreated); } }}
         onUpdateAccount={(id, v) => updateAccount(ctx!, id, v)}
-        onArchiveAccount={a => { archiveAccount(ctx!, a.id); toast.info('Azienda archiviata'); }}
-        onDeleteAccount={a => { deleteAccount(ctx!, a.id); toast.info('Azienda eliminata'); }}
-        onRestoreAccount={a => { restoreAccount(ctx!, a.id); toast.info('Azienda ripristinata'); }}
-        onCreateContact={async v => { if (ctx) { const r = await createContact(ctx, v); toast.success(r.duplicates.length > 0 ? 'Contatto creato: possibili duplicati segnalati' : 'Contatto creato'); } }}
+        onArchiveAccount={a => { archiveAccount(ctx!, a.id); toast.info(t.crm.accountArchived); }}
+        onDeleteAccount={a => { deleteAccount(ctx!, a.id); toast.info(t.crm.accountDeleted); }}
+        onRestoreAccount={a => { restoreAccount(ctx!, a.id); toast.info(t.crm.accountRestored); }}
+        onCreateContact={async v => { if (ctx) { const r = await createContact(ctx, v); toast.success(r.duplicates.length > 0 ? 'Contatto creato: possibili duplicati segnalati' : t.crm.contactCreated); } }}
         onUpdateContact={(id, v) => updateContact(ctx!, id, v)}
-        onArchiveContact={c => { archiveContact(ctx!, c.id); toast.info('Contatto archiviato'); }}
-        onDeleteContact={c => { deleteContact(ctx!, c.id); toast.info('Contatto eliminato'); }}
-        onRestoreContact={c => { restoreContact(ctx!, c.id); toast.info('Contatto ripristinato'); }}
-        onCreateCustomer={async v => { if (ctx) { const id = await createCustomer(ctx, v); if (id) toast.success('Cliente creato'); else toast.error('Creazione fallita'); } }}
+        onArchiveContact={c => { archiveContact(ctx!, c.id); toast.info(t.crm.contactArchived); }}
+        onDeleteContact={c => { deleteContact(ctx!, c.id); toast.info(t.crm.contactDeleted); }}
+        onRestoreContact={c => { restoreContact(ctx!, c.id); toast.info(t.crm.contactRestored); }}
+        onCreateCustomer={async v => { if (ctx) { const id = await createCustomer(ctx, v); if (id) toast.success(t.crm.customerCreated); else toast.error(t.crm.creationFailed); } }}
         onUpdateCustomer={(id, v) => updateCustomer(ctx!, id, v)}
-        onArchiveCustomer={c => { archiveCustomer(ctx!, c.id); toast.info('Cliente archiviato'); }}
-        onDeleteCustomer={c => { deleteCustomer(ctx!, c.id); toast.info('Cliente eliminato'); }}
-        onRestoreCustomer={c => { restoreCustomer(ctx!, c.id); toast.info('Cliente ripristinato'); }}
-        onCreateLead={async v => { if (!ctx) return; setSaving(true); try { const r = await createLead(ctx, { ...v, ownerUid: v.ownerUid || ctx.uid }); if (r.id) { toast.success(r.duplicates.length > 0 ? 'Lead creato: duplicati' : 'Lead creato'); } else toast.error('Errore'); } finally { setSaving(false); } }}
-        onUpdateLead={async (id, v) => { if (!ctx) return; setSaving(true); try { await updateLead(ctx, id, v as any); toast.success('Lead aggiornato'); } finally { setSaving(false); } }}
-        onArchiveLead={l => { archiveLead(ctx!, l.id); toast.info('Lead archiviato'); }}
-        onDeleteLead={l => { deleteLead(ctx!, l.id); toast.info('Lead eliminato'); }}
+        onArchiveCustomer={c => { archiveCustomer(ctx!, c.id); toast.info(t.crm.customerArchived); }}
+        onDeleteCustomer={c => { deleteCustomer(ctx!, c.id); toast.info(t.crm.customerDeleted); }}
+        onRestoreCustomer={c => { restoreCustomer(ctx!, c.id); toast.info(t.crm.customerRestored); }}
+        onCreateLead={async v => { if (!ctx) return; setSaving(true); try { const r = await createLead(ctx, { ...v, ownerUid: v.ownerUid || ctx.uid }); if (r.id) { toast.success(r.duplicates.length > 0 ? 'Lead creato: duplicati' : t.crm.leadCreated); } else toast.error(t.crm.error); } finally { setSaving(false); } }}
+        onUpdateLead={async (id, v) => { if (!ctx) return; setSaving(true); try { await updateLead(ctx, id, v as any); toast.success(t.crm.leadUpdated); } finally { setSaving(false); } }}
+        onArchiveLead={l => { archiveLead(ctx!, l.id); toast.info(t.crm.leadArchived); }}
+        onDeleteLead={l => { deleteLead(ctx!, l.id); toast.info(t.crm.leadDeleted); }}
         onRestoreLead={() => {}}
         onChangeLeadState={handleStateChange}
         onAssignLead={async (l, uid) => { if (!ctx) return; await assignLead(ctx, l.id, uid); toast.success(uid ? 'Assegnato' : 'Assegnazione rimossa'); }}
@@ -215,10 +217,10 @@ export function CrmContactsPage({
         />
       )}
 
-      {createModal === 'contact' && <ContactFormModal open contact={null} accounts={accounts} defaultAccountId="" policyVersion={policyVersion} saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { const r = await createContact(ctx, v); toast.success(r.duplicates.length > 0 ? 'Contatto creato: duplicati' : 'Contatto creato'); } onCloseModal(); }} />}
-      {createModal === 'account' && <AccountFormModal open account={null} industries={[]} saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { const r = await createAccount(ctx, v); toast.success(r.duplicates.length > 0 ? 'Azienda creata: duplicati' : 'Azienda creata'); } onCloseModal(); }} />}
-      {createModal === 'lead' && <LeadFormModal open lead={null} owners={owners} sources={sources} policyVersion={policyVersion} saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { setSaving(true); try { await createLead(ctx, { ...v, ownerUid: v.ownerUid || ctx.uid }); toast.success('Lead creato'); } finally { setSaving(false); } } onCloseModal(); }} />}
-      {createModal === 'customer' && <CustomerFormModal open customer={null} accounts={accounts} contacts={contacts} defaultAccountId="" saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { await createCustomer(ctx, v); toast.success('Cliente creato'); } onCloseModal(); }} />}
+      {createModal === 'contact' && <ContactFormModal open contact={null} accounts={accounts} defaultAccountId="" policyVersion={policyVersion} saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { const r = await createContact(ctx, v); toast.success(r.duplicates.length > 0 ? 'Contatto creato: duplicati' : t.crm.contactCreated); } onCloseModal(); }} />}
+      {createModal === 'account' && <AccountFormModal open account={null} industries={[]} saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { const r = await createAccount(ctx, v); toast.success(r.duplicates.length > 0 ? 'Azienda creata: duplicati' : t.crm.accountCreated); } onCloseModal(); }} />}
+      {createModal === 'lead' && <LeadFormModal open lead={null} owners={owners} sources={sources} policyVersion={policyVersion} saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { setSaving(true); try { await createLead(ctx, { ...v, ownerUid: v.ownerUid || ctx.uid }); toast.success(t.crm.leadCreated); } finally { setSaving(false); } } onCloseModal(); }} />}
+      {createModal === 'customer' && <CustomerFormModal open customer={null} accounts={accounts} contacts={contacts} defaultAccountId="" saving={saving} onClose={onCloseModal} onSubmit={async v => { if (ctx) { await createCustomer(ctx, v); toast.success(t.crm.customerCreated); } onCloseModal(); }} />}
     </>
   );
 }

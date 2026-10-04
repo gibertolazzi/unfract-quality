@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
 import { X } from 'lucide-react';
 import { CrmLead, CrmConsents } from '@/components/crm/types';
@@ -58,6 +59,7 @@ const inputClass =
 export function LeadFormModal({
   open, lead, owners, sources, policyVersion, saving, onClose, onSubmit,
 }: LeadFormModalProps) {
+  const { t } = useTranslation();
   useCloseOnEscape(onClose, !saving);
 
   const isEdit = !!lead;
@@ -115,7 +117,7 @@ export function LeadFormModal({
       <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border border-[#1A1A1A] bg-[#0B0B0B]">
         <header className="flex items-center justify-between border-b border-[#1A1A1A] px-6 py-4">
           <h2 className="text-sm font-medium text-white">
-            {isEdit ? 'Modifica lead' : 'Nuovo lead'}
+            {isEdit ? t.crm.editLead : t.crm.createLead}
           </h2>
           <button type="button" onClick={onClose} className="text-[#858585] hover:text-white">
             <X size={16} />
@@ -124,11 +126,11 @@ export function LeadFormModal({
 
         <div className="flex flex-col gap-4 overflow-y-auto px-6 py-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Nominativo">
+            <Field label={t.crm.name}>
               <input
                 value={values.fullName}
                 onChange={e => set({ fullName: e.target.value })}
-                placeholder="Mario Rossi"
+                placeholder={t.crm.namePlaceholder}
                 className={inputClass}
               />
             </Field>
@@ -174,7 +176,7 @@ export function LeadFormModal({
               <input value={values.country} onChange={e => set({ country: e.target.value })} className={inputClass} />
             </Field>
 
-            <Field label="Fonte">
+            <Field label={t.crm.source}>
               <input
                 list="crm-lead-sources"
                 value={values.source}
@@ -266,7 +268,7 @@ export function LeadFormModal({
             disabled={saving}
             className="rounded-lg bg-white px-4 py-2 text-xs font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            {saving ? 'Salvataggio…' : isEdit ? 'Salva modifiche' : 'Crea lead'}
+            {saving ? 'Salvataggio…' : isEdit ? t.crm.saveChanges : t.crm.createLeadBtn}
           </button>
         </footer>
       </div>

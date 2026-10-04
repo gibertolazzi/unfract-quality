@@ -25,6 +25,8 @@ import { DocumentTarget } from '@/lib/crm/documentUpload';
 import { EmailComposer, ComposedEmail } from '../email/EmailComposer';
 import { canEmailContact, SendEmailResult } from '@/lib/crm/emailSend';
 
+import { useTranslation } from '@/contexts/TranslationContext';
+
 export type AnagraficaEntity = 'account' | 'contact' | 'customer';
 
 interface AnagraficaSectionProps {
@@ -36,9 +38,7 @@ interface AnagraficaSectionProps {
   owners: OwnerOption[];
   history: TimelineSources;
   policyVersion: string;
-  /** Indirizzo a cui arrivano le richieste di revoca del consenso. */
   optOutAddress: string;
-  /** Chi scrive: finisce nella variabile «mittente». */
   senderName: string;
   saving?: boolean;
   loading?: boolean;
@@ -58,30 +58,12 @@ interface AnagraficaSectionProps {
   onArchiveCustomer: (customer: CrmCustomer) => void;
   onRestoreCustomer: (customer: CrmCustomer) => void;
 
-  /** Serve quando una scheda porta a un'entità di un'altra scheda. */
   onEntityChange: (entity: AnagraficaEntity) => void;
   onSendEmail: (contact: CrmContact, email: ComposedEmail) => Promise<SendEmailResult>;
-  /** Allegati della scheda: caricamento collegato al record e download tracciato. */
   onUploadDocument: (target: DocumentTarget) => UploadRunner;
   onDownloadDocument: (document: CrmDocument) => void;
 }
 
-const NEW_LABELS: Record<AnagraficaEntity, string> = {
-  account: 'Nuova azienda',
-  contact: 'Nuovo contatto',
-  customer: 'Nuovo cliente',
-};
-
-const SEARCH_PLACEHOLDERS: Record<AnagraficaEntity, string> = {
-  account: 'Cerca per nome, P.IVA, dominio, città…',
-  contact: 'Cerca per nome, email, telefono, azienda…',
-  customer: 'Cerca per azienda o referente…',
-};
-
-/**
- * Le tre anagrafiche in un'unica sezione, sotto la stessa striscia di
- * riepilogo della lista lead: cambia la tabella, non la pagina.
- */
 export function AnagraficaSection({
   entity, accounts, contacts, customers, leads, owners, history, policyVersion,
   optOutAddress, senderName, saving, loading,
@@ -90,6 +72,20 @@ export function AnagraficaSection({
   onCreateCustomer, onUpdateCustomer, onArchiveCustomer, onRestoreCustomer,
   onEntityChange, onSendEmail, onUploadDocument, onDownloadDocument,
 }: AnagraficaSectionProps) {
+  const { t } = useTranslation();
+
+  const NEW_LABELS: Record<AnagraficaEntity, string> = {
+    account: t.crm.newAccount,
+    contact: t.crm.newContact,
+    customer: t.crm.newCustomer,
+  };
+
+  const SEARCH_PLACEHOLDERS: Record<AnagraficaEntity, string> = {
+    account: t.crm.searchAccount,
+    contact: t.crm.searchContact,
+    customer: t.crm.searchCustomer,
+  };
+
   const [filters, setFilters] = useState<AnagraficaFilters>({ ...EMPTY_ANAGRAFICA_FILTERS });
   const [accountSort, setAccountSort] = useState<AccountSort>({ ...DEFAULT_ACCOUNT_SORT });
   const [contactSort, setContactSort] = useState<ContactSort>({ ...DEFAULT_CONTACT_SORT });
@@ -223,7 +219,7 @@ export function AnagraficaSection({
                   : 'border-[#1A1A1A] text-[#858585] hover:text-white'
               }`}
             >
-              Con consenso
+              {t.crm.withConsent}
             </button>
             <button
               type="button"
@@ -234,7 +230,7 @@ export function AnagraficaSection({
                   : 'border-[#1A1A1A] text-[#858585] hover:text-white'
               }`}
             >
-              Esclusi dagli invii
+              {t.crm.suppressed}
             </button>
           </>
         )}
@@ -243,14 +239,14 @@ export function AnagraficaSection({
           <button
             type="button"
             onClick={() => set({ onlyOrphans: !filters.onlyOrphans })}
-            title={entity === 'account' ? 'Aziende senza nessun contatto' : 'Contatti non collegati a un’azienda'}
+            title={entity === 'account' ? t.crm.noContactsTooltip : t.crm.noAccountTooltip}
             className={`rounded-lg border px-3 py-2 text-xs transition-colors ${
               filters.onlyOrphans
                 ? 'border-white/30 bg-white/10 text-white'
                 : 'border-[#1A1A1A] text-[#858585] hover:text-white'
             }`}
           >
-            {entity === 'account' ? 'Senza contatti' : 'Senza azienda'}
+            {entity === 'account' ? t.crm.noContacts : t.crm.noAccount}
           </button>
         )}
 
@@ -260,9 +256,11 @@ export function AnagraficaSection({
             onChange={e => set({ status: e.target.value as AnagraficaFilters['status'] })}
             className={inputClass}
           >
-            <option value="">Tutti gli stati</option>
+            <option value="">{t.crm.allStatuses}</option>
             {(Object.keys(CUSTOMER_STATUS_LABELS) as CrmCustomer['status'][]).map(status => (
-              <option key={status} value={status}>{CUSTOMER_STATUS_LABELS[status]}</option>
+              <option key={status} value={status}>{
+                status === 'active' ? t.crm.statusActive : status === 'inactive' ? t.crm.statusInactive : t.crm.statusSuspended
+              }</option>
             ))}
           </select>
         )}
@@ -276,11 +274,11 @@ export function AnagraficaSection({
               : 'border-[#1A1A1A] text-[#858585] hover:text-white'
           }`}
         >
-          Archiviati
+          {t.crm.archived}
         </button>
 
         <span className="text-xs text-[#5A5A5A]">
-          {activeFilters > 0 ? `${total} di ${source}` : total}
+          {activeFilters > 0 ? t.crm.nOfM.replace('{n}', total.toString()).replace('{m}', source.toString()) : total}
         </span>
 
         <button
@@ -295,7 +293,7 @@ export function AnagraficaSection({
 
       {filteredAccountName && (
         <div className="flex w-fit items-center gap-2 rounded-full border border-white/20 bg-white/5 px-3 py-1">
-          <span className="text-[11px] text-white">Azienda: {filteredAccountName}</span>
+          <span className="text-[11px] text-white">{t.crm.companyLabel}{filteredAccountName}</span>
           <button type="button" onClick={() => set({ accountId: '' })} className="text-[#858585] hover:text-white">
             <X size={11} />
           </button>
@@ -303,7 +301,7 @@ export function AnagraficaSection({
       )}
 
       {loading ? (
-        <p className="text-sm text-[#858585]">Caricamento…</p>
+        <p className="text-sm text-[#858585]">{t.crm.loading}</p>
       ) : entity === 'account' ? (
         <AccountTable
           page={accountView}

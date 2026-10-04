@@ -94,8 +94,8 @@ Devi estrarre le seguenti informazioni ed emettere ESATTAMENTE questo formato JS
 
     // Usa gemini-3.5-transcribe come modello primario assoluto (ottimizzato per l'audio) se c'è un fileUri
     const modelsToTry = fileUri 
-    ? ["gemini-3.5-transcribe", "gemini-3.6-flash"]
-    : ["gemini-3.6-flash"];
+    ? ["gemini-3.5-transcribe", "gemini-3.8-flash", "gemini-3.6-flash"]
+    : ["gemini-3.8-flash", "gemini-3.6-flash"];
   let lastError;
   const MAX_RETRIES = 3;
 
@@ -104,7 +104,7 @@ Devi estrarre le seguenti informazioni ed emettere ESATTAMENTE questo formato JS
       try {
         console.log(`Tentativo ${attempt}/${MAX_RETRIES} di generazione con il modello: ${modelName}`);
         // Fallback a un MIME type testuale per gemini-pro che a volte non supporta application/json
-        const responseMimeType = modelName === 'gemini-pro' ? 'text/plain' : 'application/json';
+        const responseMimeType = (modelName === 'gemini-pro' || modelName.includes('transcribe')) ? 'text/plain' : 'application/json';
         const currentModel = genAI.getGenerativeModel({ model: modelName, generationConfig: { responseMimeType } });
         
         let result;

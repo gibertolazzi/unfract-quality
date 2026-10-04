@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslation } from '@/contexts/TranslationContext';
 import { ShieldCheck, Globe, Sparkles, MinusCircle } from 'lucide-react';
 import {
   EvidenceLevel, EVIDENCE_LABELS, EVIDENCE_HINTS, EVIDENCE_COLORS,
@@ -32,6 +33,7 @@ const ICONE: Record<EvidenceLevel, any> = {
 };
 
 export function EvidenceBadge({ level, compact }: { level: EvidenceLevel; compact?: boolean }) {
+  const { t } = useTranslation();
   const Icon = ICONE[level];
   const colore = EVIDENCE_COLORS[level];
 

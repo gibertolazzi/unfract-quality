@@ -1,4 +1,6 @@
 "use client";
+import { incrementStorageUsage, incrementAiUsage } from '@/lib/usage';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -36,6 +38,7 @@ const RecordingContext = createContext<RecordingContextType>({
 export function RecordingProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { activeProjectId } = useProject();
+  const { activeWorkspaceId } = useWorkspace();
   const toast = useToast();
   
   const [isRecording, setIsRecording] = useState(false);
@@ -192,6 +195,7 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
       const storageRef = ref(storage, `meetings/${activeProjectId}/${timestamp}.webm`);
       await uploadBytes(storageRef, audioBlob);
       audioUrl = await getDownloadURL(storageRef);
+      if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, audioBlob.size);
     } catch (uploadError) {
       console.error("Failed to upload audio to storage:", uploadError);
       toast.error("Errore nel salvataggio dell'audio sul cloud.");
@@ -199,6 +203,8 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const result = await processMeetingTranscript(audioBlob, transcript);
+      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
+      
       await saveMeeting(activeProjectId, {
         title: "Nuovo Meeting",
         date: new Date().toLocaleDateString('it-IT'),
