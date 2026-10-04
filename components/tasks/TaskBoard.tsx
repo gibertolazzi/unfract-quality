@@ -179,7 +179,7 @@ export function TaskBoard() {
   const [epics, setEpics] = useState<any[]>([]);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [activeView, setActiveView] = useState<'board' | 'tasklist' | 'timeline'>('board');
-  const [compactToolbar, setCompactToolbar] = useState(true);
+  const [compactToolbar, setCompactToolbar] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [showColumnPrompt, setShowColumnPrompt] = useState(false);
   const { activeProjectId } = useProject();
@@ -423,12 +423,12 @@ export function TaskBoard() {
         <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-3">
           {hasTasksWrite && (
             <>
-              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 ${compactToolbar ? 'p-2' : 'px-4 py-2'}`}>
-                <PlusCircle size={16} className="text-[#00A6FF]" />{!compactToolbar && <span className="whitespace-nowrap">{t.tasks.newTask}</span>}
+              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] px-4 py-2 text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80">
+                <PlusCircle size={16} className="text-[#00A6FF]" /><span className="whitespace-nowrap">{t.tasks.newTask}</span>
               </button>
               {activeView === 'board' && (
-                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white ${compactToolbar ? 'p-2' : 'px-4 py-2'}`}>
-                  <PlusCircle size={16} />{!compactToolbar && <span className="whitespace-nowrap">{t.tasks.addColumn}</span>}
+                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className="flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 px-4 py-2 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white">
+                  <PlusCircle size={16} /><span className="whitespace-nowrap">{t.tasks.addColumn}</span>
                 </button>
               )}
             </>
