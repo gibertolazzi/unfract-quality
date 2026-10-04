@@ -338,7 +338,7 @@ export function CalendarBoard() {
         <h2 className="order-first md:order-none text-xl font-bold text-white font-sans md:text-center md:flex-1">{getHeaderTitle()}</h2>
         
         {/* Destra: azioni */}
-        <div className="flex flex-wrap items-center gap-2 md:gap-3 md:flex-1 md:justify-end relative">
+        <div className="flex flex-wrap items-center gap-2 md:gap-3 md:flex-1 md:min-w-max md:flex-nowrap md:justify-end relative">
           <button onClick={() => setIsSettingsOpen(true)} className={ICON_BTN} title={t.calendar.calendarSettings}>
             <Settings size={16} />
           </button>
@@ -350,8 +350,9 @@ export function CalendarBoard() {
               toast.success(t.calendar.copyBookingLinkSuccess);
             }}
             className={BTN}
+            title={t.calendar.copyBookingLink}
           >
-            {t.calendar.copyBookingLink}
+            {t.calendar.copyLink}
           </button>
 
           <button 

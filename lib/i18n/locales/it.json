@@ -232,7 +232,8 @@
       "Sabato"
     ],
     "externalEventReadOnly": "Questo evento arriva da un calendario collegato: modificalo da lì.",
-    "syncDone": "Calendari sincronizzati"
+    "syncDone": "Calendari sincronizzati",
+    "copyLink": "Copia Link"
   },
   "crm": {
     "navContacts": "Contatti & Aziende",
