@@ -21,6 +21,8 @@ export const subscribeToEvents = (userId: string, callback: (events: CalendarEve
         meetLink: data.meetLink,
         addMeet: data.addMeet,
         guestEmail: data.guestEmail,
+        googleEventId: data.googleEventId || undefined,
+        microsoftEventId: data.microsoftEventId || undefined,
       } as CalendarEvent;
     });
     callback(events);

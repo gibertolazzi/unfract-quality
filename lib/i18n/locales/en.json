@@ -230,7 +230,9 @@
       "Thursday",
       "Friday",
       "Saturday"
-    ]
+    ],
+    "externalEventReadOnly": "This event comes from a connected calendar: edit it there.",
+    "syncDone": "Calendars synced"
   },
   "crm": {
     "navContacts": "Contacts & Companies",

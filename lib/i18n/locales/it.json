@@ -230,7 +230,9 @@
       "Giovedì",
       "Venerdì",
       "Sabato"
-    ]
+    ],
+    "externalEventReadOnly": "Questo evento arriva da un calendario collegato: modificalo da lì.",
+    "syncDone": "Calendari sincronizzati"
   },
   "crm": {
     "navContacts": "Contatti & Aziende",
