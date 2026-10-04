@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, X, Send, Trash2, CheckCircle2, Paperclip, FileText, Image as ImageIcon, Video } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc, deleteDoc, addDoc, collection, serverTimestamp, arrayUnion, getDoc } from 'firebase/firestore';
@@ -308,10 +309,12 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     blobColors = ['bg-blue-600/40', 'bg-transparent'];
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" onClick={handleClose}>
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] grid place-items-center bg-black/60 p-2 backdrop-blur-sm sm:p-4" onClick={handleClose}>
       <div 
-        className="relative w-full max-w-3xl max-h-[90vh] bg-[#0A0A0A] border border-white/10 rounded-[32px] overflow-hidden flex flex-col shadow-2xl"
+        className="relative flex max-h-[calc(100dvh-1rem)] min-h-0 w-full max-w-3xl flex-col overflow-hidden rounded-[24px] border border-white/10 bg-[#0A0A0A] shadow-2xl sm:max-h-[calc(100dvh-2rem)] sm:rounded-[32px]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Animated Background Blobs inside Modal */}
@@ -324,63 +327,64 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         </div>
 
         {/* Header */}
-        <div className="relative z-10 flex items-start sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-white/5">
-          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
-            <div className="relative">
-              <select 
-                value={priority} 
-                onChange={(e) => setPriority(e.target.value)}
-                className={`appearance-none pr-8 pl-3 py-1.5 text-xs rounded-full border outline-none cursor-pointer ${priorityStyles[priority as keyof typeof priorityStyles] || 'text-white/60 border-white/20 bg-transparent'}`}
-              >
-                {availablePriorities.map(p => (
-                  <option key={p} value={p} className="bg-black text-white">{p}</option>
-                ))}
-              </select>
-              <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+        <div className="relative z-10 flex shrink-0 items-center gap-2 border-b border-white/5 p-3 sm:gap-3 sm:p-4">
+          <div className="min-w-0 flex-1 overflow-x-auto">
+            <div className="flex w-max min-w-full flex-nowrap items-center gap-2 sm:gap-3">
+              <div className="relative shrink-0">
+                <select
+                  value={priority}
+                  onChange={(e) => setPriority(e.target.value)}
+                  className={`shrink-0 appearance-none rounded-full border py-1.5 pl-3 pr-8 text-xs outline-none cursor-pointer ${priorityStyles[priority as keyof typeof priorityStyles] || 'text-white/60 border-white/20 bg-transparent'}`}
+                >
+                  {availablePriorities.map(p => (
+                    <option key={p} value={p} className="bg-black text-white">{p}</option>
+                  ))}
+                </select>
+                <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
               </div>
-            </div>
-            
-            <input 
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder={t.tasks.department}
-              className="px-4 py-1.5 rounded-full bg-white/10 text-white/80 text-xs font-sans outline-none focus:border-white/20 border border-transparent max-w-[120px]"
-            />
 
-            <div className="relative">
-              <select 
-                value={columnId} 
-                onChange={(e) => setColumnId(e.target.value)}
-                className="appearance-none pr-8 pl-4 py-1.5 rounded-full border border-blue-500/50 bg-blue-500/10 text-blue-400 text-xs font-medium cursor-pointer outline-none"
-              >
-                <option value="" disabled className="bg-black text-[#858585]">{t.tasks.selectColumn}</option>
-                {columns.map(col => (
-                  <option key={col.id} value={col.id} className="bg-black text-white">{col.title}</option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
-            <div className="relative">
-              <select 
-                value={epicId} 
-                onChange={(e) => setEpicId(e.target.value)}
-                className="appearance-none pr-8 pl-4 py-1.5 rounded-full border border-purple-500/50 bg-purple-500/10 text-purple-400 text-xs font-medium cursor-pointer outline-none"
-              >
-                <option value="" className="bg-black text-[#858585]">{t.tasks.noEpic}</option>
-                {epics.map(epic => (
-                  <option key={epic.id} value={epic.id} className="bg-black text-white">{epic.title}</option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-purple-400">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-              </div>
-            </div>
+              <input
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                placeholder={t.tasks.department}
+                className="w-24 shrink-0 rounded-full border border-transparent bg-white/10 px-3 py-1.5 font-sans text-xs text-white/80 outline-none focus:border-white/20 sm:w-[120px]"
+              />
 
+              <div className="relative shrink-0">
+                <select
+                  value={columnId}
+                  onChange={(e) => setColumnId(e.target.value)}
+                  className="max-w-[125px] shrink-0 appearance-none truncate rounded-full border border-blue-500/50 bg-blue-500/10 py-1.5 pl-3 pr-7 text-xs font-medium text-blue-400 outline-none cursor-pointer sm:max-w-[160px]"
+                >
+                  <option value="" disabled className="bg-black text-[#858585]">{t.tasks.selectColumn}</option>
+                  {columns.map(col => (
+                    <option key={col.id} value={col.id} className="bg-black text-white">{col.title}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+              <div className="relative shrink-0">
+                <select
+                  value={epicId}
+                  onChange={(e) => setEpicId(e.target.value)}
+                  className="max-w-[125px] shrink-0 appearance-none truncate rounded-full border border-purple-500/50 bg-purple-500/10 py-1.5 pl-3 pr-7 text-xs font-medium text-purple-400 outline-none cursor-pointer sm:max-w-[160px]"
+                >
+                  <option value="" className="bg-black text-[#858585]">{t.tasks.noEpic}</option>
+                  {epics.map(epic => (
+                    <option key={epic.id} value={epic.id} className="bg-black text-white">{epic.title}</option>
+                  ))}
+                </select>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-purple-400">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-2">
             {!isNew && (
               <button onClick={handleDelete} className="p-2 text-[#858585] hover:text-red-500 transition-colors hover:bg-white/5 rounded-full" title={t.tasks.deleteTask}>
                 <Trash2 size={20} />
@@ -393,7 +397,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         </div>
 
         {/* Content (Scrollable) */}
-        <div className="relative z-10 flex-1 overflow-y-auto p-6 md:p-8 flex flex-col gap-8 custom-scrollbar">
+        <div className="relative z-10 min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 md:p-8 flex flex-col gap-6 sm:gap-8 custom-scrollbar">
           
           <div className="flex flex-col gap-4">
             <input 
@@ -666,6 +670,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
