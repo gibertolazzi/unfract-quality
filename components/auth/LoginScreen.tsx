@@ -5,7 +5,7 @@ import { Loader2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 type AuthMode = 'login' | 'register' | 'reset';
 
 export function LoginScreen() {
-  const { loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, loading: authLoading } = useAuth();
+  const { loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, loading: authLoading, googleError } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   
   const [email, setEmail] = useState('');
@@ -43,13 +43,13 @@ export function LoginScreen() {
   const isLoading = authLoading || localLoading;
 
   return (
-    <div className="fixed inset-0 bg-[#0B0B0B] flex items-center justify-center overflow-hidden z-[100]">
+    <div className="fixed inset-0 min-h-[100dvh] bg-[#0B0B0B] flex items-start sm:items-center justify-center overflow-y-auto overflow-x-hidden z-[100] py-6 sm:py-0">
       {/* Motion gradient */}
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
         <div className="absolute bottom-[-45%] left-1/2 -translate-x-1/2 w-[900px] h-[600px] bg-[#006AFF] opacity-[0.35] blur-[140px] rounded-full animate-[pulse_6s_ease-in-out_infinite]" />
       </div>
 
-      <div className="relative z-10 bg-[#0B0B0B]/80 backdrop-blur-2xl border border-white/10 rounded-[32px] p-8 sm:p-12 w-full max-w-[420px] flex flex-col shadow-2xl mx-4">
+      <div className="relative z-10 bg-[#0B0B0B]/80 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 sm:p-12 w-full max-w-[420px] flex flex-col shadow-2xl mx-4 my-auto">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center h-40">
             <Loader2 size={32} className="text-[#006AFF] animate-spin mb-4" />
@@ -68,9 +68,9 @@ export function LoginScreen() {
               </h2>
             </div>
 
-            {error && (
+            {(error || googleError) && (
               <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm text-center">
-                {error}
+                {error || googleError}
               </div>
             )}
             
@@ -153,8 +153,19 @@ export function LoginScreen() {
 
             <button 
               type="button"
-              onClick={loginWithGoogle} 
-              className="flex items-center justify-center gap-2 px-4 py-3 border border-white/10 rounded-xl bg-gradient-to-b from-white/5 to-transparent hover:border-white/20 hover:bg-white/5 transition-all w-full"
+              onClick={async () => {
+                setError(null);
+                setLocalLoading(true);
+                try {
+                  await loginWithGoogle();
+                } catch (err: any) {
+                  setError(err.message || 'Accesso con Google non riuscito. Riprova.');
+                } finally {
+                  setLocalLoading(false);
+                }
+              }}
+              disabled={localLoading}
+              className="flex items-center justify-center gap-2 px-4 py-3 border border-white/10 rounded-xl bg-gradient-to-b from-white/5 to-transparent hover:border-white/20 hover:bg-white/5 transition-all w-full disabled:opacity-50"
             >
               <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-4 h-4" />
               <span className="text-[14px] font-medium text-white/90">Continua con Google</span>

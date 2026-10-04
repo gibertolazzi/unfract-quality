@@ -248,7 +248,7 @@ export function TaskBoard() {
       unsubTasks();
       unsubEpics();
     };
-  }, [activeProjectId]);
+  }, [activeProjectId, hasTasksRead, hasTasksWrite]);
 
   const addColumn = async (title: string) => {
     if (!activeProjectId) return;
@@ -375,39 +375,39 @@ export function TaskBoard() {
 
   return (
     <div className="flex flex-col h-full font-sans">
-      <div className="relative z-10 flex items-center justify-between mb-8 mt-2">
-        <nav className="flex items-center gap-2">
+      <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-8 mt-2">
+        <nav className="flex w-full sm:w-auto items-center gap-1 sm:gap-2 overflow-x-auto">
           <button 
             onClick={() => setActiveView('board')} 
-            className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            className={`flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <Layout size={16} />
             {t.tasks.board}
           </button>
           <button 
             onClick={() => setActiveView('tasklist')} 
-            className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            className={`flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <List size={16} />
             {t.tasks.tasklist}
           </button>
           <button 
             onClick={() => setActiveView('timeline')} 
-            className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            className={`flex shrink-0 items-center gap-2 px-3 sm:px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <CalendarDays size={16} />
             {t.tasks.timeline}
           </button>
         </nav>
         
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-0 sm:ml-auto flex w-full sm:w-auto flex-wrap items-center gap-2 sm:gap-4">
           {hasTasksWrite && (
             <>
-              <button onClick={() => openNewTaskModal()} className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm">
+              <button onClick={() => openNewTaskModal()} className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm">
                 <PlusCircle size={16} className="text-[#00A6FF]" /> {t.tasks.newTask}
               </button>
               {activeView === 'board' && (
-                <button onClick={() => setShowColumnPrompt(true)} className="flex items-center gap-2 px-4 py-2 text-white/70 hover:text-white border border-white/10 hover:border-white/20 rounded-full font-medium transition-colors text-sm">
+                <button onClick={() => setShowColumnPrompt(true)} className="flex flex-1 sm:flex-none justify-center items-center gap-2 px-4 py-2 text-white/70 hover:text-white border border-white/10 hover:border-white/20 rounded-full font-medium transition-colors text-sm">
                   <PlusCircle size={16} /> {t.tasks.addColumn}
                 </button>
               )}

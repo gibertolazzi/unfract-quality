@@ -2,7 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { auth, GoogleAuthProvider, signInWithPopup } from '@/lib/firebase';
-import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { onAuthStateChanged, User, signOut, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -22,6 +22,7 @@ interface AuthContextType {
   user: User | null;
   settings: UserSettings | null;
   loading: boolean;
+  googleError: string | null;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (e: string, p: string) => Promise<void>;
   registerWithEmail: (e: string, p: string, name: string) => Promise<void>;
@@ -35,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   settings: null,
   loading: true,
+  googleError: null,
   loginWithGoogle: async () => {},
   loginWithEmail: async () => {},
   registerWithEmail: async () => {},
@@ -53,17 +55,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   settingsRef.current = settings;
   const [loading, setLoading] = useState(true);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!isMounted) return;
       setUser(currentUser);
-      
-      if (currentUser) {
-        // Fetch the stored token and settings if needed from DB
-        const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setAccessToken(data.calendarToken || null);
+
+      try {
+        if (currentUser) {
+          const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
+          if (!isMounted) return;
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            setAccessToken(data.calendarToken || null);
+            setSettings({
+              timezone: 'Europe/Rome',
+              language: 'it',
+              emailAssignee: true,
+              emailRequester: false,
+              emailChanges: false,
+              emailMentioned: true,
+              emailMessages: false,
+              groupFrequency: '3min',
+              defaultMeetingLink: '',
+              ...(data.settings || {}),
+            });
+          } else {
+            setAccessToken(null);
+            setSettings({
+              timezone: 'Europe/Rome',
+              language: 'it',
+              emailAssignee: true,
+              emailRequester: false,
+              emailChanges: false,
+              emailMentioned: true,
+              emailMessages: false,
+              groupFrequency: '3min',
+            });
+          }
+        } else {
+          setAccessToken(null);
+          setSettings(null);
+        }
+      } catch (error) {
+        console.error('Unable to load user settings:', error);
+        if (isMounted && currentUser) {
+          setAccessToken(null);
           setSettings({
             timezone: 'Europe/Rome',
             language: 'it',
@@ -73,30 +112,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             emailMentioned: true,
             emailMessages: false,
             groupFrequency: '3min',
-            defaultMeetingLink: '',
-            ...(data.settings || {}),
-          });
-        } else {
-          setSettings({
-            timezone: 'Europe/Rome',
-            language: 'it',
-            emailAssignee: true,
-            emailRequester: false,
-            emailChanges: false,
-            emailMentioned: true,
-            emailMessages: false,
-            groupFrequency: '3min'
           });
         }
-      } else {
-        setAccessToken(null);
-        setSettings(null);
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      
-      setLoading(false);
     });
 
-    return () => unsubscribe();
+    getRedirectResult(auth).then(async (result) => {
+      if (!result || !isMounted) return;
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      const token = credential?.accessToken;
+      if (!token) return;
+      setAccessToken(token);
+      try {
+        await setDoc(doc(db, 'users', result.user.uid), {
+          email: result.user.email,
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL,
+          calendarToken: token,
+          lastLogin: new Date().toISOString(),
+        }, { merge: true });
+      } catch (error) {
+        console.error('Unable to save Google Calendar token:', error);
+      }
+    }).catch((error) => {
+      console.error('Error completing Google sign-in:', error);
+      if (isMounted) setGoogleError(error instanceof Error ? error.message : 'Accesso con Google non riuscito. Riprova.');
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
   }, []);
 
   const loginWithEmail = async (email: string, password: string) => {
@@ -136,10 +184,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithGoogle = async () => {
+    setGoogleError(null);
     try {
       const provider = new GoogleAuthProvider();
       // We must request the calendar scope to manipulate events
       provider.addScope('https://www.googleapis.com/auth/calendar');
+
+      const isMobile = typeof window !== 'undefined' && (
+        /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+        window.matchMedia('(max-width: 767px)').matches
+      );
+
+      if (isMobile) {
+        await signInWithRedirect(auth, provider);
+        return;
+      }
       
       const result = await signInWithPopup(auth, provider);
       const credential = GoogleAuthProvider.credentialFromResult(result);
@@ -147,18 +206,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (token) {
         setAccessToken(token);
-        // Store the token in Firestore so we can use it on the public booking page!
-        await setDoc(doc(db, 'users', result.user.uid), {
-          email: result.user.email,
-          displayName: result.user.displayName,
-          photoURL: result.user.photoURL,
-          calendarToken: token,
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
+        try {
+          // Store the token in Firestore so we can use it on the public booking page!
+          await setDoc(doc(db, 'users', result.user.uid), {
+            email: result.user.email,
+            displayName: result.user.displayName,
+            photoURL: result.user.photoURL,
+            calendarToken: token,
+            lastLogin: new Date().toISOString()
+          }, { merge: true });
+        } catch (error) {
+          console.error('Unable to save Google Calendar token:', error);
+        }
       }
       
     } catch (error) {
       console.error("Error signing in with Google", error);
+      setGoogleError(error instanceof Error ? error.message : 'Accesso con Google non riuscito. Riprova.');
+      throw error;
     }
   };
 
@@ -176,7 +241,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, settings, loading, loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, logout, accessToken, updateSettings }}>
+    <AuthContext.Provider value={{ user, settings, loading, googleError, loginWithGoogle, loginWithEmail, registerWithEmail, resetPassword, logout, accessToken, updateSettings }}>
       {children}
     </AuthContext.Provider>
   );

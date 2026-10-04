@@ -99,45 +99,55 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
     const newAttachments = [...attachments];
     const newPaths = [...sessionUploadedPaths];
+    const newlyUploadedPaths: string[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      const storageRef = ref(storage, `tasks/attachments/${Date.now()}_${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const storageRef = ref(storage, `tasks/attachments/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
 
-      await new Promise<void>((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            setUploadProgress(progress);
-          },
-          (error) => {
-            console.error("Upload failed", error);
-            reject(error);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            newAttachments.push({
-              id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
-              name: file.name,
-              url: downloadURL,
-              type: file.type,
-              size: file.size,
-              refPath: uploadTask.snapshot.ref.fullPath,
-            });
-            newPaths.push(uploadTask.snapshot.ref.fullPath);
-            resolve();
-          }
-        );
-      });
+        await new Promise<void>((resolve, reject) => {
+          uploadTask.on(
+            'state_changed',
+            (snapshot) => {
+              const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+              setUploadProgress(progress);
+            },
+            reject,
+            async () => {
+              try {
+                const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                newAttachments.push({
+                  id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
+                  name: file.name,
+                  url: downloadURL,
+                  type: file.type,
+                  size: file.size,
+                  refPath: uploadTask.snapshot.ref.fullPath,
+                });
+                newPaths.push(uploadTask.snapshot.ref.fullPath);
+                newlyUploadedPaths.push(uploadTask.snapshot.ref.fullPath);
+                resolve();
+              } catch (error) {
+                reject(error);
+              }
+            }
+          );
+        });
+      }
+
+      setAttachments(newAttachments);
+      setSessionUploadedPaths(newPaths);
+    } catch (error) {
+      console.error('Upload failed', error);
+      await Promise.all(newlyUploadedPaths.map(path => deleteObject(ref(storage, path)).catch(cleanupError => console.error('Error cleaning up file', cleanupError))));
+      toast.error('Impossibile caricare il file. Verifica la connessione e riprova.');
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
-
-    setAttachments(newAttachments);
-    setSessionUploadedPaths(newPaths);
-    setIsUploading(false);
-    setUploadProgress(0);
-    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleRemoveAttachment = async (attachment: any) => {
@@ -172,6 +182,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   };
 
   const handleClose = async () => {
+    if (isUploading || isSaving) return;
     // If we have uploaded files in this session but we are cancelling (not saving),
     // let's try to delete them to avoid orphans.
     if (sessionUploadedPaths.length > 0) {
@@ -313,8 +324,8 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         </div>
 
         {/* Header */}
-        <div className="relative z-10 flex items-center justify-between p-6 border-b border-white/5">
-          <div className="flex items-center gap-4">
+        <div className="relative z-10 flex items-start sm:items-center justify-between gap-3 p-4 sm:p-6 border-b border-white/5">
+          <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-4">
             <div className="relative">
               <select 
                 value={priority} 
@@ -369,13 +380,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
             </div>
 
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3">
             {!isNew && (
               <button onClick={handleDelete} className="p-2 text-[#858585] hover:text-red-500 transition-colors hover:bg-white/5 rounded-full" title={t.tasks.deleteTask}>
                 <Trash2 size={20} />
               </button>
             )}
-            <button onClick={handleClose} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full">
+            <button onClick={handleClose} disabled={isSaving || isUploading} className="p-2 text-[#858585] hover:text-white transition-colors hover:bg-white/5 rounded-full disabled:opacity-50">
               <X size={20} />
             </button>
           </div>
@@ -641,12 +652,12 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           )}
 
           <div className="flex gap-3 shrink-0">
-            <button onClick={handleClose} className="px-5 py-2.5 rounded-full text-white/70 font-medium hover:text-white hover:bg-white/5 transition-colors">
+            <button onClick={handleClose} disabled={isSaving || isUploading} className="px-5 py-2.5 rounded-full text-white/70 font-medium hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50">
               {t.tasks.cancel}
             </button>
             <button 
               onClick={handleSave} 
-              disabled={isSaving || !title.trim()}
+              disabled={isSaving || isUploading || !title.trim()}
               className="flex items-center gap-2 px-5 py-2.5 bg-[#006AFF] hover:bg-blue-600 disabled:bg-blue-600/50 text-white rounded-full font-medium transition-colors"
             >
               <CheckCircle2 size={18} />
