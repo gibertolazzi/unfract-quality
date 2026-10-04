@@ -121,20 +121,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     getRedirectResult(auth).then(async (result) => {
       if (!result || !isMounted) return;
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      if (!token) return;
-      setAccessToken(token);
       try {
         await setDoc(doc(db, 'users', result.user.uid), {
           email: result.user.email,
           displayName: result.user.displayName,
           photoURL: result.user.photoURL,
-          calendarToken: token,
           lastLogin: new Date().toISOString(),
         }, { merge: true });
       } catch (error) {
-        console.error('Unable to save Google Calendar token:', error);
+        console.error('Unable to save Google account profile:', error);
       }
     }).catch((error) => {
       console.error('Error completing Google sign-in:', error);
@@ -187,8 +182,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setGoogleError(null);
     try {
       const provider = new GoogleAuthProvider();
-      // We must request the calendar scope to manipulate events
-      provider.addScope('https://www.googleapis.com/auth/calendar');
 
       const isMobile = typeof window !== 'undefined' && (
         /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -201,23 +194,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       const result = await signInWithPopup(auth, provider);
-      const credential = GoogleAuthProvider.credentialFromResult(result);
-      const token = credential?.accessToken;
-      
-      if (token) {
-        setAccessToken(token);
-        try {
-          // Store the token in Firestore so we can use it on the public booking page!
-          await setDoc(doc(db, 'users', result.user.uid), {
-            email: result.user.email,
-            displayName: result.user.displayName,
-            photoURL: result.user.photoURL,
-            calendarToken: token,
-            lastLogin: new Date().toISOString()
-          }, { merge: true });
-        } catch (error) {
-          console.error('Unable to save Google Calendar token:', error);
-        }
+      try {
+        await setDoc(doc(db, 'users', result.user.uid), {
+          email: result.user.email,
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL,
+          lastLogin: new Date().toISOString(),
+        }, { merge: true });
+      } catch (error) {
+        console.error('Unable to save Google account profile:', error);
       }
       
     } catch (error) {
