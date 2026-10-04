@@ -12,7 +12,9 @@ if (typeof process !== 'undefined' && process.env && process.env.FIREBASE_WEBAPP
   // Client-side fallback to NEXT_PUBLIC variables, or explicitly default to unfract-prod
   firebaseConfig = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "AIzaSyBzawm3qUA4XdDYGDlN0llw5U0EGpXkc0g",
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "unfract-prod.firebaseapp.com",
+    authDomain: typeof window !== 'undefined' && window.location.hostname === 'app.unfract.com'
+      ? 'app.unfract.com'
+      : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "unfract-prod.firebaseapp.com",
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "unfract-prod",
     storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "unfract-prod.firebasestorage.app",
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "688460174746",
