@@ -50,7 +50,7 @@ export function TaskCard({ task, index, onClick }: { task: any; index: number; o
           {...provided.dragHandleProps}
           onClick={onClick}
           id={`task-${task.id}`}
-          className={`relative overflow-hidden flex flex-col gap-5 p-6 bg-black border rounded-3xl w-full group transition-all ${snapshot.isDragging ? 'border-white/20 shadow-xl scale-[1.02]' : 'border-white/5 hover:border-white/10'} transition-all duration-500`}
+          className={`relative min-h-[185px] w-full shrink-0 overflow-hidden flex flex-col gap-5 p-6 bg-black border rounded-3xl group transition-all ${snapshot.isDragging ? 'border-white/20 shadow-xl scale-[1.02]' : 'border-white/5 hover:border-white/10'} transition-all duration-500`}
         >
           {/* Animated Blobs */}
           <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -74,7 +74,7 @@ export function TaskCard({ task, index, onClick }: { task: any; index: number; o
                 {priorityLabels[task.priority] || t.tasks.priorityMedium}
               </div>
             </div>
-            <h3 className="text-[22px] text-white font-halfre tracking-wide">{task.title || t.tasks.untitled}</h3>
+            <h3 className="break-words text-[22px] text-white font-halfre tracking-wide">{task.title || t.tasks.untitled}</h3>
           </div>
           
           <div className="relative z-10 flex items-center justify-between mt-2">
@@ -126,7 +126,7 @@ export function TaskColumn({
         <div 
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`flex h-full min-h-0 w-full min-w-[280px] max-w-[380px] flex-col gap-4 sm:min-w-[340px] sm:gap-6 ${snapshot.isDragging ? 'opacity-80' : ''}`}
+          className={`flex h-fit w-[min(380px,calc(100vw-3rem))] min-w-[280px] shrink-0 flex-col gap-4 sm:min-w-[340px] sm:gap-6 ${snapshot.isDragging ? 'opacity-80' : ''}`}
         >
           <div className="flex flex-col gap-2 relative group px-2">
             <div className="flex items-center justify-between">
@@ -163,7 +163,7 @@ export function TaskColumn({
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className={`flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
+                className={`flex min-h-[500px] flex-col gap-4 rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
               >
                 {tasks.map((t, idx) => (
                   <TaskCard key={t.id} task={t} index={idx} onClick={() => onTaskClick(t)} />
@@ -453,7 +453,7 @@ export function TaskBoard() {
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex min-h-0 flex-1 items-stretch gap-4 overflow-x-auto overflow-y-hidden pb-2 sm:gap-8 sm:pb-4"
+                className="flex min-h-0 flex-1 items-start gap-4 overflow-auto pb-2 sm:gap-8 sm:pb-4"
               >
                 {columns.map((col, index) => {
                   const columnTasks = tasks

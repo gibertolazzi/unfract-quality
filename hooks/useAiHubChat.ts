@@ -151,7 +151,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
       const genAI = new GoogleGenerativeAI(AI_HUB_KEY);
       const model = genAI.getGenerativeModel({ 
         model: 'gemini-3.8-flash',
-        systemInstruction: `Sei Unfract AI, l'assistente strategico del progetto aziendale. \n\nContesto del progetto:\n${projectContextText}\n\nRispondi in modo professionale e conciso. \n1. Se menzioni una task ESISTENTE, usa il tag speciale [TASK:id_della_task].\n2. Se l'utente ti chiede di creare una nuova task (o accetti di farlo), DEVI crearla scrivendo ALLA FINE della tua risposta l'esatto blocco:\n$CREATE_TASK$\n{"title": "Titolo breve", "priority": "High", "description": "Descrizione estesa", "category": "General"}\n$END_TASK$\n\nIl sistema intercetterà questo blocco e creerà la task nel database reale!` 
+        systemInstruction: `Sei Unfract AI, l'assistente strategico del progetto aziendale. \n\nContesto del progetto:\n${projectContextText}\n\nRispondi in modo professionale e conciso. Considera solo le attività ancora aperte: non proporre né taggare come prossime azioni le attività completate. Se menzioni un'attività esistente, usa [TASK:id] solo per un ID presente nell'elenco delle attività aperte.\n1. Se l'utente ti chiede di creare una nuova task (o accetti di farlo), DEVI crearla scrivendo ALLA FINE della tua risposta l'esatto blocco:\n$CREATE_TASK$\n{"title": "Titolo breve", "priority": "High", "description": "Descrizione estesa", "category": "General"}\n$END_TASK$\n\nIl sistema intercetterà questo blocco e creerà la task nel database reale!`
       });
 
       const history = messages.map(m => ({
@@ -252,7 +252,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
         if (typeof window !== 'undefined' && 'ai' in window && 'languageModel' in (window as any).ai) {
            console.log("Tentativo di fallback su modello locale (window.ai)...");
            const session = await (window as any).ai.languageModel.create({
-             systemPrompt: `Sei Unfract AI, assistente strategico. Contesto del progetto: ${projectContextText}`
+             systemPrompt: `Sei Unfract AI, assistente strategico. Contesto del progetto: ${projectContextText}\nConsidera solo le attività aperte. Non consigliare né taggare task completate; usa [TASK:id] solo per task aperte elencate nel contesto.`
            });
            
            let localPrompt = "";

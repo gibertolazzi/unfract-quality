@@ -8,7 +8,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useAiHubChat } from "@/hooks/useAiHubChat";
 import { fetchProjectContext } from "@/lib/ai-hub";
 import { db } from "@/lib/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -19,6 +19,7 @@ export function AiHubView() {
 
   const [inputMessage, setInputMessage] = useState("");
   const [tasks, setTasks] = useState<any[]>([]);
+  const [columns, setColumns] = useState<any[]>([]);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showMCPModal, setShowMCPModal] = useState(false);
@@ -48,17 +49,37 @@ export function AiHubView() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Load tasks when project changes
+  // Keep task completion and columns live so completed work is never offered as an action.
   useEffect(() => {
-    if (activeProjectId) {
-      const q = query(collection(db, "tasks"), where("projectId", "==", activeProjectId));
-      getDocs(q).then(snapshot => {
-        setTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-      });
+    if (!activeProjectId) {
+      setTasks([]);
+      setColumns([]);
+      return;
     }
+    const taskQuery = query(collection(db, 'tasks'), where('projectId', '==', activeProjectId));
+    const columnQuery = query(collection(db, 'columns'), where('projectId', '==', activeProjectId));
+    const unsubscribeTasks = onSnapshot(taskQuery, snapshot => {
+      setTasks(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, error => console.error('Unable to load AI Hub tasks:', error));
+    const unsubscribeColumns = onSnapshot(columnQuery, snapshot => {
+      setColumns(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, error => console.error('Unable to load AI Hub task columns:', error));
+
+    return () => {
+      unsubscribeTasks();
+      unsubscribeColumns();
+    };
   }, [activeProjectId]);
 
-  const context = activeProject ? `Progetto: ${activeProject.name}\nDescrizione: ${activeProject.name || ''}\n\nTasks:\n${tasks.map(t => `- [TASK:${t.id}] ${t.title} (${t.status}, priority: ${t.priority || 'medium'})`).join('\n')}` : "";
+  const isTaskCompleted = (task: any) => {
+    const columnTitle = columns.find(column => column.id === task.columnId)?.title?.trim().toLowerCase();
+    const status = String(task.status || '').trim().toLowerCase();
+    return task.completed === true || task.isDone === true || Boolean(task.completedAt) ||
+      status === 'done' || status === 'completed' || status === 'fatto' || status === 'completato' ||
+      ['done', 'completed', 'fatto', 'completato'].includes(columnTitle || '');
+  };
+  const actionableTasks = tasks.filter(task => !isTaskCompleted(task));
+  const context = activeProject ? `Progetto: ${activeProject.name}\n\nAttività ancora da completare:\n${actionableTasks.map(task => `- [TASK:${task.id}] ${task.title} (stato: ${columns.find(column => column.id === task.columnId)?.title || task.status || 'To Do'}, priorità: ${task.priority || 'medium'})`).join('\n') || 'Nessuna attività aperta.'}\n\nNon consigliare né riproporre attività completate.` : "";
 
   const { 
     messages, 
@@ -165,7 +186,7 @@ export function AiHubView() {
     const taskMatch = content.match(/\[TASK:([a-zA-Z0-9_]+)\]/);
     if (taskMatch) {
       const taskId = taskMatch[1];
-      const task = tasks.find(t => t.id === taskId);
+      const task = tasks.find(t => t.id === taskId && !isTaskCompleted(t));
       
       const cleanContent = content.replace(/\[TASK:[a-zA-Z0-9_]+\]/g, '').trim();
       
