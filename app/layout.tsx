@@ -2,7 +2,7 @@ import "./globals.css";
 import React from "react";
 import { ClientProviders } from "@/components/ClientProviders";
 import { cookies } from "next/headers";
-import { getDictionary } from "@/lib/i18n/dictionaries";
+import { getDictionary, normalizeLocale } from "@/lib/i18n/dictionaries";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 
 export const metadata = {
@@ -12,7 +12,7 @@ export const metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = cookies();
-  const locale = cookieStore.get("NEXT_LOCALE")?.value || "it";
+  const locale = normalizeLocale(cookieStore.get("NEXT_LOCALE")?.value);
   const dictionary = await getDictionary(locale);
 
   return (

@@ -6,11 +6,11 @@ import { useRouter } from 'next/navigation';
 
 export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useAuth();
-  const { t } = useTranslation();
+  const { t, locale, setLocale } = useTranslation();
   const router = useRouter();
   
   const [timezone, setTimezone] = useState(settings?.timezone || 'Europe/Rome');
-  const [language, setLanguage] = useState(settings?.language || 'it');
+  const [language, setLanguage] = useState(locale);
   
   // Email preferences
   const [emailAssignee, setEmailAssignee] = useState(settings?.emailAssignee ?? true);
@@ -24,11 +24,15 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
 
   // Handle Language change with cookie
   const handleLanguageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newLang = e.target.value;
+    const newLang = e.target.value as 'it' | 'en';
     setLanguage(newLang);
-    document.cookie = `NEXT_LOCALE=${newLang}; path=/; max-age=31536000`;
+    setLocale(newLang);
     router.refresh();
   };
+
+  useEffect(() => {
+    setLanguage(locale);
+  }, [locale]);
 
   // Debounce settings updates
   useEffect(() => {

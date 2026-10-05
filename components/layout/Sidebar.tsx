@@ -10,7 +10,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useProject, Project } from "@/contexts/ProjectContext";
 import { DeleteProjectModal } from "@/components/tasks/DeleteProjectModal";
 import { CreateProjectModal } from "@/components/tasks/CreateProjectModal";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { subscribeToDocuments, createDocument } from "@/lib/documentation";
 import { Document } from "@/components/documentation/types";
 import { useRouter } from "next/navigation";
@@ -103,8 +103,9 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const { user, loginWithGoogle, logout, loading } = useAuth();
   const { unreadCount } = useChat();
   const { t } = useTranslation();
+  const { activeWorkspace, workspaces } = useWorkspace();
   
-  const NAV_ITEMS = [
+  const NAV_ITEMS = useMemo(() => [
     { id: "dashboard", label: t.sidebar.dashboard, Icon: Home, href: "/dashboard" },
     { id: "tasks", label: t.sidebar.tasks, Icon: CheckCircle2, href: "/" },
     { id: "calendar", label: t.sidebar.calendar, Icon: Calendar, href: "/calendar" },
@@ -115,7 +116,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
     { id: "organization", label: t.sidebar.organization, Icon: Users, href: "/organization" },
     { id: "chat", label: t.sidebar.chat, Icon: MessageCircle, href: "/chat" },
     { id: "ai-hub", label: t.sidebar.aiHub, Icon: Sparkles, href: "/ai-hub" },
-  ];
+  ], [t.sidebar]);
 
   const { 
     projects, 
@@ -144,40 +145,26 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { activeWorkspace, workspaces } = useWorkspace();
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
 
   // Filter NAV_ITEMS based on structureMode
-  const availableNavItems = NAV_ITEMS.filter(item => {
-    if (item.id === "organization") {
-      // In flat mode, we might want to hide "Organization" (or rename it to Workspace settings)
-      // Actually, if we hide it completely, how do they access Settings to change it back?
-      // Let's change the label to "Workspace" if flat, "Teams" if teams, "Corporate" if corporate.
-      // But for now, let's keep it visible so they can change the mode back.
-      return true;
-    }
-    return true;
-  }).map(item => {
-    if (item.id === "organization") {
-      if (activeWorkspace?.structureMode === 'flat') {
-        return { ...item, label: t.sidebar.settings }; // In flat mode, just call it Settings
+  const availableNavItems = useMemo(() => NAV_ITEMS.map(item => {
+      if (item.id === "organization") {
+        if (activeWorkspace?.structureMode === 'flat') {
+          return { ...item, label: t.sidebar.settings };
+        }
+        if (activeWorkspace?.structureMode === 'teams') {
+          return { ...item, label: t.sidebar.teams };
+        }
+        if (activeWorkspace?.structureMode === 'corporate') {
+          return { ...item, label: t.sidebar.corporate };
+        }
       }
-      if (activeWorkspace?.structureMode === 'teams') {
-        return { ...item, label: t.sidebar.teams };
-      }
-      if (activeWorkspace?.structureMode === 'corporate') {
-        return { ...item, label: t.sidebar.corporate };
-      }
-    }
-    return item;
-  });
+      return item;
+    }), [NAV_ITEMS, activeWorkspace?.structureMode, t.sidebar]);
 
   const [navItems, setNavItems] = useState(availableNavItems);
-
-  useEffect(() => {
-    setNavItems(availableNavItems);
-  }, [activeWorkspace?.structureMode]);
 
   useEffect(() => {
     const saved = localStorage.getItem('unfract-sidebar-order');
@@ -187,9 +174,11 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
         const reordered = order.map((id: string) => availableNavItems.find(i => i.id === id)).filter(Boolean);
         const missing = availableNavItems.filter(i => !order.includes(i.id));
         setNavItems([...reordered, ...missing] as any);
+        return;
       } catch (e) {}
     }
-  }, [activeWorkspace?.structureMode]);
+    setNavItems(availableNavItems);
+  }, [availableNavItems]);
 
   const handleDragStart = (e: React.DragEvent, id: string) => {
     setDraggedItemId(id);

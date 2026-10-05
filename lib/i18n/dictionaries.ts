@@ -7,9 +7,9 @@ const dictionaries = {
 
 export type Locale = keyof typeof dictionaries;
 
+export const normalizeLocale = (locale: string | undefined): Locale =>
+  locale === 'en' ? 'en' : 'it';
+
 export const getDictionary = async (locale: string) => {
-  if (locale in dictionaries) {
-    return dictionaries[locale as Locale]();
-  }
-  return dictionaries['it'](); // Default to Italian
+  return dictionaries[normalizeLocale(locale)]();
 };

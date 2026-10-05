@@ -109,7 +109,7 @@ export function TaskTimeline({
     const width = months.length * MONTH_WIDTH;
 
     return { timelineStart: start, timelineEnd: end, totalMs: ms, timelineMonths: months, totalWidth: width };
-  }, [tasks, columns]);
+  }, [tasks, columns, locale]);
 
 
   const getTaskIntervals = (epicTasks: any[]) => {
