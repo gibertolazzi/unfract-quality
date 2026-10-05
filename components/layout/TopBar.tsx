@@ -33,16 +33,22 @@ type Notification = {
 
 const UsagePreviewIcon = ({ aiPercentage = 0, storagePercentage = 0 }: { aiPercentage?: number, storagePercentage?: number }) => {
   const ai = Math.min(Math.max(aiPercentage, 0), 100);
+  const storage = Math.min(Math.max(storagePercentage, 0), 100);
   
   const radius = 9;
+  const innerRadius = 5;
   const circumference = 2 * Math.PI * radius;
+  const innerCircumference = 2 * Math.PI * innerRadius;
   const aiDashoffset = circumference - (circumference * ai) / 100;
+  const storageDashoffset = innerCircumference - (innerCircumference * storage) / 100;
   
   return (
     <div className="relative flex items-center justify-center w-6 h-6">
       <svg width="24" height="24" viewBox="0 0 24 24" className="transform -rotate-90 absolute">
         <circle cx="12" cy="12" r={radius} stroke="currentColor" strokeWidth="2.5" fill="none" className="text-white/10" />
         <circle cx="12" cy="12" r={radius} stroke="currentColor" strokeWidth="2.5" fill="none" strokeDasharray={circumference} strokeDashoffset={aiDashoffset} className={ai > 80 ? "text-[#FF0004]" : "text-[#006AFF]"} strokeLinecap="round" />
+        <circle cx="12" cy="12" r={innerRadius} stroke="currentColor" strokeWidth="2" fill="none" className="text-white/10" />
+        <circle cx="12" cy="12" r={innerRadius} stroke="currentColor" strokeWidth="2" fill="none" strokeDasharray={innerCircumference} strokeDashoffset={storageDashoffset} className={storage > 80 ? "text-[#FF0004]" : "text-[#00D084]"} strokeLinecap="round" />
       </svg>
     </div>
   );
@@ -62,13 +68,25 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isQuotasOpen, setIsQuotasOpen] = useState(false);
   const quotasRef = useRef<HTMLDivElement>(null);
 
-  const quotas = activeWorkspace?.quotas || {
+  const quotas = {
     planTier: 'free',
     storageUsed: 0,
-    storageLimit: 1 * 1e9,
+    storageLimit: 1_000_000_000,
     aiCreditsUsed: 0,
-    aiCreditsLimit: 120
+    aiCreditsLimit: 120,
+    ...activeWorkspace?.quotas,
   };
+  const now = new Date();
+  const currentCreditPeriod = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
+  const aiCreditsUsed = quotas.aiCreditsPeriod === currentCreditPeriod ? quotas.aiCreditsUsed : 0;
+  const formatStorage = (bytes: number, limit = false) => {
+    const safeBytes = Math.max(0, Number(bytes) || 0);
+    if (safeBytes < 1_000_000) return `${(safeBytes / 1_000).toFixed(0)} KB`;
+    if (safeBytes < 1_000_000_000) return `${(safeBytes / 1_000_000).toFixed(limit ? 0 : 1)} MB`;
+    return `${(safeBytes / 1_000_000_000).toFixed(limit ? 0 : 2)} GB`;
+  };
+  const storagePercent = quotas.storageLimit > 0 ? Math.min((quotas.storageUsed / quotas.storageLimit) * 100, 100) : 0;
+  const aiPercent = quotas.aiCreditsLimit > 0 ? Math.min((aiCreditsUsed / quotas.aiCreditsLimit) * 100, 100) : 0;
 
   const [isExpanded, setIsExpanded] = useState(false);
   const islandRef = useRef<HTMLDivElement>(null);
@@ -613,8 +631,8 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
               title={t.topbar.quotasTitle}
             >
               <UsagePreviewIcon 
-                aiPercentage={(quotas.aiCreditsUsed / quotas.aiCreditsLimit) * 100} 
-                storagePercentage={(quotas.storageUsed / quotas.storageLimit) * 100} 
+                aiPercentage={aiPercent}
+                storagePercentage={storagePercent}
               />
             </button>
             
@@ -638,13 +656,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       <span className="text-xs text-white/80">{t.topbar.storage}</span>
                     </div>
                     <span className="text-xs font-mono text-white/60">
-                      {(quotas.storageUsed / 1e9).toFixed(1)} / {(quotas.storageLimit / 1e9).toFixed(0)} GB
+                      {formatStorage(quotas.storageUsed)} / {formatStorage(quotas.storageLimit, true)}
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-white rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min((quotas.storageUsed / quotas.storageLimit) * 100, 100)}%` }}
+                      style={{ width: `${storagePercent}%` }}
                     />
                   </div>
                 </div>
@@ -657,13 +675,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       <span className="text-xs text-white/80">{t.topbar.aiCredits}</span>
                     </div>
                     <span className="text-xs font-mono text-white/60">
-                      {quotas.aiCreditsUsed} / {quotas.aiCreditsLimit}
+                      {aiCreditsUsed} / {quotas.aiCreditsLimit}
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-0.5">
                     <div 
                       className="h-full bg-[#006AFF] rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min((quotas.aiCreditsUsed / quotas.aiCreditsLimit) * 100, 100)}%` }}
+                      style={{ width: `${aiPercent}%` }}
                     />
                   </div>
                   <div className="flex justify-start">

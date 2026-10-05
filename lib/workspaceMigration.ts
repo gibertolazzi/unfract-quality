@@ -32,6 +32,7 @@ export async function migrateToWorkspaces(): Promise<void> {
         name: org.name,
         ownerId: org.ownerId,
         structureMode: 'teams', // Legacy orgs default to teams mode
+        quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 },
         createdAt: org.createdAt || serverTimestamp(),
       };
       
@@ -91,6 +92,7 @@ export async function migrateToWorkspaces(): Promise<void> {
         name: `${userName} Workspace`,
         ownerId: userId,
         structureMode: 'flat',
+        quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 },
         createdAt: serverTimestamp(),
       });
       // Grant admin

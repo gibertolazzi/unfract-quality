@@ -1,5 +1,5 @@
 import { db, storage } from '@/lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
 import { CrmDocument, CrmDocumentVersion } from '@/types/crm';
 import { VisibilityLevel } from '@/components/crm/constants';
 import { CrmContextRef, mapBase, createRecord, updateRecord, archiveRecord, getRecords, getRecordById, subscribeToRecords, subscribeToRecord, restoreRecord, byCreatedAtDesc } from './base';
@@ -8,8 +8,19 @@ import { getOpportunityById } from './opportunities';
 import { toMillis } from './helpers';
 import { Page, paginate } from './leadFilters';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { incrementStorageUsage } from '@/lib/usage';
 
 const COLLECTION_NAME = 'crm_documents';
+
+async function trackWorkspaceStorage(ctx: CrmContextRef, bytes: number) {
+  try {
+    const projectSnap = await getDoc(doc(db, 'projects', ctx.projectId));
+    const workspaceId = projectSnap.data()?.workspaceId || ctx.organizationId;
+    if (workspaceId) await incrementStorageUsage(workspaceId, bytes);
+  } catch (error) {
+    console.error('Unable to attribute CRM storage usage to its workspace:', error);
+  }
+}
 
 /** Formati minimi richiesti dalla specifica. */
 export const ALLOWED_MIME_TYPES: Record<string, string> = {
@@ -577,6 +588,8 @@ export async function uploadDocument(
     return { id: null, fileName: file.name, error: 'Metadati non salvati: il file è stato rimosso' };
   }
 
+  await trackWorkspaceStorage(ctx, stored.sizeBytes);
+
   return { id, fileName: file.name };
 }
 
@@ -621,6 +634,8 @@ export async function uploadDocumentVersion(
     await discard(stored.storagePath);
     return { id: null, fileName: file.name, error: 'Versione non registrata: il file è stato rimosso' };
   }
+
+  await trackWorkspaceStorage(ctx, stored.sizeBytes);
 
   return { id: document.id, fileName: file.name };
 }

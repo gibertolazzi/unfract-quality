@@ -4,10 +4,12 @@ import React, { useState, useEffect } from "react";
 import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject } from "@/contexts/ProjectContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAiHubChat } from "@/hooks/useAiHubChat";
 import { fetchProjectContext } from "@/lib/ai-hub";
 import { db } from "@/lib/firebase";
+import { incrementStorageUsage } from "@/lib/usage";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -16,6 +18,7 @@ export function AiHubView() {
   const { user } = useAuth();
   const router = useRouter();
   const { activeProject, activeProjectId } = useProject();
+  const { activeWorkspaceId } = useWorkspace();
 
   const [inputMessage, setInputMessage] = useState("");
   const [tasks, setTasks] = useState<any[]>([]);
@@ -117,6 +120,7 @@ export function AiHubView() {
           const storageRef = ref(storage, `ai-hub/${activeProjectId}/${Date.now()}_${file.name}`);
           await uploadBytes(storageRef, file);
           const url = await getDownloadURL(storageRef);
+          if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
           uploadedFiles.push({ url, name: file.name, type: file.type });
         }
       } catch (e) {

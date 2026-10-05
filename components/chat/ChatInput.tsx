@@ -3,6 +3,8 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { incrementStorageUsage } from '@/lib/usage';
 import { sendMessage, Mention, Attachment } from '@/lib/chat';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { Send, ImagePlus, Paperclip, Loader2, X, File as FileIcon, Plus, Mic, Square, Trash2 } from 'lucide-react';
@@ -35,6 +37,7 @@ function uploadChatFile(chatId: string, file: File, index: number): Promise<Atta
 
 export function ChatInput({ chatId }: { chatId: string }) {
   const { user } = useAuth();
+  const { activeWorkspaceId } = useWorkspace();
   const { chats } = useChat();
   const chat = chats.find(c => c.id === chatId);
   const myPermissions = chat?.permissions?.[user?.uid || ''] || { canWrite: true };
@@ -103,6 +106,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
       const file = files[index];
       try {
         const attachment = await uploadChatFile(chatId, file, index);
+        if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
         setAttachments(prev => [...prev, attachment]);
       } catch (error) {
         console.error(`Failed to upload ${file.name}:`, error);
@@ -160,6 +164,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
               },
               async () => {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+                if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
                 
                 // Automatically send message with audio attachment
                 try {

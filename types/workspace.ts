@@ -6,6 +6,7 @@ export interface WorkspaceQuotas {
   storageLimit: number;
   aiCreditsUsed: number;
   aiCreditsLimit: number;
+  aiCreditsPeriod?: string;
 }
 
 export interface Workspace {

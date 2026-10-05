@@ -48,6 +48,7 @@ export type AiChat = {
 };
 
 export function useAiHubChat(projectContextText: string, projectId?: string, userId?: string) {
+  const { activeWorkspaceId } = useWorkspace();
   const [chats, setChats] = useState<AiChat[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -102,6 +103,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
       const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
       const prompt = `Genera un titolo molto breve (massimo 4-5 parole) per descrivere questo messaggio dell'utente. Restituisci SOLO il titolo senza virgolette e senza altra punteggiatura.\nMessaggio: "${firstMessage}"`;
       const result = await executeWithRetry(() => model.generateContent(prompt));
+      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       return result.response.text().trim();
     } catch (e) {
       console.error("Errore generazione titolo:", e);
@@ -184,6 +186,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
         userMessageParts.push(...fileParts);
       }
       const result = await executeWithRetry(() => chat.sendMessage(userMessageParts));
+      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       let responseText = await result.response.text();
       
       // Check for magic task creation block
@@ -281,7 +284,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
     } finally {
       setIsLoading(false);
     }
-  }, [messages, projectContextText, activeChatId, projectId, userId]);
+  }, [messages, projectContextText, activeChatId, projectId, userId, activeWorkspaceId]);
 
   return {
     messages,

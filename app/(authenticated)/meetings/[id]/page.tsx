@@ -16,6 +16,8 @@ import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } 
 import { db } from '@/lib/firebase';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { useProject } from '@/contexts/ProjectContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { incrementAiUsage } from '@/lib/usage';
 import { TranscriptModal } from '@/components/meetings/TranscriptModal';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -117,6 +119,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         const genAI = new GoogleGenerativeAI(API_KEY);
         const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash', systemInstruction });
         const res = await model.generateContent(promptText);
+        if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
         newTitle = res.response.text().replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
         toast.success(`${t.meetings.titleGenerated} (Cloud)!`);
       }
@@ -144,6 +147,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
 
   const { user, loading: authLoading } = useAuth();
   const { activeProjectId } = useProject();
+  const { activeWorkspaceId } = useWorkspace();
   const router = useRouter();
 
   useEffect(() => {
@@ -311,6 +315,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       }
       
       const result = await processMeetingTranscript(audioBlob, meeting.transcript);
+      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       const newTitle = meeting.title.replace(" (Trascrizione Fallita)", "");
       
       const newData = {

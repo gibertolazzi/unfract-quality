@@ -9,6 +9,8 @@ import { doc, updateDoc, arrayRemove, collection, query, where, onSnapshot } fro
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { incrementStorageUsage } from '@/lib/usage';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { AssignProjectModal } from './AssignProjectModal';
@@ -23,6 +25,7 @@ import { TeamsSection } from './TeamsSection';
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const { user } = useAuth();
   const { projects } = useProject();
+  const { activeWorkspaceId } = useWorkspace();
   const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
   const [org, setOrg] = useState(initialOrg);
   useEffect(() => {
@@ -101,6 +104,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       const url = await getDownloadURL(storageRef);
       
       await updateDoc(doc(db, 'organizations', org.id), { bannerUrl: url });
+      if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
       setOrg({ ...org, bannerUrl: url });
       toast.success("Banner caricato.");
     } catch (err) {
@@ -122,6 +126,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       const url = await getDownloadURL(storageRef);
       
       await updateDoc(doc(db, 'organizations', org.id), { logoUrl: url });
+      if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
       setOrg({ ...org, logoUrl: url });
       toast.success("Logo caricato.");
     } catch (err) {

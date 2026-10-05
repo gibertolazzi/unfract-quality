@@ -644,6 +644,7 @@ ${contextText}`;
               if (!response || useCloud) {
                 toast.info("Generazione in corso...");
                 response = await generateDocContent(prompt, systemPromptText);
+                if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
               }
               
               // Clean markdown backticks

@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslation } from '@/contexts/TranslationContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { incrementAiUsage } from '@/lib/usage';
 import { useEffect, useMemo, useState } from 'react';
 import { Search, History, Ban, Loader2 } from 'lucide-react';
 import { CrmContextRef } from '@/lib/crm/base';
@@ -52,6 +54,7 @@ type Vista = 'cerca' | 'cronologia' | 'esclusioni';
 
 export function RicercaSection({ ctx, ownerName, onNotify, canManageExclusions = true }: RicercaSectionProps) {
   const { t } = useTranslation();
+  const { activeWorkspaceId } = useWorkspace();
   const [vista, setVista] = useState<Vista>('cerca');
   const { profiles, searches, reports, exclusions, loading } = useProspect(ctx?.projectId, true);
 
@@ -128,6 +131,7 @@ export function RicercaSection({ ctx, ownerName, onNotify, canManageExclusions =
     setBusy('report');
     try {
       const risultato = await generateReport(ctx, scheda.id);
+      if (risultato.aiUsed && activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       onNotify(risultato.message, risultato.ok ? 'ok' : 'ko');
     } finally {
       setBusy('');

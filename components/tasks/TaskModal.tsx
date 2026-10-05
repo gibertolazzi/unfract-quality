@@ -14,6 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { decrementStorageUsage, incrementStorageUsage } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
@@ -40,6 +42,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const toast = useToast();
   const dialog = useDialog();
   const { activeProjectId } = useProject();
+  const { activeWorkspaceId } = useWorkspace();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
@@ -132,6 +135,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   type: file.type,
                   size: file.size,
                   refPath: uploadTask.snapshot.ref.fullPath,
+                  usageTracked: false,
                 });
                 newPaths.push(uploadTask.snapshot.ref.fullPath);
                 newlyUploadedPaths.push(uploadTask.snapshot.ref.fullPath);
@@ -144,6 +148,14 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         });
       }
 
+      let usageTracked = false;
+      if (activeWorkspaceId) {
+        const addedBytes = Array.from(files).reduce((total, file) => total + file.size, 0);
+        usageTracked = await incrementStorageUsage(activeWorkspaceId, addedBytes);
+      }
+      newAttachments.forEach(attachment => {
+        if (newlyUploadedPaths.includes(attachment.refPath)) attachment.usageTracked = usageTracked;
+      });
       setAttachments(newAttachments);
       setSessionUploadedPaths(newPaths);
     } catch (error) {
@@ -175,6 +187,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       if (attachment.refPath) {
         const fileRef = ref(storage, attachment.refPath);
         await deleteObject(fileRef);
+        if (activeWorkspaceId && attachment.usageTracked && attachment.size) {
+          await decrementStorageUsage(activeWorkspaceId, attachment.size);
+        }
+        setSessionUploadedPaths(paths => paths.filter(path => path !== attachment.refPath));
       }
       
       // If the task already exists, update the db right away
@@ -196,6 +212,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       for (const path of sessionUploadedPaths) {
         try {
           await deleteObject(ref(storage, path));
+          const uploadedAttachment = attachments.find(attachment => attachment.refPath === path);
+          if (activeWorkspaceId && uploadedAttachment?.usageTracked && uploadedAttachment.size) {
+            await decrementStorageUsage(activeWorkspaceId, uploadedAttachment.size);
+          }
         } catch(e) { console.error("Error cleaning up file", e); }
       }
       setSessionUploadedPaths([]);

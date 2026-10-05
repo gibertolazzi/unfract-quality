@@ -109,6 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             name: name.trim(),
                             ownerId: user.uid,
                             structureMode: 'teams',
+                            quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 },
                             createdAt: serverTimestamp()
                           });
                           
