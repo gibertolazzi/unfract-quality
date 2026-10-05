@@ -109,7 +109,7 @@ export function AiHubView() {
     if (!inputMessage.trim() && attachments.length === 0) return;
     setIsUploadingMedia(true);
     let textToProcess = inputMessage;
-    let uploadedFiles: { url: string; name: string; type: string }[] = [];
+    let uploadedFiles: { url: string; name: string; type: string; storagePath?: string; size?: number; workspaceId?: string | null; usageTracked?: boolean }[] = [];
     
     if (attachments.length > 0 && activeProjectId) {
       try {
@@ -120,8 +120,18 @@ export function AiHubView() {
           const storageRef = ref(storage, `ai-hub/${activeProjectId}/${Date.now()}_${file.name}`);
           await uploadBytes(storageRef, file);
           const url = await getDownloadURL(storageRef);
-          if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
-          uploadedFiles.push({ url, name: file.name, type: file.type });
+          const usageTracked = activeWorkspaceId
+            ? await incrementStorageUsage(activeWorkspaceId, file.size)
+            : false;
+          uploadedFiles.push({
+            url,
+            name: file.name,
+            type: file.type,
+            storagePath: storageRef.fullPath,
+            size: file.size,
+            workspaceId: activeWorkspaceId,
+            usageTracked,
+          });
         }
       } catch (e) {
         console.error("Error uploading attachments:", e);

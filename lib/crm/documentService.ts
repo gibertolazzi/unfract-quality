@@ -1,5 +1,5 @@
 import { db, storage } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, doc, getDoc, updateDoc, increment, serverTimestamp } from 'firebase/firestore';
 import { CrmDocument, CrmDocumentVersion } from '@/types/crm';
 import { VisibilityLevel } from '@/components/crm/constants';
 import { CrmContextRef, mapBase, createRecord, updateRecord, archiveRecord, getRecords, getRecordById, subscribeToRecords, subscribeToRecord, restoreRecord, byCreatedAtDesc } from './base';
@@ -225,7 +225,7 @@ export async function addDocumentVersion(
   version: { storagePath: string; downloadUrl: string; sizeBytes: number }
 ): Promise<void> {
   const current = await getDocumentById(id);
-  if (!current) return;
+  if (!current) throw new Error(`CRM document ${id} not found while adding a version`);
 
   const nextVersion = {
     version: current.versions.length + 1,
@@ -236,12 +236,15 @@ export async function addDocumentVersion(
     uploadedBy: ctx.uid,
   };
 
-  await updateRecord(COLLECTION_NAME, id, {
+  await updateDoc(doc(db, COLLECTION_NAME, id), {
     storagePath: version.storagePath,
     downloadUrl: version.downloadUrl,
     sizeBytes: version.sizeBytes,
     versions: [...current.versions, nextVersion],
-  }, ctx.uid);
+    updatedAt: serverTimestamp(),
+    updatedBy: ctx.uid,
+    version: increment(1),
+  });
 
   await writeAudit(ctx, 'document.version_added', 'document', id, null, { version: nextVersion.version });
 }

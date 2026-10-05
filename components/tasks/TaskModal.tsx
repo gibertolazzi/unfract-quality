@@ -15,7 +15,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { decrementStorageUsage, incrementStorageUsage } from '@/lib/usage';
+import { deleteStoredFile, incrementStorageUsage } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
@@ -154,7 +154,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         usageTracked = await incrementStorageUsage(activeWorkspaceId, addedBytes);
       }
       newAttachments.forEach(attachment => {
-        if (newlyUploadedPaths.includes(attachment.refPath)) attachment.usageTracked = usageTracked;
+        if (newlyUploadedPaths.includes(attachment.refPath)) {
+          attachment.usageTracked = usageTracked;
+          attachment.workspaceId = activeWorkspaceId || null;
+        }
       });
       setAttachments(newAttachments);
       setSessionUploadedPaths(newPaths);
@@ -185,11 +188,11 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     try {
       // If it has a refPath, we can delete it from storage
       if (attachment.refPath) {
-        const fileRef = ref(storage, attachment.refPath);
-        await deleteObject(fileRef);
-        if (activeWorkspaceId && attachment.usageTracked && attachment.size) {
-          await decrementStorageUsage(activeWorkspaceId, attachment.size);
-        }
+        await deleteStoredFile(attachment.refPath, {
+          workspaceId: attachment.workspaceId || activeWorkspaceId || undefined,
+          bytes: attachment.size,
+          usageTracked: attachment.usageTracked,
+        });
         setSessionUploadedPaths(paths => paths.filter(path => path !== attachment.refPath));
       }
       
@@ -211,11 +214,12 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     if (sessionUploadedPaths.length > 0) {
       for (const path of sessionUploadedPaths) {
         try {
-          await deleteObject(ref(storage, path));
           const uploadedAttachment = attachments.find(attachment => attachment.refPath === path);
-          if (activeWorkspaceId && uploadedAttachment?.usageTracked && uploadedAttachment.size) {
-            await decrementStorageUsage(activeWorkspaceId, uploadedAttachment.size);
-          }
+          await deleteStoredFile(path, {
+            workspaceId: uploadedAttachment?.workspaceId || activeWorkspaceId || undefined,
+            bytes: uploadedAttachment?.size,
+            usageTracked: uploadedAttachment?.usageTracked,
+          });
         } catch(e) { console.error("Error cleaning up file", e); }
       }
       setSessionUploadedPaths([]);
@@ -244,6 +248,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       if (activeProjectId) {
         taskData.projectId = activeProjectId;
       }
+      if (activeWorkspaceId) taskData.workspaceId = activeWorkspaceId;
 
       if (onSaveLocal) {
         onSaveLocal(taskData);
@@ -275,6 +280,21 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     if (isConfirmed) {
       try {
         await TaskService.delete(task.id, task.meetingId, task.meetingTaskIdx);
+        // The task service removes already-saved attachment objects. Clean up files uploaded
+        // during this unsaved edit session as well, without saving those attachments to task.
+        for (const path of sessionUploadedPaths) {
+          const attachment = attachments.find(item => item.refPath === path);
+          try {
+            await deleteStoredFile(path, {
+              workspaceId: attachment?.workspaceId || activeWorkspaceId || undefined,
+              bytes: attachment?.size,
+              usageTracked: attachment?.usageTracked,
+            });
+          } catch (error) {
+            console.error('Error cleaning up deleted task attachment:', error);
+          }
+        }
+        setSessionUploadedPaths([]);
         onClose();
       } catch (error) {
         console.error("Error deleting task:", error);

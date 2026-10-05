@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { Meeting } from '@/types/meetings';
+import { deleteStoredFile } from '@/lib/usage';
 
 const COLLECTION_NAME = 'meetings';
 
@@ -26,6 +27,10 @@ export async function getMeetings(projectId: string): Promise<Meeting[]> {
         tasks: data.tasks || [],
         transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
         audioUrl: data.audioUrl,
+        audioStoragePath: data.audioStoragePath,
+        audioSizeBytes: data.audioSizeBytes,
+        audioWorkspaceId: data.audioWorkspaceId,
+        audioUsageTracked: data.audioUsageTracked,
         createdAt: data.createdAt,
         projectId: data.projectId
       } as Meeting & { projectId?: string };
@@ -59,6 +64,10 @@ export function subscribeToMeetings(projectId: string, callback: (meetings: Meet
         tasks: data.tasks || [],
         transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
         audioUrl: data.audioUrl,
+        audioStoragePath: data.audioStoragePath,
+        audioSizeBytes: data.audioSizeBytes,
+        audioWorkspaceId: data.audioWorkspaceId,
+        audioUsageTracked: data.audioUsageTracked,
         createdAt: data.createdAt,
         projectId: data.projectId
       } as Meeting & { projectId?: string };
@@ -96,6 +105,10 @@ export async function getMeetingById(id: string): Promise<(Meeting & { projectId
       tasks: data.tasks || [],
       transcript: data.transcript || data.transcription || data.trascrizione || data.text || '',
       audioUrl: data.audioUrl,
+      audioStoragePath: data.audioStoragePath,
+      audioSizeBytes: data.audioSizeBytes,
+      audioWorkspaceId: data.audioWorkspaceId,
+      audioUsageTracked: data.audioUsageTracked,
       createdAt: data.createdAt,
       projectId: data.projectId
     } as Meeting & { projectId?: string };
@@ -153,7 +166,19 @@ export async function saveMeeting(projectId: string, meetingData: Omit<Meeting, 
 
 export async function deleteMeeting(id: string): Promise<boolean> {
   try {
-    await deleteDoc(doc(db, COLLECTION_NAME, id));
+    const meetingRef = doc(db, COLLECTION_NAME, id);
+    const snapshot = await getDoc(meetingRef);
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      if (data.audioStoragePath) {
+        await deleteStoredFile(data.audioStoragePath, {
+          workspaceId: data.audioWorkspaceId,
+          bytes: data.audioSizeBytes,
+          usageTracked: data.audioUsageTracked === true,
+        });
+      }
+    }
+    await deleteDoc(meetingRef);
     return true;
   } catch (error) {
     console.error("Error deleting meeting:", error);

@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { useChat } from '@/contexts/ChatContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
+import { deleteStoredFile } from '@/lib/usage';
 import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { Message, Attachment, Mention } from '@/lib/chat';
 import { ChatInput } from './ChatInput';
@@ -180,6 +181,22 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
     if (!messageToDelete || !user) return;
     try {
       if (type === 'everyone') {
+        const attachments = messageToDelete.attachments || [];
+        for (const attachment of attachments) {
+          const payload = attachment?.payload;
+          if (!payload?.storagePath) continue;
+          try {
+            await deleteStoredFile(payload.storagePath, {
+              workspaceId: payload.workspaceId,
+              bytes: payload.size,
+              usageTracked: payload.usageTracked === true,
+            });
+          } catch (error) {
+            // Leave message metadata intact if a file could not be deleted, so a retry remains possible.
+            console.error('Failed to delete shared chat attachment:', error);
+            return;
+          }
+        }
         await updateDoc(doc(db, 'messages', messageToDelete.id), {
           deletedForEveryone: true,
           text: 'Questo messaggio è stato eliminato',

@@ -12,9 +12,10 @@ import { useToast } from '@/contexts/ToastContext';
 import { Meeting } from '@/components/meetings/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, ChevronLeft, Calendar, Clock, User, CheckCircle2, FileText, Target, Pencil, Check, X, Sparkles } from 'lucide-react';
-import { collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { collection, addDoc, getDoc, getDocs, doc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { TaskModal } from '@/components/tasks/TaskModal';
+import { deleteTaskAttachments } from '@/lib/services/taskService';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { incrementAiUsage } from '@/lib/usage';
@@ -238,6 +239,8 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
     if (isConfirmed) {
       try {
         if (task.globalTaskId) {
+          const globalTaskSnapshot = await getDoc(doc(db, 'tasks', task.globalTaskId));
+          if (globalTaskSnapshot.exists()) await deleteTaskAttachments(globalTaskSnapshot.data());
           await deleteDoc(doc(db, 'tasks', task.globalTaskId));
         } else {
           const tasksQuery = query(
@@ -247,6 +250,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           );
           const querySnapshot = await getDocs(tasksQuery);
           for (const docSnapshot of querySnapshot.docs) {
+            await deleteTaskAttachments(docSnapshot.data());
             await deleteDoc(doc(db, 'tasks', docSnapshot.id));
           }
         }

@@ -1,5 +1,6 @@
 import { doc, updateDoc, increment, runTransaction } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, storage } from './firebase';
+import { deleteObject, ref } from 'firebase/storage';
 import { WorkspaceQuotas } from '@/types/workspace';
 
 const currentCreditPeriod = () => {
@@ -89,5 +90,24 @@ export async function decrementStorageUsage(workspaceId: string, bytes: number):
   } catch (err) {
     console.error('Failed to decrement storage usage:', err);
     return false;
+  }
+}
+
+/** Delete one stored object and only then undo bytes that were actually metered. */
+export async function deleteStoredFile(
+  storagePath: string,
+  options: { workspaceId?: string; bytes?: number; usageTracked?: boolean } = {}
+): Promise<void> {
+  if (!storagePath) return;
+  try {
+    await deleteObject(ref(storage, storagePath));
+  } catch (error) {
+    if ((error as { code?: string })?.code !== 'storage/object-not-found') throw error;
+    // A previous cleanup may have deleted the object before a later record update failed.
+    // Its usage decrement was performed by that successful deletion; don't decrement twice.
+    return;
+  }
+  if (options.usageTracked && options.workspaceId && options.bytes) {
+    await decrementStorageUsage(options.workspaceId, options.bytes);
   }
 }

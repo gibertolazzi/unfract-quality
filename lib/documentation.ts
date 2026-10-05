@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { Document, DocBlock } from '@/types/documentation';
+import { deleteStoredFile } from '@/lib/usage';
 
 const COLLECTION_NAME = 'documentation';
 
@@ -213,6 +214,18 @@ export async function updateDocument(id: string, updates: Partial<Document>, aut
 export async function deleteDocument(id: string): Promise<boolean> {
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
+    const snapshot = await getDoc(docRef);
+    if (snapshot.exists()) {
+      const storageFiles = snapshot.data().storageFiles || [];
+      for (const file of storageFiles) {
+        if (!file?.storagePath) continue;
+        await deleteStoredFile(file.storagePath, {
+          workspaceId: file.workspaceId,
+          bytes: file.sizeBytes,
+          usageTracked: file.usageTracked === true,
+        });
+      }
+    }
     await deleteDoc(docRef);
     return true;
   } catch (error) {

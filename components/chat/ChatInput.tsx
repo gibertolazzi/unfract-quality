@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { incrementStorageUsage } from '@/lib/usage';
+import { incrementStorageUsage, deleteStoredFile } from '@/lib/usage';
 import { sendMessage, Mention, Attachment } from '@/lib/chat';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { Send, ImagePlus, Paperclip, Loader2, X, File as FileIcon, Plus, Mic, Square, Trash2 } from 'lucide-react';
@@ -12,7 +12,7 @@ import { useEffect } from 'react';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
-function uploadChatFile(chatId: string, file: File, index: number): Promise<Attachment> {
+function uploadChatFile(chatId: string, file: File, index: number, workspaceId?: string): Promise<Attachment> {
   return new Promise((resolve, reject) => {
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
@@ -24,9 +24,20 @@ function uploadChatFile(chatId: string, file: File, index: number): Promise<Atta
     uploadTask.on('state_changed', undefined, reject, async () => {
       try {
         const url = await getDownloadURL(uploadTask.snapshot.ref);
+        const usageTracked = workspaceId
+          ? await incrementStorageUsage(workspaceId, file.size)
+          : false;
         resolve({
           type,
-          payload: { url, name: file.name, size: file.size, mimeType: file.type },
+          payload: {
+            url,
+            name: file.name,
+            size: file.size,
+            mimeType: file.type,
+            storagePath: uploadTask.snapshot.ref.fullPath,
+            workspaceId: workspaceId || null,
+            usageTracked,
+          },
         });
       } catch (error) {
         reject(error);
@@ -105,7 +116,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
     for (let index = 0; index < files.length; index += 1) {
       const file = files[index];
       try {
-        const attachment = await uploadChatFile(chatId, file, index);
+        const attachment = await uploadChatFile(chatId, file, index, activeWorkspaceId || undefined);
         if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
         setAttachments(prev => [...prev, attachment]);
       } catch (error) {
@@ -120,7 +131,20 @@ export function ChatInput({ chatId }: { chatId: string }) {
     setIsUploading(false);
   };
 
-  const removeAttachment = (index: number) => {
+  const removeAttachment = async (index: number) => {
+    const attachment = attachments[index];
+    if (attachment?.payload?.storagePath) {
+      try {
+        await deleteStoredFile(attachment.payload.storagePath, {
+          workspaceId: attachment.payload.workspaceId || activeWorkspaceId || undefined,
+          bytes: attachment.payload.size,
+          usageTracked: attachment.payload.usageTracked === true,
+        });
+      } catch (error) {
+        console.error('Failed to remove unsent chat attachment:', error);
+        return;
+      }
+    }
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -164,7 +188,9 @@ export function ChatInput({ chatId }: { chatId: string }) {
               },
               async () => {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
+                const usageTracked = activeWorkspaceId
+                  ? await incrementStorageUsage(activeWorkspaceId, file.size)
+                  : false;
                 
                 // Automatically send message with audio attachment
                 try {
@@ -174,7 +200,10 @@ export function ChatInput({ chatId }: { chatId: string }) {
                       url: downloadURL,
                       name: file.name,
                       size: file.size,
-                      mimeType: file.type
+                      mimeType: file.type,
+                      storagePath: uploadTask.snapshot.ref.fullPath,
+                      workspaceId: activeWorkspaceId || null,
+                      usageTracked,
                     }
                   }]);
                 } catch (e) { console.error(e); }

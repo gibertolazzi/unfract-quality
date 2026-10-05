@@ -15,6 +15,28 @@ import {
 } from 'firebase/firestore';
 import { Task, Column, Epic } from '@/types/tasks';
 import { queueNotification, QueuedEmailType } from '@/lib/queueNotification';
+import { deleteStoredFile } from '@/lib/usage';
+
+export async function deleteTaskAttachments(taskData: any) {
+  const attachments = Array.isArray(taskData?.attachments) ? taskData.attachments : [];
+  const projectId = taskData?.projectId;
+  let projectWorkspaceId: string | undefined = taskData?.workspaceId;
+  if (!projectWorkspaceId && projectId) {
+    const projectSnap = await getDoc(doc(db, 'projects', projectId));
+    projectWorkspaceId = projectSnap.exists() ? projectSnap.data().workspaceId : undefined;
+  }
+
+  for (const attachment of attachments) {
+    if (!attachment?.refPath) continue;
+    // Old attachment metadata may not have recorded size/tracking state: still delete its
+    // object, but never guess at a quota decrement for bytes that may not have been counted.
+    await deleteStoredFile(attachment.refPath, {
+      workspaceId: attachment.workspaceId || projectWorkspaceId,
+      bytes: attachment.size,
+      usageTracked: attachment.usageTracked === true,
+    });
+  }
+}
 
 async function enqueueTaskEmail(
   recipientId: string | undefined,
@@ -130,6 +152,10 @@ export const TaskService = {
   },
 
   async delete(taskId: string, meetingId?: string, meetingTaskIdx?: number) {
+    const taskRef = doc(db, 'tasks', taskId);
+    const taskSnapshot = await getDoc(taskRef);
+    if (taskSnapshot.exists()) await deleteTaskAttachments(taskSnapshot.data());
+
     if (meetingId && meetingTaskIdx !== undefined) {
       const meetingRef = doc(db, 'meetings', meetingId);
       const meetingSnap = await getDoc(meetingRef);
@@ -144,7 +170,7 @@ export const TaskService = {
         }
       }
     }
-    return await deleteDoc(doc(db, 'tasks', taskId));
+    return await deleteDoc(taskRef);
   },
 
   async addComment(taskId: string, commentData: any) {

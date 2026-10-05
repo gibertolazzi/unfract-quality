@@ -190,12 +190,15 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
     }
 
     let audioUrl = '';
+    let audioStoragePath = '';
+    let audioUsageTracked = false;
     try {
       const timestamp = new Date().getTime();
       const storageRef = ref(storage, `meetings/${activeProjectId}/${timestamp}.webm`);
       await uploadBytes(storageRef, audioBlob);
       audioUrl = await getDownloadURL(storageRef);
-      if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, audioBlob.size);
+      audioStoragePath = storageRef.fullPath;
+      if (activeWorkspaceId) audioUsageTracked = await incrementStorageUsage(activeWorkspaceId, audioBlob.size);
     } catch (uploadError) {
       console.error("Failed to upload audio to storage:", uploadError);
       toast.error("Errore nel salvataggio dell'audio sul cloud.");
@@ -214,7 +217,11 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
         decisions: result.decisions,
         tasks: result.tasks,
         transcript: result.transcript || transcript,
-        audioUrl: audioUrl || undefined
+        audioUrl: audioUrl || undefined,
+        audioStoragePath: audioStoragePath || undefined,
+        audioSizeBytes: audioStoragePath ? audioBlob.size : undefined,
+        audioWorkspaceId: audioStoragePath ? activeWorkspaceId || undefined : undefined,
+        audioUsageTracked,
       });
     } catch (error: any) {
       console.error("Gemini failed:", error);
@@ -230,7 +237,11 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
         decisions: [],
         tasks: [],
         transcript: transcript || "Nessun testo trascritto.",
-        audioUrl: audioUrl || undefined
+        audioUrl: audioUrl || undefined,
+        audioStoragePath: audioStoragePath || undefined,
+        audioSizeBytes: audioStoragePath ? audioBlob.size : undefined,
+        audioWorkspaceId: audioStoragePath ? activeWorkspaceId || undefined : undefined,
+        audioUsageTracked,
       });
     }
     

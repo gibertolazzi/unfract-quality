@@ -8,8 +8,9 @@ import { useOrganization } from '@/contexts/OrganizationContext';
 import { Hash, Users, Plus, X, Trash2 } from 'lucide-react';
 import { createChat } from '@/lib/chat';
 import { db } from '@/lib/firebase';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { deleteStoredFile } from '@/lib/usage';
 
 export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const { chats, activeChatId, setActiveChatId, isLoadingChats, unreadCounts } = useChat();
@@ -38,6 +39,20 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
     e.stopPropagation();
     if (window.confirm(`Sei sicuro di voler eliminare la chat "${chatName}"? Questa operazione è irreversibile.`)) {
       try {
+        const messagesQuery = query(collection(db, 'messages'), where('chatId', '==', chatId));
+        const messagesSnapshot = await getDocs(messagesQuery);
+        for (const message of messagesSnapshot.docs) {
+          for (const attachment of message.data().attachments || []) {
+            const payload = attachment?.payload;
+            if (!payload?.storagePath) continue;
+            await deleteStoredFile(payload.storagePath, {
+              workspaceId: payload.workspaceId,
+              bytes: payload.size,
+              usageTracked: payload.usageTracked === true,
+            });
+          }
+        }
+        for (const message of messagesSnapshot.docs) await deleteDoc(message.ref);
         await deleteDoc(doc(db, 'chats', chatId));
         if (activeChatId === chatId) {
           setActiveChatId(null);

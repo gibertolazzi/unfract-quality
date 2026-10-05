@@ -2,8 +2,9 @@ import { incrementAiUsage } from '@/lib/usage';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useState, useCallback, useEffect } from 'react';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { collection, doc, addDoc, updateDoc, onSnapshot, query, where, serverTimestamp, deleteDoc, getDocs } from 'firebase/firestore';
+import { collection, doc, addDoc, updateDoc, onSnapshot, query, where, serverTimestamp, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { deleteStoredFile } from '@/lib/usage';
 
 
 async function executeWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
@@ -88,7 +89,20 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
 
   const deleteChat = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'ai_chats', id));
+      const chatRef = doc(db, 'ai_chats', id);
+      const snapshot = await getDoc(chatRef);
+      const chatMessages = snapshot.exists() ? snapshot.data().messages || [] : [];
+      for (const message of chatMessages) {
+        for (const attachment of message.attachments || []) {
+          if (!attachment?.storagePath) continue;
+          await deleteStoredFile(attachment.storagePath, {
+            workspaceId: attachment.workspaceId,
+            bytes: attachment.size,
+            usageTracked: attachment.usageTracked === true,
+          });
+        }
+      }
+      await deleteDoc(chatRef);
       if (activeChatId === id) {
         setActiveChatId(null);
       }

@@ -20,5 +20,9 @@ export interface Meeting {
   tasks: MeetingTask[];
   transcript: string;
   audioUrl?: string;
+  audioStoragePath?: string;
+  audioSizeBytes?: number;
+  audioWorkspaceId?: string;
+  audioUsageTracked?: boolean;
   createdAt: any;
 }

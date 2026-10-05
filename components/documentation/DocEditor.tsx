@@ -30,11 +30,12 @@ import { Video, Audio } from './extensions';
 import { ReferenceWidget } from './ReferenceWidget';
 import { ItemSelectorModal } from './ItemSelectorModal';
 import { marked } from 'marked';
-import { collection, getDocs, query, limit, where } from 'firebase/firestore';
+import { collection, getDocs, query, limit, where, doc as firestoreDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { generateDocContent } from '@/app/actions/aiActions';
 import { storage } from '@/lib/firebase';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
+import { deleteStoredFile } from '@/lib/usage';
 
 import { SlashMenu } from './SlashMenu';
 
@@ -130,8 +131,24 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       const storageRef = ref(storage, `documentation/${activeProjectId}/${doc.id}/${Date.now()}-${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      if (activeWorkspaceId) {
-        await incrementStorageUsage(activeWorkspaceId, file.size);
+      const usageTracked = activeWorkspaceId
+        ? await incrementStorageUsage(activeWorkspaceId, file.size)
+        : false;
+      const storageFile = {
+        storagePath: storageRef.fullPath,
+        sizeBytes: file.size,
+        workspaceId: activeWorkspaceId || null,
+        usageTracked,
+      };
+      try {
+        await updateDoc(firestoreDoc(db, 'documentation', doc.id), { storageFiles: arrayUnion(storageFile) });
+      } catch (metadataError) {
+        await deleteStoredFile(storageRef.fullPath, {
+          workspaceId: activeWorkspaceId || undefined,
+          bytes: file.size,
+          usageTracked,
+        }).catch(cleanupError => console.error('Failed to clean up documentation media:', cleanupError));
+        throw metadataError;
       }
       
       const type = file.type;
