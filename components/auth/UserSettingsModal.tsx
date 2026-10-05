@@ -65,12 +65,12 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
           
           {/* General Settings */}
           <div className="flex flex-col gap-4">
-            <h3 className="text-sm font-medium text-[#858585] uppercase tracking-wider">Generale</h3>
+            <h3 className="text-sm font-medium text-[#858585] uppercase tracking-wider">{t.settings.general}</h3>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-2">
                 <label className="text-sm text-white/70 flex items-center gap-2">
-                  <Clock size={14} className="text-[#006AFF]" /> Fuso orario
+                  <Clock size={14} className="text-[#006AFF]" /> {t.settings.timezone}
                 </label>
                 <select 
                   value={timezone} 

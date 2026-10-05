@@ -15,8 +15,8 @@ interface DayViewProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export function DayView({ currentDate, events, onEventClick, onTimeSlotClick }: DayViewProps) {
-  const { t } = useTranslation();
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === 'it' ? it : enUS;
   const dayEvents = events.filter(e => isSameDay(e.date, currentDate));
 
   return (

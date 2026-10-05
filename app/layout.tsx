@@ -6,8 +6,8 @@ import { getDictionary } from "@/lib/i18n/dictionaries";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 
 export const metadata = {
-  title: "Unfract MVP",
-  description: "Unfract MVP Application",
+  title: "Unfract",
+  description: "Unfract workspace and collaboration platform",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

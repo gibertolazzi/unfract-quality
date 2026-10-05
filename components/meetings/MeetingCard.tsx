@@ -6,18 +6,20 @@ import { Meeting } from './types';
 import { Clock, Users, ArrowRight, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { deleteMeeting } from '@/lib/meetings';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export function MeetingCard({ meeting }: { meeting: any }) {
   const router = useRouter();
   const dialog = useDialog();
+  const { t } = useTranslation();
 
   const handleDelete = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const isConfirmed = await dialog.confirm({
-      title: "Elimina Meeting",
-      message: "Sei sicuro di voler eliminare questo meeting?",
+      title: t.meetings.deleteTitle,
+      message: t.meetings.deleteConfirm,
       isDestructive: true,
-      confirmText: "Elimina"
+      confirmText: t.meetings.delete
     });
     if (isConfirmed) {
       await deleteMeeting(meeting.id);
@@ -40,13 +42,13 @@ export function MeetingCard({ meeting }: { meeting: any }) {
       <div className="flex items-center gap-4">
         {meeting.tasks.length > 0 && (
           <div className="bg-[#006AFF]/10 text-[#006AFF] px-3 py-1 rounded-full text-xs font-medium">
-            {meeting.tasks.length} Task
+            {meeting.tasks.length} {t.meetings.taskCount}
           </div>
         )}
         <button 
           onClick={handleDelete}
           className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-[#858585] hover:bg-red-500/20 hover:text-red-500 transition-colors"
-          title="Elimina meeting"
+          title={t.meetings.deleteTooltip}
         >
           <Trash2 size={18} />
         </button>

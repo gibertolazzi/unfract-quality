@@ -30,7 +30,7 @@ export function TaskTimeline({
   const [expandedEpics, setExpandedEpics] = useState<string[]>([]);
   const [showEpicPrompt, setShowEpicPrompt] = useState(false);
   const { activeProjectId } = useProject();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const toggleEpic = (epicId: string) => {
     setExpandedEpics(prev => prev.includes(epicId) ? prev.filter(id => id !== epicId) : [...prev, epicId]);
@@ -98,7 +98,7 @@ export function TaskTimeline({
     while (iterDate.getTime() <= end) {
       const isCurrent = iterDate.getTime() === currentMonthStart;
       months.push({
-        label: iterDate.toLocaleString(t.settings.language === 'it' ? 'it-IT' : 'en-US', { month: 'short', year: 'numeric' }).toUpperCase(),
+        label: iterDate.toLocaleString(locale === 'it' ? 'it-IT' : 'en-US', { month: 'short', year: 'numeric' }).toUpperCase(),
         isCurrent,
         date: new Date(iterDate)
       });

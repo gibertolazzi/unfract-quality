@@ -29,11 +29,11 @@ interface LeadTableProps {
 const formatEuro = (n: number) =>
   new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
-function formatDate(value: any): string {
+function formatDate(value: any, locale: string): string {
   if (!value) return '—';
   const date = typeof value === 'string' ? new Date(value) : (value?.toMillis ? new Date(value.toMillis()) : null);
   if (!date || Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short', year: '2-digit' });
+  return date.toLocaleDateString(locale === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
 function isOverdue(value: any): boolean {
@@ -99,15 +99,15 @@ export function LeadTable({
   page, sort, owners, onSortChange, onPageChange, onPageSizeChange,
   onStateChange, onAssign, onOpen, onArchive, onConvert,
 }: LeadTableProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const COLUMNS: { field: LeadSortField; label: string; align?: 'right' }[] = [
     { field: 'fullName',       label: t.crm.colName },
-    { field: 'companyName',    label: 'Azienda' },
-    { field: 'state',          label: 'Stato' },
+    { field: 'companyName',    label: t.crm.colCompanyLead },
+    { field: 'state',          label: t.crm.colStateLead },
     { field: 'estimatedValue', label: t.crm.colValue, align: 'right' },
     { field: 'nextFollowupAt', label: t.crm.colNextAction },
-    { field: 'updatedAt',      label: 'Aggiornato' },
+    { field: 'updatedAt',      label: t.crm.colUpdatedLead },
   ];
 
   const toggleSort = (field: LeadSortField) => {
@@ -210,11 +210,11 @@ export function LeadTable({
 
                 <td className="px-4 py-3">
                   <span className={`text-xs ${isOverdue(lead.nextFollowupAt) ? 'text-[#EF4444]' : 'text-[#858585]'}`}>
-                    {formatDate(lead.nextFollowupAt)}
+                    {formatDate(lead.nextFollowupAt, locale)}
                   </span>
                 </td>
 
-                <td className="px-4 py-3 text-xs text-[#5A5A5A]">{formatDate(lead.updatedAt)}</td>
+                <td className="px-4 py-3 text-xs text-[#5A5A5A]">{formatDate(lead.updatedAt, locale)}</td>
 
                 <td className="px-4 py-3 text-right">
                   <OwnerCell lead={lead} owners={owners} onAssign={onAssign} />

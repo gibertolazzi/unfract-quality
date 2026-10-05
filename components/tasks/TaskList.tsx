@@ -16,7 +16,13 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
 
 export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks: any[]; columns: any[]; onTaskClick: (task: any) => void; onToggleDone: (task: any) => void }) {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const priorityLabels: Record<string, string> = {
+    Critical: t.tasks.priorityCritical,
+    High: t.tasks.priorityHigh,
+    Medium: t.tasks.priorityMedium,
+    Low: t.tasks.priorityLow,
+  };
   const getPriorityStyle = (priority: string) => priorityConfig[priority as keyof typeof priorityConfig] || priorityConfig.Medium;
 
   return (
@@ -92,7 +98,7 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={priorityStyle.color}>
                     <path d={priorityStyle.icon} />
                   </svg>
-                  <span className={`text-[11px] font-medium ${priorityStyle.color}`}>{task.priority}</span>
+                  <span className={`text-[11px] font-medium ${priorityStyle.color}`}>{priorityLabels[task.priority] || t.tasks.priorityMedium}</span>
                 </div>
                 
                 {/* Status Dropdown Pill */}
@@ -102,8 +108,8 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
                 </div>
               </div>
               <div className="flex items-center gap-4 text-[11px] text-[#858585]">
-                <span>{t.tasks.created}{task.createdAt ? formatDistanceToNow(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), { addSuffix: true, locale: t.settings.language === 'it' ? it : undefined }) : t.tasks.na}</span>
-                <span>{t.tasks.updated}{task.updatedAt ? formatDistanceToNow(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), { addSuffix: true, locale: t.settings.language === 'it' ? it : undefined }) : t.tasks.na}</span>
+                <span>{t.tasks.created}{task.createdAt ? formatDistanceToNow(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), { addSuffix: true, locale: locale === 'it' ? it : undefined }) : t.tasks.na}</span>
+                <span>{t.tasks.updated}{task.updatedAt ? formatDistanceToNow(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), { addSuffix: true, locale: locale === 'it' ? it : undefined }) : t.tasks.na}</span>
                 <span>{t.tasks.deadline}<strong className={`font-medium ${new Date(task.date) < new Date() && !isDone ? 'text-red-500' : 'text-white'}`}>{task.date || t.tasks.na}</strong></span>
               </div>
             </div>

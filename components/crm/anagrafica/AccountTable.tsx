@@ -27,7 +27,7 @@ export function AccountTable({
   page, sort, contactCountByAccount,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onArchive, onShowContacts,
 }: AccountTableProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const COLUMNS: ColumnDef<AccountSortField>[] = [
     { field: 'displayName', label: t.crm.colCompany },
@@ -36,7 +36,7 @@ export function AccountTable({
     { field: 'contacts',    label: t.crm.colContacts, align: 'right', initial: 'desc' },
     { field: 'updatedAt',   label: t.crm.colUpdated, initial: 'desc' },
   ];
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const dateLocale = locale === 'it' ? it : enUS;
   if (page.totalItems === 0) {
     return <EmptyState title={t.crm.noAccountMatches} hint="Azzera la ricerca, importa un elenco o creane una nuova" />;
   }

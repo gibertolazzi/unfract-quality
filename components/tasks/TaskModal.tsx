@@ -30,7 +30,13 @@ const availablePriorities = ['Critical', 'High', 'Medium', 'Low'];
 
 export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: { task: any; onClose: () => void; columns: any[]; epics?: any[]; onSaveLocal?: (taskData: any) => void }) {
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
+  const priorityLabels: Record<string, string> = {
+    Critical: t.tasks.priorityCritical,
+    High: t.tasks.priorityHigh,
+    Medium: t.tasks.priorityMedium,
+    Low: t.tasks.priorityLow,
+  };
   const toast = useToast();
   const dialog = useDialog();
   const { activeProjectId } = useProject();
@@ -337,7 +343,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   className={`shrink-0 appearance-none rounded-full border py-1.5 pl-3 pr-8 text-xs outline-none cursor-pointer ${priorityStyles[priority as keyof typeof priorityStyles] || 'text-white/60 border-white/20 bg-transparent'}`}
                 >
                   {availablePriorities.map(p => (
-                    <option key={p} value={p} className="bg-black text-white">{p}</option>
+                    <option key={p} value={p} className="bg-black text-white">{priorityLabels[p]}</option>
                   ))}
                 </select>
                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
@@ -416,7 +422,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                   className="bg-transparent border-b border-white/20 text-white font-medium outline-none focus:border-[#006AFF] py-1 hover:border-white/40 transition-colors"
                 >
-                  {date ? format(date, 'dd MMM yyyy', { locale: t.settings.language === 'it' ? it : undefined }) : t.tasks.selectDate}
+                  {date ? format(date, 'dd MMM yyyy', { locale: locale === 'it' ? it : undefined }) : t.tasks.selectDate}
                 </button>
                 
                 {isCalendarOpen && (
@@ -436,7 +442,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                       mode="single"
                       selected={date}
                       onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }}
-                      locale={t.settings.language === 'it' ? it : undefined}
+                      locale={locale === 'it' ? it : undefined}
                     />
                   </div>
                 )}
@@ -575,7 +581,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                           <span className="text-sm font-medium text-white">{comment.author}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] text-[#858585]">
-                              {comment.createdAt ? format(new Date(comment.createdAt), 'dd MMM HH:mm', { locale: t.settings.language === 'it' ? it : undefined }) : ''}
+                              {comment.createdAt ? format(new Date(comment.createdAt), 'dd MMM HH:mm', { locale: locale === 'it' ? it : undefined }) : ''}
                             </span>
                             {(comment.authorUid === user?.uid || comment.author === user?.displayName) && (
                               <button

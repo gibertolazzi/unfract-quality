@@ -5,6 +5,7 @@ import { Plus, ChevronDown, Video, Square, ExternalLink } from 'lucide-react';
 import { Meeting } from './types';
 import { MeetingCard } from './MeetingCard';
 import { useRecording } from '@/contexts/RecordingContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface MeetingListProps {
   meetings: Meeting[];
@@ -13,6 +14,7 @@ interface MeetingListProps {
 
 export function MeetingList({ meetings, onMeetingAdded }: MeetingListProps) {
   const { startRecording, stopRecording, isRecording, isProcessing, openPiP } = useRecording();
+  const { t } = useTranslation();
 
   return (
     <div className="flex flex-col h-full font-sans max-w-[1229px] mx-auto w-full">
@@ -26,7 +28,7 @@ export function MeetingList({ meetings, onMeetingAdded }: MeetingListProps) {
                 className="flex items-center gap-2 bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 hover:text-white transition-colors px-4 py-2.5 rounded-xl text-sm font-medium"
               >
                 <ExternalLink size={16} />
-                Apri PiP
+                {t.meetings.openPip}
               </button>
             )}
             <button 
@@ -34,7 +36,7 @@ export function MeetingList({ meetings, onMeetingAdded }: MeetingListProps) {
               className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors px-4 py-2.5 rounded-xl text-sm font-medium"
             >
               <Square size={16} />
-              Stop Meeting
+              {t.meetings.stopMeeting}
             </button>
           </div>
         ) : (
@@ -43,12 +45,12 @@ export function MeetingList({ meetings, onMeetingAdded }: MeetingListProps) {
             className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-500 hover:bg-red-500/20 transition-colors px-4 py-2.5 rounded-xl text-sm font-medium"
           >
             <Video size={16} />
-            Registra Meeting
+            {t.meetings.recordMeeting}
           </button>
         )}
 
         <button className="flex items-center gap-2 border border-white/10 bg-transparent text-[#858585] hover:text-white transition-colors px-4 py-2.5 rounded-xl text-sm font-medium">
-          Ordina per: più recente
+          {t.meetings.sortRecent}
           <ChevronDown size={16} />
         </button>
       </div>
@@ -60,7 +62,7 @@ export function MeetingList({ meetings, onMeetingAdded }: MeetingListProps) {
             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
               <Video size={24} className="text-[#858585]" />
             </div>
-            Nessun meeting registrato. Avvia una registrazione!
+            {t.meetings.emptyState}
           </div>
         ) : (
           meetings.map(meeting => (

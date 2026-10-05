@@ -12,6 +12,7 @@ import { getWebLLMEngine } from "@/lib/webllm";
 import { useEffect } from "react";
 
 import { useState, useRef } from "react";
+import { useTranslation } from "@/contexts/TranslationContext";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,6 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   };
   const { user, loading } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     if (user && typeof window !== 'undefined') {
@@ -88,16 +90,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <div className="w-16 h-16 bg-[#006AFF]/10 text-[#006AFF] rounded-full flex items-center justify-center mx-auto mb-6">
                   <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="rect x='3' y='11' width='18' height='11' rx='2' ry='2'"/><path d="path d='M7 11V7a5 5 0 0 1 10 0v4'"/></svg>
                 </div>
-                <h2 className="text-xl font-bold text-white mb-2">Sezione Bloccata</h2>
+                <h2 className="text-xl font-bold text-white mb-2">{t.appShell.lockedTitle}</h2>
                 <p className="text-[#858585] text-sm mb-6">
                   {activeWorkspaceId 
-                    ? "Per accedere a questa sezione devi prima selezionare o creare un progetto dalla sidebar a sinistra."
-                    : "Non sei membro di alcun Workspace. Crea il tuo primo Workspace per iniziare o attendi un invito."}
+                    ? t.appShell.selectOrCreateProject
+                    : t.appShell.noWorkspace}
                 </p>
                 {!activeWorkspaceId && (
                   <button 
                     onClick={async () => {
-                      const name = prompt("Nome della tua azienda o team:");
+                      const name = prompt(t.appShell.createWorkspacePrompt);
                       if (name && name.trim()) {
                         const { collection, addDoc, serverTimestamp, doc, setDoc } = await import('firebase/firestore');
                         const { db } = await import('@/lib/firebase');
@@ -123,6 +125,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                           // The onSnapshot in WorkspaceContext will automatically pick it up!
                         } catch (e) {
                           console.error(e);
+                          alert(t.appShell.createWorkspaceError);
                           alert("Errore durante la creazione del workspace");
                         }
                       }

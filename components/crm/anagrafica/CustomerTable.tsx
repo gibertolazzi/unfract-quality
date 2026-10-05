@@ -29,7 +29,7 @@ export function CustomerTable({
   page, sort, accountNameById,
   onSortChange, onPageChange, onPageSizeChange, onOpen, onArchive, onOpenAccount,
 }: CustomerTableProps) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const COLUMNS: ColumnDef<CustomerSortField>[] = [
     { field: 'account',       label: t.crm.colCustomer },
@@ -37,7 +37,7 @@ export function CustomerTable({
     { field: 'customerSince', label: t.crm.colCustomerSince, initial: 'desc' },
     { field: 'updatedAt',     label: t.crm.colUpdated,  initial: 'desc' },
   ];
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const dateLocale = locale === 'it' ? it : enUS;
   if (page.totalItems === 0) {
     return <EmptyState title={t.crm.noCustomerMatches} hint="I clienti nascono dalla conversione di un lead, oppure si creano da qui" />;
   }

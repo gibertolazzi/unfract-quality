@@ -58,10 +58,10 @@ export function CalendarBoard() {
   }, [firestoreEvents, externalEvents]);
   
   const { user } = useAuth();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const toast = useToast();
   const [isSyncing, setIsSyncing] = useState(false);
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const dateLocale = locale === 'it' ? it : enUS;
 
   // Subscribe to Firestore events
   React.useEffect(() => {

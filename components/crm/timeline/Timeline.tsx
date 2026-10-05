@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslation } from '@/contexts/TranslationContext';
 import {
   Phone, Mail, Users, FileText, StickyNote, CalendarClock, Activity, MessageSquare,
 } from 'lucide-react';
@@ -35,18 +36,18 @@ const BADGE_ICONS: Record<string, any> = {
   Nota: StickyNote,
 };
 
-const formatDay = (day: string) => {
-  if (!day) return 'Senza data';
+const formatDay = (day: string, locale: string, t: ReturnType<typeof useTranslation>['t']) => {
+  if (!day) return t.crm.dateUndated;
   const date = new Date(day);
-  if (Number.isNaN(date.getTime())) return 'Senza data';
+  if (Number.isNaN(date.getTime())) return t.crm.dateUndated;
 
   const today = new Date().toISOString().slice(0, 10);
-  if (day === today) return 'Oggi';
+  if (day === today) return t.crm.dateToday;
 
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
-  if (day === yesterday) return 'Ieri';
+  if (day === yesterday) return t.crm.dateYesterday;
 
-  return date.toLocaleDateString('it-IT', { day: '2-digit', month: 'long', year: 'numeric' });
+  return date.toLocaleDateString(locale === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'long', year: 'numeric' });
 };
 
 function Entry({ entry, ownerName, planned }: {
@@ -91,6 +92,7 @@ function Entry({ entry, ownerName, planned }: {
  * mescolarlo allo storico fa sembrare fatto ciò che è solo programmato.
  */
 export function Timeline({ sources, reference, ownerName, emptyHint, limit = 12 }: TimelineProps) {
+  const { locale, t } = useTranslation();
   const [kinds, setKinds] = useState<TimelineKind[]>(ALL_KINDS);
   const [expanded, setExpanded] = useState(false);
 
@@ -157,7 +159,7 @@ export function Timeline({ sources, reference, ownerName, emptyHint, limit = 12 
               {groups.map(group => (
                 <div key={group.day} className="flex flex-col gap-2">
                   <span className="text-[10px] uppercase tracking-wide text-[#3F3F3F]">
-                    {formatDay(group.day)}
+                    {formatDay(group.day, locale, t)}
                   </span>
                   <ul className="flex flex-col border-l border-[#1A1A1A] pl-3">
                     {group.entries.map(entry => (

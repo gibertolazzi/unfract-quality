@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     const googleEventPayload = {
       summary: `Meeting: ${userData.displayName} & ${guestName}`,
-      description: `Meeting booked via Unfract MVP.\nGuest Name: ${guestName}\nGuest Email: ${guestEmail}`,
+      description: `Meeting booked via Unfract.\nGuest Name: ${guestName}\nGuest Email: ${guestEmail}`,
       start: {
         dateTime: startDate.toISOString(),
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,

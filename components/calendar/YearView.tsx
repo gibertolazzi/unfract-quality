@@ -55,8 +55,8 @@ function MiniMonth({ date, onMonthClick, t, dateLocale }: { date: Date, onMonthC
 
 const daysOfWeek = (t: any) => t.calendar.days.map((d: string) => d.charAt(0));
 export function YearView({ currentDate, onMonthClick }: YearViewProps) {
-  const { t } = useTranslation();
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === 'it' ? it : enUS;
   const yearStart = startOfYear(currentDate);
   const months = Array.from({ length: 12 }, (_, i) => addMonths(yearStart, i));
 

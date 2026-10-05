@@ -15,8 +15,8 @@ interface WeekViewProps {
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }: WeekViewProps) {
-  const { t } = useTranslation();
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === 'it' ? it : enUS;
   const startDate = startOfWeek(currentDate, { weekStartsOn: 0 });
   const endDate = endOfWeek(currentDate, { weekStartsOn: 0 });
   const days = eachDayOfInterval({ start: startDate, end: endDate });

@@ -18,10 +18,12 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { useProject } from '@/contexts/ProjectContext';
 import { TranscriptModal } from '@/components/meetings/TranscriptModal';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 
 
 function FixedAudioPlayer({ src }: { src: string }) {
+  const { t } = useTranslation();
   const audioRef = React.useRef<HTMLAudioElement>(null);
 
   React.useEffect(() => {
@@ -63,7 +65,7 @@ function FixedAudioPlayer({ src }: { src: string }) {
         className="w-full h-10 outline-none grayscale invert-[0.9] hue-rotate-180 opacity-80 hover:opacity-100 transition-opacity" 
         src={src}
       >
-        Il tuo browser non supporta l'elemento audio.
+        {t.meetings.audioUnsupported}
       </audio>
     </div>
   );
@@ -73,15 +75,20 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
   const [isLoading, setIsLoading] = useState(true);
   const dialog = useDialog();
   const toast = useToast();
+  const { t, locale } = useTranslation();
   const [isGeneratingTitle, setIsGeneratingTitle] = useState(false);
 
   const handleGenerateTitle = async () => {
     if (!meeting) return;
     setIsGeneratingTitle(true);
-    toast.info("Generazione titolo in corso...");
-    let newTitle = "Nuovo Meeting";
-    const systemInstruction = "Estrai l'argomento principale dal riassunto fornito e scrivi un titolo di massimo 5 parole. Devi rispondere SOLO ed esclusivamente con il testo del titolo, senza aggiungere markdown, asterischi o prefissi come 'Titolo:'.";
-    const promptText = `Riassunto del meeting:\n\n${meeting.summary || meeting.transcript}\n\nScrivi solo il titolo (max 5 parole):`;
+    toast.info(t.meetings.generatingTitle);
+    let newTitle = locale === 'it' ? 'Nuova riunione' : 'New meeting';
+    const systemInstruction = locale === 'it'
+      ? "Estrai l'argomento principale dal riepilogo e scrivi un titolo di massimo 5 parole. Rispondi solo con il titolo, senza markdown o prefissi."
+      : 'Extract the main topic from the summary and write a title of at most 5 words. Reply only with the title, without markdown or prefixes.';
+    const promptText = locale === 'it'
+      ? `Riepilogo della riunione:\n\n${meeting.summary || meeting.transcript}\n\nScrivi solo il titolo (massimo 5 parole):`
+      : `Meeting summary:\n\n${meeting.summary || meeting.transcript}\n\nWrite only the title (5 words maximum):`;
 
     try {
       if (typeof window !== 'undefined' && 'ai' in window && 'languageModel' in (window as any).ai) {
@@ -89,7 +96,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         const session = await (window as any).ai.languageModel.create({ systemPrompt: systemInstruction });
         const localTitle = await session.prompt(promptText);
         if (localTitle) newTitle = localTitle.replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
-        toast.success("Titolo generato (Gemini Nano)!");
+        toast.success(`${t.meetings.titleGenerated} (Gemini Nano)!`);
       } else if ((navigator as any).gpu) {
         // 2. Cross-browser Local WebLLM via WebGPU
                 const engine = await getWebLLMEngine((progress) => {
@@ -103,7 +110,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         });
         const localTitle = reply.choices[0].message.content;
         if (localTitle) newTitle = localTitle.replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
-        toast.success("Titolo generato (WebLLM Locale)!");
+        toast.success(`${t.meetings.titleGenerated} (WebLLM)!`);
       } else {
         // 3. Fallback Cloud
         const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
@@ -111,7 +118,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash', systemInstruction });
         const res = await model.generateContent(promptText);
         newTitle = res.response.text().replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
-        toast.success("Titolo generato (Cloud)!");
+        toast.success(`${t.meetings.titleGenerated} (Cloud)!`);
       }
 
       await updateMeeting(meeting.id, { title: newTitle });
@@ -119,7 +126,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       setEditedTitle(newTitle);
     } catch (e) {
       console.error(e);
-      toast.error("Errore durante la generazione del titolo.");
+      toast.error(t.meetings.generateTitleError);
     } finally {
       setIsGeneratingTitle(false);
     }
@@ -168,8 +175,8 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
   if (!meeting) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
-        <h2 className="text-xl font-bold mb-2">Meeting non trovato</h2>
-        <button onClick={() => router.push('/meetings')} className="px-4 py-2 bg-[#006AFF] rounded-lg mt-4 text-white">Torna ai meeting</button>
+        <h2 className="text-xl font-bold mb-2">{t.meetings.notFound}</h2>
+        <button onClick={() => router.push('/meetings')} className="px-4 py-2 bg-[#006AFF] rounded-lg mt-4 text-white">{t.meetings.backToMeetings}</button>
       </div>
     );
   }
@@ -197,7 +204,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         createdBy: user?.uid || null,
         lastModifiedBy: user?.uid || null,
         columnId: todoColId,
-        date: new Date().toLocaleDateString('it-IT'),
+        date: new Date().toLocaleDateString(locale === 'it' ? 'it-IT' : 'en-US'),
         meetingId: params.id,
         meetingTaskIdx: idx,
         projectId: activeProjectId
@@ -209,19 +216,19 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       await updateDoc(doc(db, "meetings", params.id), { tasks: newTasks });
       setMeeting({ ...meeting, tasks: newTasks });
       
-      toast.success("Task inviata alla TaskBoard con successo!");
+      toast.success(t.meetings.taskAssigned);
     } catch (e) {
       console.error(e);
-      toast.error("Errore durante l'invio della task.");
+      toast.error(t.meetings.taskAssignError);
     }
   };
 
   const handleDeassignFromBoard = async (task: any, idx: number) => {
     const isConfirmed = await dialog.confirm({
-      title: "Rimuovi Assegnazione",
-      message: "Sei sicuro di voler rimuovere l'assegnazione? Questo eliminerà la task dalla Kanban board globale.",
+      title: t.meetings.unassign,
+      message: t.meetings.confirmUnassign,
       isDestructive: true,
-      confirmText: "Rimuovi"
+      confirmText: t.meetings.remove
     });
     
     if (isConfirmed) {
@@ -247,10 +254,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         
         await updateDoc(doc(db, "meetings", params.id), { tasks: newTasks });
         setMeeting({ ...meeting, tasks: newTasks });
-        toast.success("Assegnazione rimossa.");
+        toast.success(t.meetings.assignmentRemoved);
       } catch (e) {
         console.error(e);
-        toast.error("Errore durante la de-assegnazione.");
+        toast.error(t.meetings.unassignError);
       }
     }
   };
@@ -276,10 +283,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       setMeeting({ ...meeting, tasks: newTasks });
       setEditingTask(null);
       setEditingTaskIdx(null);
-      toast.success("Task aggiornata.");
+      toast.success(t.meetings.taskUpdated);
     } catch (e) {
       console.error(e);
-      toast.error("Errore durante il salvataggio.");
+      toast.error(t.meetings.saveError);
     }
   };
 
@@ -299,7 +306,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           }
         } catch (err) {
           console.error("Error fetching audio:", err);
-          toast.error("Impossibile recuperare l'audio per la rielaborazione. Verrà usato solo il testo.");
+          toast.error(t.meetings.transcriptionRetryError);
         }
       }
       
@@ -319,10 +326,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         ...meeting,
         ...newData
       });
-      toast.success("Trascrizione rigenerata con successo!");
+      toast.success(t.meetings.transcriptionRegenerated);
     } catch (e) {
       console.error(e);
-      toast.error("Elaborazione AI fallita di nuovo. Riprova più tardi.");
+      toast.error(t.meetings.transcriptionFailed);
     } finally {
       setIsRetrying(false);
     }
@@ -337,10 +344,10 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
       await updateDoc(doc(db, "meetings", params.id), { title: editedTitle });
       setMeeting({ ...meeting, title: editedTitle });
       setIsEditingTitle(false);
-      toast.success("Titolo aggiornato.");
+      toast.success(t.meetings.titleUpdated);
     } catch (error) {
       console.error(error);
-      toast.error("Errore durante il salvataggio del titolo.");
+      toast.error(t.meetings.saveError);
     }
   };
 
@@ -396,7 +403,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                     className="ml-4 flex items-center gap-2 px-3 py-1.5 bg-[#FF0004]/10 border border-[#FF0004]/30 text-[#FF0004] rounded-lg text-[13px] font-medium hover:bg-[#FF0004]/20 transition-colors disabled:opacity-50"
                   >
                     {isRetrying ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    Riprova Elaborazione AI
+                    {t.meetings.retryTitle}
                   </button>
                 )}
             </h1>
@@ -404,7 +411,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
               <button 
                 onClick={() => setIsEditingTitle(true)}
                 className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-[#858585] hover:text-white transition-all"
-                title="Modifica titolo"
+                title={t.meetings.editTitle}
               >
                 <Pencil size={18} />
               </button>
@@ -412,7 +419,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                 onClick={handleGenerateTitle}
                 disabled={isGeneratingTitle}
                 className="p-2 rounded-full bg-[#006AFF]/10 hover:bg-[#006AFF]/20 text-[#006AFF] transition-all disabled:opacity-50"
-                title="Genera titolo con AI"
+                title={t.meetings.generateTitle}
               >
                 {isGeneratingTitle ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
               </button>
@@ -427,7 +434,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         {meeting.audioUrl && (
           <div className="mt-8 bg-[#111] p-4 rounded-2xl border border-white/5 flex flex-col gap-3">
             <h3 className="text-sm font-medium text-white/80 flex items-center justify-between">
-              Registrazione Audio
+              {t.meetings.audioRecording}
             </h3>
             <FixedAudioPlayer src={meeting.audioUrl} />
           </div>
@@ -436,12 +443,12 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
 
       <div className="flex flex-col gap-8">
         
-        {/* Riga 1: Riassunto e Decisioni */}
+        {/* Summary and decisions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           
           <div className="md:col-span-2 bg-[#111] border border-white/5 rounded-2xl p-6">
             <h2 className="text-xl font-medium text-white mb-4 flex items-center gap-2">
-              <FileText size={20} className="text-[#006AFF]" /> Riassunto
+              <FileText size={20} className="text-[#006AFF]" /> {t.meetings.summary}
             </h2>
             <div className="text-white/80 leading-relaxed text-[15px]">
               {meeting.summary}
@@ -450,11 +457,11 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
 
           <div className="bg-[#111] border border-white/5 rounded-2xl p-6">
             <h2 className="text-xl font-medium text-white mb-4 flex items-center gap-2">
-              <Target size={20} className="text-purple-500" /> Decisioni Prese
+              <Target size={20} className="text-purple-500" /> {t.meetings.decisions}
             </h2>
             
             {meeting.decisions.length === 0 ? (
-              <p className="text-[#858585] text-sm">Nessuna decisione registrata.</p>
+              <p className="text-[#858585] text-sm">{t.meetings.noDecisions}</p>
             ) : (
               <ul className="flex flex-col gap-2">
                 {meeting.decisions.map((dec, i) => (
@@ -467,17 +474,17 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           </div>
         </div>
 
-        {/* Riga 2: Action Items */}
+        {/* Action items */}
         <div className="bg-[#111] border border-[#006AFF]/20 rounded-2xl p-6 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-32 h-32 bg-[#006AFF]/10 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none" />
           <div className="flex items-center justify-between mb-6 relative z-10">
             <h2 className="text-xl font-medium text-white flex items-center gap-2">
-              <CheckCircle2 size={20} className="text-[#006AFF]" /> Action Items
+              <CheckCircle2 size={20} className="text-[#006AFF]" /> {t.meetings.actionItems}
             </h2>
           </div>
           
           {meeting.tasks.length === 0 ? (
-            <p className="text-[#858585] text-sm relative z-10">Nessun task emerso.</p>
+            <p className="text-[#858585] text-sm relative z-10">{t.meetings.noTasks}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
               {meeting.tasks.map((task, idx) => {
@@ -544,14 +551,14 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
                             onClick={() => handleAssignToBoard(task, idx)}
                             className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors bg-[#006AFF] hover:bg-[#0055CC] text-white"
                           >
-                            Assegna
+                            {t.meetings.assign}
                           </button>
                         ) : (
                           <button 
                             onClick={() => handleDeassignFromBoard(task, idx)}
                             className="px-4 py-1.5 rounded-lg text-sm font-medium transition-colors bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20"
                           >
-                            De-assegna
+                            {t.meetings.unassign}
                           </button>
                         )}
                       </div>
@@ -563,24 +570,24 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
           )}
         </div>
 
-        {/* Riga 3: Trascrizione */}
+        {/* Transcript */}
         <div className="bg-[#111] border border-white/5 rounded-2xl p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-medium text-white flex items-center gap-2">
-              <FileText size={20} className="text-[#858585]" /> Trascrizione Completa
+              <FileText size={20} className="text-[#858585]" /> {t.meetings.transcript}
             </h2>
             {meeting.transcript && (
               <button 
                 onClick={() => setIsTranscriptModalOpen(true)}
                 className="text-sm text-[#006AFF] hover:underline"
               >
-                Espandi
+                {t.meetings.expand}
               </button>
             )}
           </div>
           <div className="text-[#858585] leading-relaxed text-[14px] h-[300px] overflow-y-auto custom-scrollbar italic pr-4 whitespace-pre-wrap">
             {typeof meeting.transcript === 'string' ? meeting.transcript : JSON.stringify(meeting.transcript)}
-            {!meeting.transcript && "Trascrizione non disponibile."}
+            {!meeting.transcript && t.meetings.transcriptUnavailable}
           </div>
         </div>
 

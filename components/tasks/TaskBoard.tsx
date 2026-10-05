@@ -26,6 +26,12 @@ const priorityStyles = {
 export function TaskCard({ task, index, onClick }: { task: any; index: number; onClick: () => void }) {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const priorityLabels: Record<string, string> = {
+    Critical: t.tasks.priorityCritical,
+    High: t.tasks.priorityHigh,
+    Medium: t.tasks.priorityMedium,
+    Low: t.tasks.priorityLow,
+  };
   let blobColors = ['bg-blue-600/40', 'bg-transparent'];
   if (task.priority === 'High' || task.priority === 'Critical') {
     blobColors = ['bg-red-600/40', 'bg-transparent'];
@@ -65,7 +71,7 @@ export function TaskCard({ task, index, onClick }: { task: any; index: number; o
                 <span className="text-[13px] font-sans font-medium">{task.date || t.tasks.noDate}</span>
               </div>
               <div className={`px-3 py-1 text-xs rounded-full border ${priorityStyles[task.priority as keyof typeof priorityStyles] || 'text-white/60 border-white/20'}`}>
-                {task.priority || 'Medium'}
+                {priorityLabels[task.priority] || t.tasks.priorityMedium}
               </div>
             </div>
             <h3 className="text-[22px] text-white font-halfre tracking-wide">{task.title || t.tasks.untitled}</h3>

@@ -13,8 +13,10 @@ import Link from 'next/link';
 import { CampaignChannelModal } from '@/components/marketing/CampaignChannelModal';
 import { MarketingSettingsView } from '@/components/marketing/MarketingSettingsView';
 import { Settings } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export default function MarketingPage() {
+    const { locale } = useTranslation();
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [showChannelModal, setShowChannelModal] = useState(false);
@@ -155,7 +157,7 @@ export default function MarketingPage() {
                       <td className="px-5 py-4 text-xs text-[#858585]">
                         <div className="flex items-center gap-1.5">
                           <Calendar size={13} className="opacity-70" />
-                          {camp.createdAt ? new Date(camp.createdAt.toMillis()).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                          {camp.createdAt ? new Date(camp.createdAt.toMillis()).toLocaleDateString(locale === 'it' ? 'it-IT' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
                         </div>
                       </td>
                       <td className="px-5 py-4 text-right">

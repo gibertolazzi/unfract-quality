@@ -52,7 +52,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, accessToken, settings } = useAuth();
   const { activeProjectId } = useProject();
   const { activeWorkspace } = useWorkspace();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { 
     chronoTime, chronoRunning, toggleChrono, resetChrono,
     timerTime, timerRunning, toggleTimer, resetTimer, setCustomTimer 
@@ -99,18 +99,18 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     const updateTime = () => {
       const now = new Date();
       try {
-        setTime(now.toLocaleTimeString("it-IT", { 
+        setTime(now.toLocaleTimeString(locale === 'it' ? "it-IT" : "en-US", {
           hour12: false, 
           timeZone: settings?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone 
         }));
       } catch (e) {
-        setTime(now.toLocaleTimeString("it-IT", { hour12: false }));
+        setTime(now.toLocaleTimeString(locale === 'it' ? "it-IT" : "en-US", { hour12: false }));
       }
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
-  }, [settings?.timezone]);
+  }, [settings?.timezone, locale]);
 
   // Search State
   const [searchQuery, setSearchQuery] = useState("");
@@ -429,28 +429,28 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     if (res.type === 'task') {
                       Icon = CheckSquare;
                       title = res.item.title;
-                      subtitle = `Task • ${res.item.priority || 'Medium'} • ${res.item.category || 'General'}`;
+                      subtitle = `${t.topbar.resultTask} • ${res.item.priority || 'Medium'} • ${res.item.category || 'General'}`;
                       onClick = () => { router.push(`/?highlightTask=${res.item.id}`); setIsSearchOpen(false); };
                     } else if (res.type === 'meeting') {
                       Icon = Video;
                       title = res.item.title;
-                      subtitle = `Meeting • ${res.item.date} ${res.item.time}`;
+                      subtitle = `${t.topbar.resultMeeting} • ${res.item.date} ${res.item.time}`;
                       onClick = () => { router.push(`/meetings/${res.item.id}`); setIsSearchOpen(false); };
                     } else if (res.type === 'calendar') {
                       Icon = Calendar;
-                      title = res.item.summary || 'Evento';
+                      title = res.item.summary || t.topbar.resultEvent;
                       const sDate = res.item.start?.dateTime ? new Date(res.item.start.dateTime) : null;
-                      subtitle = `Calendario • ${sDate ? sDate.toLocaleString('it-IT') : 'Data non specificata'}`;
+                      subtitle = `${t.topbar.resultCalendar} • ${sDate ? sDate.toLocaleString(locale === 'it' ? 'it-IT' : 'en-US') : t.topbar.dateUnspecified}`;
                       onClick = () => { router.push('/calendar'); setIsSearchOpen(false); };
                     } else if (res.type === 'documentation') {
                       Icon = FileText;
                       title = res.item.title;
-                      subtitle = `Documento • Ultima modifica: ${res.item.lastUpdate}`;
+                      subtitle = `${t.sidebar.documentation} • ${t.topbar.lastModified}: ${res.item.lastUpdate}`;
                       onClick = () => { router.push(`/documentation/${res.item.id}`); setIsSearchOpen(false); };
                     } else if (res.type === 'ai-hub') {
                       Icon = MessageSquare;
-                      title = res.item.title || 'Chat AI';
-                      subtitle = 'Conversazione AI';
+                      title = res.item.title || t.sidebar.aiHub;
+                      subtitle = t.topbar.aiConversation;
                       onClick = () => { router.push(`/ai-hub?chatId=${res.item.id}`); setIsSearchOpen(false); };
                     }
                     
@@ -582,10 +582,10 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                     </div>
                     {isRecording && (
                       <div className="flex items-center gap-1">
-                        <button onClick={openPiP} className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#858585] hover:text-white" title="Apri PiP">
+                        <button onClick={openPiP} className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#858585] hover:text-white" title={t.topbar.openPip}>
                           <ExternalLink size={14} />
                         </button>
-                        <button onClick={stopRecording} className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#858585] hover:text-red-500" title="Termina">
+                        <button onClick={stopRecording} className="p-1.5 rounded-full hover:bg-white/10 transition-colors text-[#858585] hover:text-red-500" title={t.topbar.terminate}>
                           <Square size={14} />
                         </button>
                       </div>
@@ -728,7 +728,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       let timeAgo = '';
                       if (notif.createdAt) {
                         try {
-                           const localeArg = t.settings.language === 'it' ? it : undefined; 
+                           const localeArg = locale === 'it' ? it : undefined;
                            timeAgo = formatDistanceToNow(notif.createdAt.toDate(), { addSuffix: true, locale: localeArg });
                         } catch(e) {}
                       }

@@ -23,8 +23,8 @@ const daysOfWeekColors = [
 ];
 
 export function MonthView({ currentDate, events, onEventClick, onDayClick }: MonthViewProps) {
-  const { t } = useTranslation();
-  const dateLocale = t.settings.language === 'it' ? it : enUS;
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === 'it' ? it : enUS;
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(monthStart);
   const startDate = startOfWeek(monthStart, { weekStartsOn: 0 }); // Sunday
