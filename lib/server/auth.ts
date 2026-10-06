@@ -13,6 +13,7 @@ export interface AuthenticatedUser {
   uid: string;
   email: string;
   name: string;
+  picture?: string;
 }
 
 export type AuthResult =
@@ -28,6 +29,7 @@ export async function verifyIdToken(idToken: string): Promise<AuthenticatedUser 
       uid: decoded.uid,
       email: decoded.email || '',
       name: decoded.name || decoded.email || 'Utente',
+      picture: decoded.picture || '',
     };
   } catch {
     return null;

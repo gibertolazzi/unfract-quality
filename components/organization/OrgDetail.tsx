@@ -138,11 +138,33 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
     }
   };
 
-  const inviteLink = typeof window !== 'undefined' ? `${window.location.origin}/invite/${org.id}` : '';
+  // Il link lo genera il server: un codice casuale valido sette giorni.
+  // Prima era /invite/{orgId}, valido per chiunque e per sempre.
+  const [inviteLink, setInviteLink] = useState('');
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
 
-  const copyInviteLink = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/organization/${org.id}?join=true`);
-    toast.success("Link copiato negli appunti!");
+  const copyInviteLink = async () => {
+    setIsCreatingLink(true);
+    try {
+      let link = inviteLink;
+      if (!link) {
+        const response = await authedFetch('/api/org-invites/link', {
+          method: 'POST',
+          body: JSON.stringify({ orgId: org.id }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.url) throw new Error(data.error || 'Link non generato.');
+        link = data.url;
+        setInviteLink(link);
+      }
+      await navigator.clipboard.writeText(link);
+      toast.success("Link copiato negli appunti! Vale 7 giorni.");
+    } catch (err: any) {
+      console.error(err);
+      toast.error(`Errore: ${err.message}`);
+    } finally {
+      setIsCreatingLink(false);
+    }
   };
 
   const handleSendEmailInvite = async () => {
@@ -496,10 +518,12 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 type="text" 
                 readOnly 
                 value={inviteLink}
-                className="w-full bg-transparent border-none outline-none text-white/70 text-sm px-2"
+                placeholder="Premi Copia per creare un link valido 7 giorni"
+                className="w-full bg-transparent border-none outline-none text-white/70 text-sm px-2 placeholder:text-white/40"
               />
               <button 
                 onClick={copyInviteLink}
+                disabled={isCreatingLink}
                 className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors font-medium"
               >
                 <Copy size={16} /> Copia

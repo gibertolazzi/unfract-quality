@@ -57,7 +57,9 @@ describe('inviti alle organizzazioni', () => {
     expect(response.status).toBe(200);
     const sent = mocks.send.mock.calls[0][0];
     expect(sent.to).toBe('new@example.com');
-    expect(sent.html).toContain('https://app.unfract.com/invite/o1');
+    // Il link porta un codice casuale, non l'ID dell'organizzazione.
+    expect(sent.html).toMatch(/https:\/\/app\.unfract\.com\/invite\/[A-Za-z0-9_-]{32}"/);
+    expect(sent.html).not.toContain('/invite/o1');
     expect(sent.html).not.toContain('evil.example');
     expect(sent.html).not.toContain('Banca');
   });
