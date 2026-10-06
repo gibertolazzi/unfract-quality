@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { consumeOAuthState } from '@/lib/server/oauthState';
+import { newChannelId, newChannelSecret, saveChannel } from '@/lib/server/calendarChannels';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,7 +10,7 @@ export async function GET(request: Request) {
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${error}`);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${encodeURIComponent(error)}`);
   }
 
   if (!code || !state) {
@@ -16,8 +18,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { userId } = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-    if (!userId) throw new Error("Invalid state");
+    // Lo state è casuale e salvato sul server all'avvio: dice chi ha avviato il collegamento.
+    const userId = await consumeOAuthState(state, 'google');
+    if (!userId) throw new Error('Invalid or expired state');
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -63,18 +66,34 @@ export async function GET(request: Request) {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     if (appUrl.startsWith('https://')) { // Google requires HTTPS for webhooks
       try {
-        await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/watch', {
+        // Ogni canale ha un id e un segreto casuali: Google li rimanda in ogni avviso
+        // e il webhook accetta solo avvisi con il segreto giusto.
+        const channelId = newChannelId();
+        const secret = newChannelSecret();
+        const watch = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events/watch', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${tokens.access_token}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            id: `google-webhook-${userId}`,
+            id: channelId,
+            token: secret,
             type: 'web_hook',
             address: `${appUrl}/api/calendar/webhooks/google`
           })
         });
+        if (watch.ok) {
+          const channel = await watch.json().catch(() => ({}));
+          await saveChannel(channelId, {
+            uid: userId,
+            provider: 'google',
+            secret,
+            expiresAt: channel.expiration ? Number(channel.expiration) : null,
+          });
+        } else {
+          console.error('Google watch registration failed:', watch.status);
+        }
       } catch (e) {
         console.error("Failed to register Google Webhook:", e);
       }

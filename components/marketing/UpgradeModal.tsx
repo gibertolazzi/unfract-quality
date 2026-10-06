@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, X, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authedFetch';
 
 interface UpgradeModalProps {
   onClose: () => void;
@@ -18,20 +19,13 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
 
   if (!mounted) return null;
 
-  const handleUpgrade = async (planName: string, priceId: string) => {
+  // Il prezzo lo sceglie il server in base al piano: qui si manda solo il piano.
+  const handleUpgrade = async (planName: string) => {
     setLoadingPlan(planName);
     try {
-      const response = await fetch('/api/stripe/create-checkout', {
+      const response = await authedFetch('/api/stripe/create-checkout', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          priceId,
-          userId: user?.uid,
-          userEmail: user?.email,
-          planName: planName.toLowerCase(),
-        }),
+        body: JSON.stringify({ plan: planName.toLowerCase() }),
       });
 
       const data = await response.json();
@@ -128,7 +122,7 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
             </div>
             
             <button 
-              onClick={() => handleUpgrade('Pro', 'price_1UKxvO68FlpSo6ExsBnWibmH')}
+              onClick={() => handleUpgrade('Pro')}
               disabled={loadingPlan === 'Pro'}
               className="relative z-10 w-full flex justify-center mb-10 hover:scale-105 transition-transform"
             >
@@ -245,7 +239,7 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
             </div>
             
             <button 
-              onClick={() => handleUpgrade('Scale', 'price_1UKxvT68FlpSo6ExSYeKdA0Z')}
+              onClick={() => handleUpgrade('Scale')}
               disabled={loadingPlan === 'Scale'}
               className="relative z-10 w-full flex justify-center mb-10 hover:scale-105 transition-transform"
             >

@@ -1,78 +1,87 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
+import { planForPrice } from '@/lib/stripe/plans';
 
-const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+export const runtime = 'nodejs';
 
-export async function POST(req: any) {
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return new Response(JSON.stringify({ error: 'Manca la chiave STRIPE_SECRET_KEY nel server.' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+/**
+ * Webhook di Stripe.
+ *
+ * La firma è sempre obbligatoria. Prima, se mancava l'header
+ * `stripe-signature` o il secret, il messaggio veniva accettato così com'era:
+ * chiunque poteva fingersi Stripe e attivare un piano a pagamento.
+ *
+ * Il piano attivato dipende dal prezzo effettivamente pagato, non dai metadata.
+ */
+export async function POST(req: Request) {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secretKey || !endpointSecret) {
+    console.error('Stripe webhook not configured: missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET');
+    return NextResponse.json({ error: 'Webhook non configurato.' }, { status: 500 });
   }
-  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, undefined);
-    const payload = await req.text();
-  const signature = req.headers.get('stripe-signature');
 
-  let event;
+  const signature = req.headers.get('stripe-signature');
+  if (!signature) {
+    return NextResponse.json({ error: 'Firma mancante.' }, { status: 400 });
+  }
+
+  const stripe = new Stripe(secretKey);
+  const payload = await req.text();
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
+  } catch (err: any) {
+    console.error('Webhook signature verification failed.', err?.message);
+    return NextResponse.json({ error: 'Firma non valida.' }, { status: 400 });
+  }
 
   try {
-    if (!signature || !endpointSecret) {
-      console.warn("⚠️ Webhook secret non configurato o firma assente, bypasso la validazione.");
-      event = JSON.parse(payload);
-    } else {
-      event = stripe.webhooks.constructEvent(payload, signature, endpointSecret);
-    }
-  } catch (err: any) {
-    console.error('Webhook signature verification failed.', err.message);
-    return NextResponse.json({ error: err.message }, { status: 400 });
-  }
+    switch (event.type) {
+      case 'checkout.session.completed': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const userId = session.metadata?.userId;
+        if (!userId) break;
 
-  // Handle the event
-  switch (event.type) {
-    case 'checkout.session.completed':
-      const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.metadata?.userId;
-      
-      if (userId) {
-        console.log(`✅ Successo! Aggiornamento piano per l'utente: ${userId}`);
-        
-        // Identifica il piano in base al prezzo pagato
-        // Pro = 10 euro (1000 centesimi), Scale = 25 euro (2500 centesimi)
-        // Nota: session.amount_total contiene il totale moltiplicato per i membri del team
-        // Per sicurezza, guardiamo il line_items o semplicemente facciamo un controllo sul totale.
-        // Poiché usiamo i checkout, per distinguere i piani l'ideale sarebbe averli in metadata.
-        // Al momento usiamo una stima, ma puoi aggiornare il metadata alla creazione del checkout.
-        const planType = session.metadata?.planName || 'pro';
+        const lineItems = await stripe.checkout.sessions.listLineItems(session.id, { limit: 10 });
+        const plan = lineItems.data.map(item => planForPrice(item.price?.id)).find(Boolean) || null;
+        if (!plan) {
+          console.error(`Checkout ${session.id}: nessun prezzo corrisponde a un piano noto, piano non attivato.`);
+          break;
+        }
 
         await adminDb.collection('users').doc(userId).set({
-          plan: planType,
+          plan,
           stripeCustomerId: session.customer,
           stripeSubscriptionId: session.subscription,
           subscriptionStatus: 'active',
-          updatedAt: new Date().toISOString()
+          updatedAt: new Date().toISOString(),
         }, { merge: true });
+        console.log(`Piano ${plan} attivato per l'utente ${userId}`);
+        break;
       }
-      break;
-    
-    case 'customer.subscription.deleted':
-    case 'customer.subscription.updated':
-      // Se l'utente cancella l'abbonamento
-      const subscription = event.data.object as Stripe.Subscription;
-      // Cerchiamo l'utente tramite stripeCustomerId
-      const usersRef = await adminDb.collection('users').where('stripeCustomerId', '==', subscription.customer).get();
-      if (!usersRef.empty) {
-        const userDoc = usersRef.docs[0];
-        if (subscription.status === 'canceled') {
-          await userDoc.ref.update({
-            plan: 'free',
-            subscriptionStatus: 'canceled'
-          });
-          console.log(`❌ Abbonamento cancellato per l'utente ${userDoc.id}`);
-        }
-      }
-      break;
 
-    default:
-      console.log(`ℹ️ Evento ricevuto e ignorato: ${event.type}`);
+      case 'customer.subscription.deleted':
+      case 'customer.subscription.updated': {
+        const subscription = event.data.object as Stripe.Subscription;
+        const usersRef = await adminDb.collection('users').where('stripeCustomerId', '==', subscription.customer).get();
+        if (!usersRef.empty && subscription.status === 'canceled') {
+          const userDoc = usersRef.docs[0];
+          await userDoc.ref.update({ plan: 'free', subscriptionStatus: 'canceled' });
+          console.log(`Abbonamento cancellato per l'utente ${userDoc.id}`);
+        }
+        break;
+      }
+
+      default:
+        console.log(`Evento Stripe ignorato: ${event.type}`);
+    }
+  } catch (error) {
+    // 500 così Stripe riprova: la firma era valida, il problema è nostro.
+    console.error('Stripe webhook processing error:', error);
+    return NextResponse.json({ error: 'Elaborazione non riuscita.' }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

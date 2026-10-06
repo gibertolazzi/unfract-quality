@@ -1,4 +1,5 @@
 import { db } from '@/lib/firebase';
+import { authedFetch } from '@/lib/authedFetch';
 import { collection, doc, setDoc, deleteDoc, onSnapshot, query } from 'firebase/firestore';
 import { CalendarEvent } from '@/types/calendar';
 
@@ -54,26 +55,34 @@ export const deleteEventFromFirestore = async (userId: string, eventId: string) 
   await deleteDoc(doc(db, 'users', userId, 'events', eventId));
 };
 
+const buildISO = (date: Date, time: string) => {
+  const [h, m] = time.split(':').map(n => parseInt(n, 10));
+  const d = new Date(date);
+  d.setHours(h, m, 0, 0);
+  return d.toISOString();
+};
+
 export const sendCalendarNotification = async (event: CalendarEvent, action: 'create' | 'update' | 'cancel', userEmail?: string, userName?: string, toast?: any) => {
   if (!event.guestEmail) return;
   
   try {
-    const res = await fetch('/api/calendar/notify', {
+    // Il server legge titolo e ospite dall'evento salvato; qui si calcolano solo
+    // gli istanti, perché il browser conosce il fuso dell'utente.
+    const res = await authedFetch('/api/calendar/notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        event,
+        eventId: event.id,
         action,
-        guestEmail: event.guestEmail,
-        userEmail,
-        userName
+        startISO: buildISO(event.date, event.startTime),
+        endISO: buildISO(event.date, event.endTime),
+        timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       })
     });
-    
+
     if (!res.ok) {
-      const errorData = await res.json();
+      const errorData = await res.json().catch(() => ({}));
       console.error('Failed to send email notification:', errorData);
-      if (toast) toast.error(`Errore invio email: ${errorData.error?.message || 'sconosciuto'}`);
+      if (toast) toast.error(`Errore invio email: ${errorData.error || 'sconosciuto'}`);
     } else {
       if (toast) toast.success("Email inviata con successo!");
     }

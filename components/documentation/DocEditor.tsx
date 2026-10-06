@@ -660,7 +660,7 @@ ${contextText}`;
               
               if (!response || useCloud) {
                 toast.info("Generazione in corso...");
-                response = await generateDocContent(prompt, systemPromptText);
+                response = await generateDocContent(user ? await user.getIdToken() : '', prompt, contextText);
                 if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
               }
               

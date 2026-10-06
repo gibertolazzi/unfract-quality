@@ -18,6 +18,7 @@ import { EventModal } from '@/components/calendar/EventModal';
 import { SettingsModal } from '@/components/calendar/SettingsModal';
 import { subscribeToEvents, saveEventToFirestore, deleteEventFromFirestore, sendCalendarNotification } from '@/lib/calendar';
 import { auth } from '@/lib/firebase';
+import { authedFetch } from '@/lib/authedFetch';
 
 // Classi condivise: tutti i controlli dell'header hanno la stessa altezza e non vanno a capo.
 const BTN = "h-9 px-4 flex items-center justify-center gap-2 rounded-full border border-white/10 text-white text-sm font-medium hover:bg-white/5 transition-colors whitespace-nowrap";
@@ -111,11 +112,9 @@ export function CalendarBoard() {
   const syncToExternalCalendars = async (event: CalendarEvent, isUpdate: boolean) => {
     if (!user) return;
     try {
-      const res = await fetch('/api/calendar/create', {
+      const res = await authedFetch('/api/calendar/create', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: user.uid,
           event,
           isUpdate,
           // Gli istanti UTC li calcola il browser: il server non deve indovinare il fuso.
@@ -217,7 +216,7 @@ export function CalendarBoard() {
       const timeMin = subMonths(currentDate, 2).toISOString();
       const timeMax = addMonths(currentDate, 2).toISOString();
 
-      const res = await fetch(`/api/calendar/sync?userId=${user.uid}&timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
+      const res = await authedFetch(`/api/calendar/sync?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`);
       if (!res.ok) {
         console.error('Calendar sync failed:', await res.text());
         return;

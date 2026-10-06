@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/contexts/ToastContext';
+import { authedFetch } from '@/lib/authedFetch';
 import { useTranslation } from '@/contexts/TranslationContext';
 
 interface CreateProjectModalProps {
@@ -59,17 +60,10 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
       // Handle invites
       const emails = inviteEmails.split(',').map(e => e.trim()).filter(e => e.includes('@'));
       if (emails.length > 0) {
-        const inviteLink = `${window.location.origin}/invite/${docRef.id}`;
-        await Promise.all(emails.map(email => 
-          fetch('/api/email/invite', {
+        await Promise.all(emails.map(email =>
+          authedFetch('/api/email/invite', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              email,
-              inviterName: user.displayName || 'Un utente',
-              orgName: newOrgName.trim(),
-              inviteLink
-            })
+            body: JSON.stringify({ orgId: docRef.id, email })
           }).catch(err => console.error("Errore invio invito:", err))
         ));
       }
