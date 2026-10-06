@@ -33,7 +33,7 @@ export function getNotificationEmailHtml(props: NotificationEmailProps): string 
   
   // I client email spesso bloccano immagini remote o URL temporanei di Google:
   // le iniziali evitano l'icona di immagine non disponibile nelle notifiche.
-  const avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background-color: #006AFF; color: #FFFFFF; font-weight: bold; text-align: center; line-height: 32px; font-family: sans-serif; font-size: 14px;">${props.authorName.trim().charAt(0).toUpperCase() || 'U'}</div>`;
+  const avatarHtml = `<div style="width: 32px; height: 32px; border-radius: 50%; background-color: #006AFF; color: #FFFFFF; font-weight: bold; text-align: center; line-height: 32px; font-family: sans-serif; font-size: 14px;">${escapeHtml(props.authorName.trim().charAt(0).toUpperCase() || 'U')}</div>`;
 
   return `
 <!DOCTYPE html>
@@ -149,13 +149,18 @@ export interface OrgInviteEmailProps {
 export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com';
   const bannerUrl = `${baseUrl}/email-banner.png`;
+  // Nome dell'organizzazione e di chi invita li scrivono gli utenti: vanno
+  // ripuliti come nel template delle notifiche, e il link deve essere http(s).
+  const orgName = escapeHtml(props.orgName);
+  const inviterName = escapeHtml(props.inviterName);
+  const inviteLink = escapeHtml(safeEmailUrl(props.inviteLink, baseUrl));
 
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Invito a partecipare a ${props.orgName}</title>
+  <title>Invito a partecipare a ${orgName}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="margin: 0; padding: 0; background-color: #000000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #FFFFFF;">
@@ -182,14 +187,14 @@ export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
                       <img src="${baseUrl}/email-banner.png" alt="Unfract Logo" style="width: 24px; height: 24px; opacity: 0; /* Fallback icon if you want to replace it */" />
                     </div>
                     <h1 style="margin: 0; font-size: 24px; font-weight: 600; color: #FFFFFF; letter-spacing: -0.5px; line-height: 1.3;">
-                      Sei stato invitato in ${props.orgName}
+                      Sei stato invitato in ${orgName}
                     </h1>
                   </td>
                 </tr>
                 <tr>
                   <td>
                     <p style="margin: 0 0 24px 0; font-size: 16px; color: #A0A0A0; line-height: 1.6; text-align: center;">
-                      <strong style="color: #FFFFFF;">${props.inviterName}</strong> ti ha invitato a unirti all'organizzazione <strong>${props.orgName}</strong> su Unfract.
+                      <strong style="color: #FFFFFF;">${inviterName}</strong> ti ha invitato a unirti all'organizzazione <strong>${orgName}</strong> su Unfract.
                     </p>
                   </td>
                 </tr>
@@ -198,7 +203,7 @@ export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
                     <table border="0" cellspacing="0" cellpadding="0">
                       <tr>
                         <td align="center" style="border-radius: 12px;" bgcolor="#006AFF">
-                          <a href="${props.inviteLink}" target="_blank" style="font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 16px 32px; display: inline-block; font-weight: 500; letter-spacing: 0.2px; border-radius: 12px;">Accetta Invito</a>
+                          <a href="${inviteLink}" target="_blank" style="font-size: 16px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 16px 32px; display: inline-block; font-weight: 500; letter-spacing: 0.2px; border-radius: 12px;">Accetta Invito</a>
                         </td>
                       </tr>
                     </table>
@@ -334,16 +339,18 @@ export interface CalendarEmailProps {
 export function getCalendarEventEmailHtml(props: CalendarEmailProps): string {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unfract.com';
   const bannerUrl = `${baseUrl}/email-banner.png`;
+  // Il titolo dell'evento lo scrive l'utente: va ripulito prima di finire nell'HTML.
+  const eventName = escapeHtml(props.eventName);
 
-  let title = `Sei stato invitato a ${props.eventName}`;
-  let message = `Ti hanno invitato all'evento <strong>${props.eventName}</strong>.`;
+  let title = `Sei stato invitato a ${eventName}`;
+  let message = `Ti hanno invitato all'evento <strong>${eventName}</strong>.`;
   
   if (props.action === 'update') {
-    title = `L'orario di ${props.eventName} è cambiato`;
-    message = `L'orario dell'evento <strong>${props.eventName}</strong> è stato aggiornato.`;
+    title = `L'orario di ${eventName} è cambiato`;
+    message = `L'orario dell'evento <strong>${eventName}</strong> è stato aggiornato.`;
   } else if (props.action === 'cancel') {
-    title = `L'evento ${props.eventName} è stato cancellato`;
-    message = `L'evento <strong>${props.eventName}</strong> è stato cancellato.`;
+    title = `L'evento ${eventName} è stato cancellato`;
+    message = `L'evento <strong>${eventName}</strong> è stato cancellato.`;
   }
 
   return `
@@ -384,7 +391,7 @@ export function getCalendarEventEmailHtml(props: CalendarEmailProps): string {
                 <tr>
                   <td>
                     <p style="margin: 0 0 24px 0; font-size: 16px; color: #A0A0A0; line-height: 1.6; text-align: center;">
-                      ${props.inviterName ? `<strong style="color: #FFFFFF;">${props.inviterName}</strong>: ` : ''}${message}
+                      ${props.inviterName ? `<strong style="color: #FFFFFF;">${escapeHtml(props.inviterName)}</strong>: ` : ''}${message}
                     </p>
                   </td>
                 </tr>
@@ -394,13 +401,13 @@ export function getCalendarEventEmailHtml(props: CalendarEmailProps): string {
                       <tr>
                         <td style="padding: 16px;">
                            <p style="margin: 0 0 8px 0; font-size: 14px; color: #888888;">Data</p>
-                           <p style="margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF;">${props.date}</p>
+                           <p style="margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF;">${escapeHtml(props.date)}</p>
                         </td>
                       </tr>
                       <tr>
                         <td style="padding: 0 16px 16px 16px;">
                            <p style="margin: 0 0 8px 0; font-size: 14px; color: #888888;">Orario</p>
-                           <p style="margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF;">${props.time}</p>
+                           <p style="margin: 0; font-size: 16px; font-weight: 600; color: #FFFFFF;">${escapeHtml(props.time)}</p>
                         </td>
                       </tr>
                     </table>

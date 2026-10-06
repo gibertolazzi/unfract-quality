@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { adminDb } from '@/lib/firebase-admin';
 import { getCalendarEventEmailHtml } from '@/lib/emailTemplates';
+import { escapeIcsText, icsSingleLine } from '@/lib/ics';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 
@@ -21,12 +22,12 @@ function generateIcs(event: { id: string; title: string; description: string; st
     'PRODID:-//Unfract//Calendar//IT',
     `METHOD:${method}`,
     'BEGIN:VEVENT',
-    `UID:${event.id}@unfract.com`,
+    `UID:${icsSingleLine(event.id)}@unfract.com`,
     `DTSTAMP:${formatDateForIcs(new Date())}`,
     `DTSTART:${formatDateForIcs(event.start)}`,
     `DTEND:${formatDateForIcs(event.end)}`,
-    `SUMMARY:${event.title}`,
-    `DESCRIPTION:${event.description}`,
+    `SUMMARY:${escapeIcsText(event.title)}`,
+    `DESCRIPTION:${escapeIcsText(event.description)}`,
     'STATUS:' + (method === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED'),
     'SEQUENCE:' + (method === 'CANCEL' ? '1' : '0'),
     'END:VEVENT',
@@ -91,11 +92,13 @@ export async function POST(request: Request) {
 
     const title = typeof event.title === 'string' && event.title ? event.title : 'Evento Unfract';
     const method = action === 'cancel' ? 'CANCEL' : 'REQUEST';
-    const ics = generateIcs({ id: eventId, title, description: event.description || '', start, end }, method);
+    const ics = generateIcs({ id: eventId, title, description: typeof event.description === 'string' ? event.description : '', start, end }, method);
 
-    let subject = `Invito: ${title}`;
-    if (action === 'update') subject = `Aggiornamento Orario: ${title}`;
-    else if (action === 'cancel') subject = `Cancellazione: ${title}`;
+    // L'oggetto è un header dell'email: niente a capo dal titolo dell'utente.
+    const subjectTitle = icsSingleLine(title);
+    let subject = `Invito: ${subjectTitle}`;
+    if (action === 'update') subject = `Aggiornamento Orario: ${subjectTitle}`;
+    else if (action === 'cancel') subject = `Cancellazione: ${subjectTitle}`;
 
     const resend = new Resend(resendKey);
     const { error } = await resend.emails.send({

@@ -553,9 +553,12 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
             </div>
             <div className="flex-1 flex flex-col gap-2">
               <h2 className="text-sm font-medium text-[#858585]">Anteprima dal vivo</h2>
-              <div 
-                className="flex-1 bg-white rounded-xl overflow-hidden shadow-inner p-4 text-black"
-                dangerouslySetInnerHTML={{ __html: customHtml }}
+              {/* sandbox vuoto: niente script, origine separata dall'app */}
+              <iframe
+                title="Anteprima email"
+                sandbox=""
+                srcDoc={customHtml}
+                className="flex-1 bg-white rounded-xl overflow-hidden shadow-inner w-full border-0"
               />
             </div>
           </div>

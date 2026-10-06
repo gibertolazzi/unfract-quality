@@ -1,5 +1,4 @@
 export { CommentPanel } from './CommentPanel';
-export { ContentEditableBlock } from './ContentEditableBlock';
 export { DocCard } from './DocCard';
 export { DocEditor } from './DocEditor';
 export { DocIcon } from './DocIcon';
