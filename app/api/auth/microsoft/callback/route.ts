@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
+import { consumeOAuthState } from '@/lib/server/oauthState';
+import { newChannelSecret, saveChannel } from '@/lib/server/calendarChannels';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -8,7 +10,7 @@ export async function GET(request: Request) {
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${error}`);
+    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${encodeURIComponent(error)}`);
   }
 
   if (!code || !state) {
@@ -16,8 +18,9 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { userId } = JSON.parse(Buffer.from(state, 'base64').toString('utf-8'));
-    if (!userId) throw new Error("Invalid state");
+    // Lo state è casuale e salvato sul server all'avvio: dice chi ha avviato il collegamento.
+    const userId = await consumeOAuthState(state, 'microsoft');
+    if (!userId) throw new Error('Invalid or expired state');
 
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
@@ -64,7 +67,10 @@ export async function GET(request: Request) {
     if (appUrl.startsWith('https://')) { // MS requires HTTPS
       try {
         const expirationDateTime = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(); // MS webhooks expire in 3 days max
-        await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
+        // clientState è un segreto casuale: Microsoft lo rimanda in ogni avviso
+        // e il webhook accetta solo avvisi con il segreto giusto.
+        const secret = newChannelSecret();
+        const subscriptionResponse = await fetch('https://graph.microsoft.com/v1.0/subscriptions', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${tokens.access_token}`,
@@ -75,9 +81,20 @@ export async function GET(request: Request) {
             notificationUrl: `${appUrl}/api/calendar/webhooks/microsoft`,
             resource: 'me/events',
             expirationDateTime,
-            clientState: userId
+            clientState: secret
           })
         });
+        const subscription = await subscriptionResponse.json().catch(() => ({}));
+        if (subscriptionResponse.ok && typeof subscription.id === 'string') {
+          await saveChannel(subscription.id, {
+            uid: userId,
+            provider: 'microsoft',
+            secret,
+            expiresAt: Date.parse(expirationDateTime),
+          });
+        } else {
+          console.error('Microsoft subscription registration failed:', subscriptionResponse.status);
+        }
       } catch (e) {
         console.error("Failed to register Microsoft Webhook:", e);
       }

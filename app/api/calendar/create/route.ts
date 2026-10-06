@@ -1,13 +1,21 @@
 import { NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/oauth';
 import { adminDb } from '@/lib/firebase-admin';
+import { requireUser } from '@/lib/server/auth';
+
+const EVENT_ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 export async function POST(req: Request) {
+  // L'utente viene dal token: prima bastava un `userId` nel corpo per scrivere nel calendario di chiunque.
+  const auth = await requireUser(req);
+  if (!auth.ok) return auth.response;
+  const userId = auth.user.uid;
+
   try {
     const body = await req.json();
-    const { userId, event, isUpdate, startDateISO, endDateISO } = body;
+    const { event, isUpdate, startDateISO, endDateISO } = body;
 
-    if (!userId || !event || !startDateISO || !endDateISO) {
+    if (!event || !startDateISO || !endDateISO || !EVENT_ID.test(String(event.id || ''))) {
       return NextResponse.json({ error: 'Missing required data' }, { status: 400 });
     }
     
@@ -43,7 +51,7 @@ export async function POST(req: Request) {
 
       const method = (isUpdate && googleEventId) ? 'PUT' : 'POST';
       const url = (isUpdate && googleEventId) 
-        ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`
+        ? `https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(googleEventId)}`
         : 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1';
 
       const res = await fetch(url, {
@@ -89,7 +97,7 @@ export async function POST(req: Request) {
 
       const method = (isUpdate && microsoftEventId) ? 'PATCH' : 'POST';
       const url = (isUpdate && microsoftEventId)
-        ? `https://graph.microsoft.com/v1.0/me/events/${microsoftEventId}`
+        ? `https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(microsoftEventId)}`
         : 'https://graph.microsoft.com/v1.0/me/events';
 
       const res = await fetch(url, {
@@ -130,6 +138,6 @@ export async function POST(req: Request) {
 
   } catch (error: any) {
     console.error('Calendar Create API Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Sincronizzazione dell’evento non riuscita.' }, { status: 500 });
   }
 }

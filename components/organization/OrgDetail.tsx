@@ -8,6 +8,7 @@ import { db, storage } from '@/lib/firebase';
 import { doc, updateDoc, arrayRemove, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authedFetch';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { incrementStorageUsage } from '@/lib/usage';
@@ -152,15 +153,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
     
     setIsSendingInvite(true);
     try {
-      const response = await fetch('/api/email/invite', {
+      // Nome dell'organizzazione, di chi invita e link li decide il server.
+      const response = await authedFetch('/api/email/invite', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: inviteEmail.trim(),
-          inviterName: user?.displayName || 'Un utente',
-          orgName: org.name,
-          inviteLink: inviteLink
-        })
+        body: JSON.stringify({ orgId: org.id, email: inviteEmail.trim() })
       });
 
       if (!response.ok) {

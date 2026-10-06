@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Check, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
+import { authedFetch } from '@/lib/authedFetch';
 import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -67,15 +68,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   if (!isOpen) return null;
 
-  const handleConnectGoogle = () => {
+  // Il server crea uno state casuale legato all'utente e restituisce l'URL del provider.
+  const startOAuth = async (provider: 'google' | 'microsoft') => {
     if (!user) return;
-    window.location.href = `/api/auth/google?userId=${user.uid}`;
+    try {
+      const res = await authedFetch(`/api/auth/${provider}`, { method: 'POST' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.url) throw new Error(data.error || 'Collegamento non disponibile.');
+      window.location.href = data.url;
+    } catch (e) {
+      console.error(`Errore avvio collegamento ${provider}:`, e);
+    }
   };
 
-  const handleConnectMicrosoft = () => {
-    if (!user) return;
-    window.location.href = `/api/auth/microsoft?userId=${user.uid}`;
-  };
+  const handleConnectGoogle = () => startOAuth('google');
+
+  const handleConnectMicrosoft = () => startOAuth('microsoft');
 
   const savePreferences = async () => {
     if (!user) return;

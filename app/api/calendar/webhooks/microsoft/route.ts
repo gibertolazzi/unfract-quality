@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getValidAccessToken } from '@/lib/oauth';
+import { resolveChannel } from '@/lib/server/calendarChannels';
 
 // Microsoft Graph Webhook for Calendar
 export async function POST(req: Request) {
@@ -26,11 +27,12 @@ export async function POST(req: Request) {
     const batch = adminDb.batch();
 
     for (const notification of notifications) {
-      // clientState is used to pass our userId
-      const userId = notification.clientState;
+      // L'utente si ricava dalla subscription salvata alla registrazione, e solo
+      // se clientState è il segreto giusto. Prima clientState ERA lo userId.
+      const userId = await resolveChannel(notification.subscriptionId, 'microsoft', notification.clientState);
       const msEventId = notification.resourceData?.id;
-      
-      if (!userId || !msEventId) continue;
+
+      if (!userId || typeof msEventId !== 'string' || !msEventId) continue;
 
       const msToken = await getValidAccessToken(userId, 'microsoft');
       if (!msToken) continue;
@@ -44,10 +46,14 @@ export async function POST(req: Request) {
       const doc = unfractEventsQuery.docs[0];
 
       if (notification.changeType === 'deleted') {
-        batch.delete(doc.ref);
+        // Si cancella solo se Microsoft conferma che l'evento non esiste più.
+        const check = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(msEventId)}`, {
+          headers: { Authorization: `Bearer ${msToken}` }
+        });
+        if (check.status === 404 || check.status === 410) batch.delete(doc.ref);
       } else if (notification.changeType === 'updated') {
         // Fetch the event from MS Graph to get the new times
-        const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${msEventId}`, {
+        const res = await fetch(`https://graph.microsoft.com/v1.0/me/events/${encodeURIComponent(msEventId)}`, {
           headers: { Authorization: `Bearer ${msToken}` }
         });
         

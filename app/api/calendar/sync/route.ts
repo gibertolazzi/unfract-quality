@@ -1,13 +1,18 @@
 import { NextResponse } from 'next/server';
 import { getValidAccessToken } from '@/lib/oauth';
+import { requireUser } from '@/lib/server/auth';
 
 export async function GET(req: Request) {
+  // L'utente viene dal token: prima bastava un `userId` nella query per leggere il calendario di chiunque.
+  const auth = await requireUser(req);
+  if (!auth.ok) return auth.response;
+  const userId = auth.user.uid;
+
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get('userId');
   const timeMin = searchParams.get('timeMin');
   const timeMax = searchParams.get('timeMax');
 
-  if (!userId || !timeMin || !timeMax) {
+  if (!timeMin || !timeMax) {
     return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
   }
 
@@ -91,6 +96,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ events });
   } catch (err: any) {
     console.error('Sync Error:', err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: 'Sincronizzazione del calendario non riuscita.' }, { status: 500 });
   }
 }

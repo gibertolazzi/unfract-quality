@@ -1,22 +1,23 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getValidAccessToken } from '@/lib/oauth';
+import { resolveChannel } from '@/lib/server/calendarChannels';
 
 // Google will call this endpoint whenever an event changes on the connected calendar
 export async function POST(req: Request) {
   try {
     const channelId = req.headers.get('x-goog-channel-id');
+    const channelToken = req.headers.get('x-goog-channel-token');
     const resourceState = req.headers.get('x-goog-resource-state');
-    
-    // x-goog-channel-id should map to our userId so we know whose calendar updated
-    // In a real production app, you would have a 'webhooks' collection to map channelId -> userId
-    // For simplicity, let's assume channelId is \`google-webhook-\${userId}\`
-    
-    if (!channelId || !channelId.startsWith('google-webhook-')) {
-      return new NextResponse('OK', { status: 200 }); // Acknowledge to prevent retries
-    }
 
-    const userId = channelId.replace('google-webhook-', '');
+    // L'utente si ricava dal canale salvato alla registrazione, e solo se il
+    // segreto corrisponde. Prima si ricavava dall'id del canale, che chiunque
+    // poteva scrivere. I canali registrati con il vecchio schema non hanno
+    // segreto e vengono ignorati: si riattivano ricollegando il calendario.
+    const userId = await resolveChannel(channelId, 'google', channelToken);
+    if (!userId) {
+      return new NextResponse('OK', { status: 200 }); // 200 perché Google non riprovi
+    }
 
     if (resourceState === 'sync') {
       console.log(`Google Webhook Sync successful for user ${userId}`);
