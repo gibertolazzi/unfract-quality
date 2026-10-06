@@ -1,85 +1,50 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, getDoc, updateDoc, arrayUnion, collection, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { authedFetch } from '@/lib/authedFetch';
 import { Loader2 } from 'lucide-react';
 import { LoginScreen } from '@/components/auth/LoginScreen';
 
+/**
+ * Accettazione di un invito. `id` è il codice dell'invito, non l'ID
+ * dell'organizzazione: lo verifica il server (`/api/org-invites/accept`), che
+ * aggiunge l'utente all'organizzazione.
+ */
 export default function InvitePage() {
   const params = useParams();
-  const orgId = params.id as string;
+  const token = params.id as string;
   const { user, loading } = useAuth();
   const router = useRouter();
-  
+  const started = useRef(false);
+
   const [status, setStatus] = useState('Verifica invito in corso...');
 
   useEffect(() => {
-    if (loading) return;
-    
-    if (!user) {
-      return;
-    }
+    if (loading || !user || started.current) return;
+    started.current = true;
 
     const processInvite = async () => {
       try {
-        const orgRef = doc(db, 'organizations', orgId);
-        const orgSnap = await getDoc(orgRef);
-        
-        if (!orgSnap.exists()) {
-          setStatus('Link di invito non valido o organizzazione non trovata.');
+        const response = await authedFetch('/api/org-invites/accept', {
+          method: 'POST',
+          body: JSON.stringify({ token }),
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.orgId) {
+          setStatus(data.error || "Si è verificato un errore durante l'accettazione dell'invito.");
           return;
         }
-
-        const orgData = orgSnap.data();
-        const members = orgData.members || [];
-        
-        const isAlreadyMember = members.some((m: any) => m.uid === user.uid);
-        
-        if (isAlreadyMember) {
-          router.push(`/organization/${orgId}`);
-          return;
-        }
-        
-        setStatus('Ti stiamo aggiungendo all\'organizzazione...');
-        
-        const newMember = {
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || 'Utente',
-          photoURL: user.photoURL || '',
-          initials: (user.displayName || 'U').charAt(0).toUpperCase(),
-          role: 'member'
-        };
-        
-        await updateDoc(orgRef, {
-          members: arrayUnion(newMember),
-          memberCount: (orgData.memberCount || 0) + 1
-        });
-
-        // Ensure they also get the workspace access grant
-        const grantRef = doc(collection(db, 'access_grants'));
-        await setDoc(grantRef, {
-          workspaceId: orgId,
-          subjectType: 'user',
-          subjectId: user.uid,
-          resourceType: 'workspace',
-          resourceId: orgId,
-          role: 'member',
-          createdAt: serverTimestamp(),
-        });
-        
-        router.push(`/organization/${orgId}`);
+        router.push(`/organization/${data.orgId}`);
       } catch (err) {
         console.error(err);
         setStatus("Si è verificato un errore durante l'accettazione dell'invito.");
       }
     };
-    
+
     processInvite();
-  }, [user, loading, orgId, router]);
+  }, [user, loading, token, router]);
 
   if (!user && !loading) {
     return <LoginScreen />;
