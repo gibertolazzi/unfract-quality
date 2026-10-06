@@ -19,7 +19,7 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
  * con il mittente di Unfract.
  *
  * Il link contiene un codice casuale legato all'indirizzo invitato, valido
- * sette giorni e usabile una volta (`lib/server/orgInvites.ts`). Prima era
+ * 48 ore e usabile una volta (`lib/server/orgInvites.ts`). Prima era
  * `/invite/{orgId}` e valeva per chiunque, per sempre.
  */
 export async function POST(request: Request) {

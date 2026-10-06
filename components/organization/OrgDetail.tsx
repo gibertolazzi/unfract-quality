@@ -138,7 +138,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
     }
   };
 
-  // Il link lo genera il server: un codice casuale valido sette giorni.
+  // Il link lo genera il server: un codice casuale valido 48 ore.
   // Prima era /invite/{orgId}, valido per chiunque e per sempre.
   const [inviteLink, setInviteLink] = useState('');
   const [isCreatingLink, setIsCreatingLink] = useState(false);
@@ -158,7 +158,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         setInviteLink(link);
       }
       await navigator.clipboard.writeText(link);
-      toast.success("Link copiato negli appunti! Vale 7 giorni.");
+      toast.success("Link copiato negli appunti! Vale 48 ore.");
     } catch (err: any) {
       console.error(err);
       toast.error(`Errore: ${err.message}`);
@@ -518,7 +518,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 type="text" 
                 readOnly 
                 value={inviteLink}
-                placeholder="Premi Copia per creare un link valido 7 giorni"
+                placeholder="Premi Copia per creare un link valido 48 ore"
                 className="w-full bg-transparent border-none outline-none text-white/70 text-sm px-2 placeholder:text-white/40"
               />
               <button 

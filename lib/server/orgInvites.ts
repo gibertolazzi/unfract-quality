@@ -19,7 +19,7 @@ import type { AuthenticatedUser } from '@/lib/server/auth';
  */
 
 export const INVITES = 'org_invites';
-export const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const INVITE_TTL_MS = 48 * 60 * 60 * 1000;
 
 export type InviteKind = 'email' | 'link';
 

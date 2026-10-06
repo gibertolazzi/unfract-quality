@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 
 /**
  * Link di invito da condividere, generato dal server per un membro
- * dell'organizzazione. Vale per chiunque lo riceva, ma solo sette giorni.
+ * dell'organizzazione. Vale per chiunque lo riceva, ma solo 48 ore.
  * Body: `{ orgId }`. Risposta: `{ url, expiresAt }`.
  */
 export async function POST(request: Request) {

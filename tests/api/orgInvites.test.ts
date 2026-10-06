@@ -66,7 +66,9 @@ describe('inviti via email', () => {
     expect(mocks.db.store.has(`org_invites/${token}`)).toBe(false);
     const invite = mocks.db.store.get(`org_invites/${hashInviteToken(token)}`);
     expect(invite).toMatchObject({ orgId: 'o1', kind: 'email', email: 'bruno@example.com', invitedBy: 'anna', usedAt: null });
-    expect(invite.expiresAt - Date.now()).toBeGreaterThan(6.9 * 24 * 3600 * 1000);
+    const validFor = invite.expiresAt - Date.now();
+    expect(validFor).toBeGreaterThan(47.9 * 3600 * 1000);
+    expect(validFor).toBeLessThanOrEqual(48 * 3600 * 1000);
   });
 
   it('il destinatario entra: membro, uid, conteggio e accesso al workspace', async () => {
