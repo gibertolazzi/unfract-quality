@@ -1,12 +1,8 @@
 "use server";
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { verifyIdToken } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
-
-// GEMINI_API_KEY è la chiave solo-server. Il ripiego sulla chiave pubblica resta
-// finché le funzioni AI non passano tutte dal server (segnalazione S09).
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || process.env.NEXT_PUBLIC_GEMINI_API_KEY || '');
+import { geminiClient } from '@/lib/server/gemini';
 
 const MAX_PROMPT = 8_000;
 const MAX_CONTEXT = 20_000;
@@ -35,7 +31,7 @@ export async function generateDocContent(idToken: string, prompt: string, contex
   const cleanContext = String(context || '').slice(0, MAX_CONTEXT);
 
   try {
-    const model = genAI.getGenerativeModel({
+    const model = geminiClient().getGenerativeModel({
       model: 'gemini-1.5-flash',
       systemInstruction: cleanContext ? `${SYSTEM_INSTRUCTION}\n${cleanContext}` : SYSTEM_INSTRUCTION,
     });

@@ -8,7 +8,7 @@ import { Mic, Square, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/contexts/ToastContext';
-import { processMeetingTranscript } from '@/lib/gemini';
+import { requestMeetingAnalysis } from '@/lib/aiClient';
 import { saveMeeting } from '@/lib/meetings';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -205,7 +205,8 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
-      const result = await processMeetingTranscript(audioBlob, transcript);
+      // L'audio è già su Storage: il server lo prende da lì.
+      const result = await requestMeetingAnalysis({ projectId: activeProjectId, audioUrl, transcript });
       if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       
       await saveMeeting(activeProjectId, {

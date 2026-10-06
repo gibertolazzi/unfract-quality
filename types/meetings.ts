@@ -11,6 +11,7 @@ export interface MeetingTask {
 
 export interface Meeting {
   id: string;
+  projectId?: string;
   title: string;
   date: string;
   duration: string;

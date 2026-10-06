@@ -1,7 +1,6 @@
 "use client";
 import { incrementStorageUsage, incrementAiUsage } from '@/lib/usage';
 import { getWebLLMEngine, isWebLLMLoaded } from '@/lib/webllm';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, Edit2, Lock, Link as LinkIcon, MoreHorizontal, MessageSquare, Clock, Plus, Trash2, Check, Star, Copy, Download, MonitorPlay, Link2 } from 'lucide-react';

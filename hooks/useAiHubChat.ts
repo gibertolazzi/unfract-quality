@@ -1,35 +1,12 @@
 import { incrementAiUsage } from '@/lib/usage';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useState, useCallback, useEffect } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { authedFetch } from '@/lib/authedFetch';
 import { collection, doc, addDoc, updateDoc, onSnapshot, query, where, serverTimestamp, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { deleteStoredFile } from '@/lib/usage';
 
-
-async function executeWithRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
-  let attempt = 0;
-  while (attempt < maxRetries) {
-    try {
-      return await fn();
-    } catch (error) {
-      attempt++;
-      if (attempt >= maxRetries) throw error;
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      if (errorMessage.includes('503') || errorMessage.includes('429')) {
-        const delay = Math.pow(2, attempt - 1) * 1500;
-        console.warn(`Gemini API overloaded (503/429). Retrying in ${delay}ms (attempt ${attempt}/${maxRetries})...`);
-        await new Promise(r => setTimeout(r, delay));
-      } else {
-        throw error;
-      }
-    }
-  }
-  throw new Error('Retry limit reached without a result.');
-}
-
-
-const AI_HUB_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+// Le chiamate a Gemini passano da /api/ai/*: la chiave resta sul server.
 
 export type Message = {
   role: 'user' | 'model';
@@ -113,12 +90,14 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
 
   const generateTitle = async (firstMessage: string) => {
     try {
-      const genAI = new GoogleGenerativeAI(AI_HUB_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
-      const prompt = `Genera un titolo molto breve (massimo 4-5 parole) per descrivere questo messaggio dell'utente. Restituisci SOLO il titolo senza virgolette e senza altra punteggiatura.\nMessaggio: "${firstMessage}"`;
-      const result = await executeWithRetry(() => model.generateContent(prompt));
+      const response = await authedFetch('/api/ai/title', {
+        method: 'POST',
+        body: JSON.stringify({ kind: 'chat', text: firstMessage }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.title) throw new Error(data.error || `HTTP ${response.status}`);
       if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
-      return result.response.text().trim();
+      return String(data.title).trim();
     } catch (e) {
       console.error("Errore generazione titolo:", e);
       return "New chat";
@@ -126,7 +105,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
   };
 
   const sendMessage = useCallback(async (text: string, files: File[] = [], uploadedFiles: any[] = []) => {
-    if ((!text.trim() && files.length === 0) || !AI_HUB_KEY || !projectId || !userId) return;
+    if ((!text.trim() && files.length === 0) || !projectId || !userId) return;
     
     setIsLoading(true);
 
@@ -164,44 +143,26 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
     }
 
     try {
-      const genAI = new GoogleGenerativeAI(AI_HUB_KEY);
-      const model = genAI.getGenerativeModel({ 
-        model: 'gemini-3.8-flash',
-        systemInstruction: `Sei Unfract AI, l'assistente strategico del progetto aziendale. \n\nContesto del progetto:\n${projectContextText}\n\nRispondi in modo professionale e conciso. Considera solo le attività ancora aperte: non proporre né taggare come prossime azioni le attività completate. Se menzioni un'attività esistente, usa [TASK:id] solo per un ID presente nell'elenco delle attività aperte.\n1. Se l'utente ti chiede di creare una nuova task (o accetti di farlo), DEVI crearla scrivendo ALLA FINE della tua risposta l'esatto blocco:\n$CREATE_TASK$\n{"title": "Titolo breve", "priority": "High", "description": "Descrizione estesa", "category": "General"}\n$END_TASK$\n\nIl sistema intercetterà questo blocco e creerà la task nel database reale!`
+      const fileToBase64 = (file: File) => new Promise<{ data: string; mimeType: string }>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve({ data: (reader.result as string).split(',')[1] || '', mimeType: file.type });
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
       });
 
-      const history = messages.map(m => ({
-        role: m.role,
-        parts: [{ text: m.content }]
-      }));
-
-      const chat = model.startChat({
-        history,
-        generationConfig: {
-          maxOutputTokens: 8192,
-        }
+      const response = await authedFetch('/api/ai/chat', {
+        method: 'POST',
+        body: JSON.stringify({
+          text,
+          history: messages.map(m => ({ role: m.role, content: m.content })),
+          projectContext: projectContextText,
+          attachments: await Promise.all(files.map(fileToBase64)),
+        }),
       });
-
-      
-      const fileToGenerativePart = async (file: File) => {
-        const base64EncodedDataPromise = new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve((reader.result as string).split(',')[1]);
-          reader.readAsDataURL(file);
-        });
-        return {
-          inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
-        };
-      };
-
-      let userMessageParts: any[] = [{ text }];
-      if (files.length > 0) {
-        const fileParts = await Promise.all(files.map(fileToGenerativePart));
-        userMessageParts.push(...fileParts);
-      }
-      const result = await executeWithRetry(() => chat.sendMessage(userMessageParts));
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || typeof data.text !== 'string') throw new Error(data.error || `HTTP ${response.status}`);
       if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
-      let responseText = await result.response.text();
+      let responseText: string = data.text;
       
       // Check for magic task creation block
       const taskRegex = /\$\$CREATE_TASK\$\$[\s\S]*?\{([\s\S]*?)\}[\s\S]*?\$\$END_TASK\$\$/;
