@@ -5,6 +5,7 @@ import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { escapeIcsText, icsSingleLine } from '@/lib/ics';
 
 interface EventModalProps {
   isOpen: boolean;
@@ -120,14 +121,14 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
       'VERSION:2.0',
       'PRODID:-//Unfract//Calendar//EN',
       'BEGIN:VEVENT',
-      `UID:${eventId}@unfract.com`,
+      `UID:${icsSingleLine(eventId)}@unfract.com`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'}`,
       `DTSTART:${start}`,
       `DTEND:${end}`,
-      `SUMMARY:${title || t.calendar.newEvent}`,
-      `DESCRIPTION:${description.replace(/\n/g, '\\n')}${activeMeetLink ? `\\n\\n${t.calendar.joinVideoCall}: ${activeMeetLink}` : ''}`,
-      activeMeetLink ? `LOCATION:${activeMeetLink}` : '',
-      activeMeetLink ? `URL:${activeMeetLink}` : '',
+      `SUMMARY:${escapeIcsText(title || t.calendar.newEvent)}`,
+      `DESCRIPTION:${escapeIcsText(description + (activeMeetLink ? `\n\n${t.calendar.joinVideoCall}: ${activeMeetLink}` : ''))}`,
+      activeMeetLink ? `LOCATION:${escapeIcsText(activeMeetLink)}` : '',
+      activeMeetLink ? `URL:${icsSingleLine(activeMeetLink)}` : '',
       'END:VEVENT',
       'END:VCALENDAR'
     ].filter(Boolean).join('\r\n');

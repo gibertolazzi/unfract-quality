@@ -94,6 +94,24 @@ describe('email all’ospite di un evento', () => {
     const ics = Buffer.from(sent.attachments[0].content, 'base64').toString();
     expect(ics).toContain('DTSTART:20261007T080000Z');
   });
+
+  it('un a capo nel titolo non aggiunge righe all’invito né all’oggetto', async () => {
+    mocks.db.store.set('users/u1/events/e1', {
+      title: 'Riunione\r\nATTENDEE:mailto:intruso@example.com',
+      description: 'Ordine; del giorno,\nsecondo punto',
+      guestEmail: 'ospite@example.com',
+    });
+    const { POST } = await import('@/app/api/calendar/notify/route');
+    const response = await POST(jsonRequest('http://localhost/api/calendar/notify', { eventId: 'e1', action: 'create', ...times }, AUTH));
+
+    expect(response.status).toBe(200);
+    const sent = mocks.send.mock.calls[0][0];
+    expect(sent.subject).not.toMatch(/[\r\n]/);
+    const lines = Buffer.from(sent.attachments[0].content, 'base64').toString().split('\r\n');
+    expect(lines.some(line => line.startsWith('ATTENDEE'))).toBe(false);
+    expect(lines).toContain('SUMMARY:Riunione\\nATTENDEE:mailto:intruso@example.com');
+    expect(lines).toContain('DESCRIPTION:Ordine\\; del giorno\\,\\nsecondo punto');
+  });
 });
 
 describe('sincronizzazione del calendario', () => {

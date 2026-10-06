@@ -18,7 +18,10 @@
  * - **dieci secondi** per pagina, poi si rinuncia a quella e si va avanti;
  * - **un tetto di byte**: una homepage da venti megabyte non è una pagina da
  *   leggere, è un problema di qualcun altro;
- * - **solo HTML**: un PDF o un JSON non si interpretano qui.
+ * - **solo HTML**: un PDF o un JSON non si interpretano qui;
+ * - **solo indirizzi pubblici**: il dominio e ogni redirect si ricontrollano
+ *   prima di ogni richiesta (`lib/server/publicUrl.ts`), altrimenti il server
+ *   si potrebbe usare per leggere indirizzi interni.
  */
 
 import {
@@ -34,6 +37,7 @@ import {
   estraiTestoPrincipale,
 } from '../site/extract';
 import { normalizeDomain, nowIso } from '../base';
+import { assertPublicUrl, UnsafeUrlError } from '@/lib/server/publicUrl';
 
 /**
  * Come ci si presenta.
@@ -53,6 +57,7 @@ export function userAgent(): string {
 const TIMEOUT_MS = 10_000;
 const MAX_BYTES = 1_500_000;
 const MAX_PAGINE = 5;
+const MAX_REDIRECT = 5;
 
 function headersDi(risposta: Response): Record<string, string> {
   const raccolti: Record<string, string> = {};
@@ -60,17 +65,32 @@ function headersDi(risposta: Response): Record<string, string> {
   return raccolti;
 }
 
-/** Una richiesta con scadenza: senza, una pagina lenta blocca tutta la lettura. */
+/**
+ * Una richiesta con scadenza: senza, una pagina lenta blocca tutta la lettura.
+ *
+ * I redirect si seguono a mano, uno per uno, per ricontrollare ogni
+ * destinazione: un sito pubblico può rimandare a un indirizzo interno.
+ */
 async function prendi(url: string, accetta: string): Promise<Response> {
   const stop = new AbortController();
   const scadenza = setTimeout(() => stop.abort(), TIMEOUT_MS);
   try {
-    return await fetch(url, {
-      headers: { 'User-Agent': userAgent(), Accept: accetta, 'Accept-Language': 'it,en;q=0.8' },
-      redirect: 'follow',
-      signal: stop.signal,
-      cache: 'no-store',
-    });
+    let indirizzo = url;
+    for (let salti = 0; ; salti++) {
+      await assertPublicUrl(indirizzo);
+      const risposta = await fetch(indirizzo, {
+        headers: { 'User-Agent': userAgent(), Accept: accetta, 'Accept-Language': 'it,en;q=0.8' },
+        redirect: 'manual',
+        signal: stop.signal,
+        cache: 'no-store',
+      });
+      const destinazione = risposta.headers.get('location');
+      if (risposta.status < 300 || risposta.status >= 400 || !destinazione) return risposta;
+
+      await risposta.body?.cancel();
+      if (salti >= MAX_REDIRECT) throw new Error(`Più di ${MAX_REDIRECT} redirect`);
+      indirizzo = new URL(destinazione, indirizzo).toString();
+    }
   } finally {
     clearTimeout(scadenza);
   }
@@ -283,6 +303,9 @@ async function leggiPagina(url: string, role: PageRole): Promise<{ pagina: SiteP
       esito: { url: risposta.url || url, role, status: risposta.status, skipped: '' },
     };
   } catch (error: any) {
+    if (error instanceof UnsafeUrlError) {
+      return { pagina: null, esito: { url, role, status: 0, skipped: 'rimanda a un indirizzo non pubblico, non letta' } };
+    }
     const scaduta = error?.name === 'AbortError';
     console.error('Pagina non letta:', url, error);
     return { pagina: null, esito: { url, role, status: 0,
@@ -304,6 +327,16 @@ export const websiteReader: SiteReader = {
     }
 
     const origine = `https://${dominio}`;
+    try {
+      await assertPublicUrl(`${origine}/`);
+    } catch (error) {
+      // Un errore del DNS qui non si decide: lo racconta leggiRobots, con la
+      // frase giusta per un dominio che non risponde.
+      if (error instanceof UnsafeUrlError) {
+        return { ok: false, failure: { code: 'INVALID_INPUT', retryable: false, message: error.message } };
+      }
+    }
+
     const { robots, esito } = await leggiRobots(origine);
     const nostroNome = userAgent();
 
