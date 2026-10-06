@@ -25,9 +25,17 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# local env files
-.env*.local
+# local env files: i valori stanno solo in .env.local o nei secret del deploy
 .env
+.env.*
+!.env.example
+
+# chiavi di service account e file di lavoro personali
+sa.json
+*service-account*.json
+*serviceAccount*.json
+*firebase-adminsdk*.json
+/scratch/
 
 # vercel
 .vercel
