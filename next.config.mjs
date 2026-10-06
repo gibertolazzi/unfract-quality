@@ -8,6 +8,9 @@
  * Prima `lib/firebase.ts` aveva i valori di `unfract-prod` scritti nel codice
  * come riserva: una build senza variabili andava online lo stesso, puntando a
  * un progetto che nessuno aveva scelto. Ora la build si ferma.
+ *
+ * Il controllo sta nel passo webpack, che gira solo in build e in sviluppo:
+ * `next lint` carica questo file ma non ha bisogno delle variabili.
  */
 function firebaseWebEnv() {
   let webapp = {};
@@ -38,19 +41,25 @@ function firebaseWebEnv() {
     'NEXT_PUBLIC_FIREBASE_APP_ID',
   ];
   const missing = required.filter(name => !env[name]);
-  if (missing.length) {
-    throw new Error(
-      `Configurazione Firebase mancante: ${missing.join(', ')}. ` +
-      'Impostale in .env.local (vedi .env.example) o nelle variabili del deploy.'
-    );
-  }
-  return env;
+  const defined = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined));
+  return { env: defined, missing };
 }
+
+const firebaseWeb = firebaseWebEnv();
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  env: firebaseWebEnv(),
+  env: firebaseWeb.env,
+  webpack(config) {
+    if (firebaseWeb.missing.length) {
+      throw new Error(
+        `Configurazione Firebase mancante: ${firebaseWeb.missing.join(', ')}. ` +
+        'Impostale in .env.local (vedi .env.example) o nelle variabili del deploy.'
+      );
+    }
+    return config;
+  },
   async rewrites() {
     return [
       {
