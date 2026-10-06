@@ -1,11 +1,10 @@
 "use client";
 import { getWebLLMEngine } from '@/lib/webllm';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 import React, { useEffect, useState } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getMeetingById, updateMeeting } from '@/lib/meetings';
-import { processMeetingTranscript } from '@/lib/gemini';
+import { requestMeetingAnalysis, requestMeetingTitle } from '@/lib/aiClient';
 import { RefreshCw, Download } from 'lucide-react';
 import { useDialog } from '@/contexts/DialogContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -116,12 +115,9 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         toast.success(`${t.meetings.titleGenerated} (WebLLM)!`);
       } else {
         // 3. Fallback Cloud
-        const API_KEY = process.env.NEXT_PUBLIC_GEMINI_API_KEY || "";
-        const genAI = new GoogleGenerativeAI(API_KEY);
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash', systemInstruction });
-        const res = await model.generateContent(promptText);
+        const cloudTitle = await requestMeetingTitle(meeting.summary || meeting.transcript, locale);
         if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
-        newTitle = res.response.text().replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
+        newTitle = cloudTitle.replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
         toast.success(`${t.meetings.titleGenerated} (Cloud)!`);
       }
 
@@ -303,22 +299,12 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
     if (!meeting) return;
     setIsRetrying(true);
     try {
-      let audioBlob: Blob | null = null;
-      if (meeting.audioUrl) {
-        try {
-          const res = await fetch(meeting.audioUrl);
-          if (res.ok) {
-            audioBlob = await res.blob();
-          } else {
-            console.error("Audio fetch failed with status:", res.status);
-          }
-        } catch (err) {
-          console.error("Error fetching audio:", err);
-          toast.error(t.meetings.transcriptionRetryError);
-        }
-      }
-      
-      const result = await processMeetingTranscript(audioBlob, meeting.transcript);
+      // L'audio lo scarica il server da Storage: qui basta indicarlo.
+      const result = await requestMeetingAnalysis({
+        projectId: meeting.projectId || activeProjectId || '',
+        audioUrl: meeting.audioUrl,
+        transcript: meeting.transcript,
+      });
       if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       const newTitle = meeting.title.replace(" (Trascrizione Fallita)", "");
       

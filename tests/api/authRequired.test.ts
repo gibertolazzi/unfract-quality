@@ -26,6 +26,9 @@ const BASE = 'http://localhost:3000';
 // Ogni route che agisce a nome di un utente deve rifiutare chi non è autenticato.
 const routes: Array<{ name: string; load: () => Promise<any>; method: 'GET' | 'POST'; path: string; body?: unknown }> = [
   { name: 'email/invite', load: () => import('@/app/api/email/invite/route'), method: 'POST', path: '/api/email/invite', body: { orgId: 'o1', email: 'a@b.it' } },
+  { name: 'ai/meeting', load: () => import('@/app/api/ai/meeting/route'), method: 'POST', path: '/api/ai/meeting', body: { projectId: 'p1', transcript: 'x' } },
+  { name: 'ai/title', load: () => import('@/app/api/ai/title/route'), method: 'POST', path: '/api/ai/title', body: { kind: 'chat', text: 'x' } },
+  { name: 'ai/chat', load: () => import('@/app/api/ai/chat/route'), method: 'POST', path: '/api/ai/chat', body: { text: 'x' } },
   { name: 'calendar/notify', load: () => import('@/app/api/calendar/notify/route'), method: 'POST', path: '/api/calendar/notify', body: { eventId: 'e1' } },
   { name: 'calendar/sync', load: () => import('@/app/api/calendar/sync/route'), method: 'GET', path: '/api/calendar/sync?userId=victim&timeMin=a&timeMax=b' },
   { name: 'calendar/create', load: () => import('@/app/api/calendar/create/route'), method: 'POST', path: '/api/calendar/create', body: { userId: 'victim', event: { id: 'e1' } } },
