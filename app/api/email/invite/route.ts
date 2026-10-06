@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getOrgInviteEmailHtml } from '@/lib/emailTemplates';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
-import { createOrgInvite, isOrgMember } from '@/lib/server/orgInvites';
+import { createOrgInvite, INVITE_TTL_MS, isOrgMember } from '@/lib/server/orgInvites';
 
 export const runtime = 'nodejs';
 
@@ -62,6 +62,7 @@ export async function POST(request: Request) {
         inviterName: user.name,
         orgName: org.name || 'Unfract',
         inviteLink: `${baseUrl}/invite/${token}`,
+        validForHours: INVITE_TTL_MS / 3_600_000,
       }),
     });
 

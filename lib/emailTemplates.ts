@@ -144,6 +144,8 @@ export interface OrgInviteEmailProps {
   inviterName: string;
   orgName: string;
   inviteLink: string;
+  /** Ore di validità del link: se c'è, l'email lo dice. */
+  validForHours?: number;
 }
 
 export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
@@ -209,6 +211,13 @@ export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
                     </table>
                   </td>
                 </tr>
+                ${props.validForHours ? `<tr>
+                  <td>
+                    <p style="margin: 0; font-size: 14px; color: #A0A0A0; line-height: 1.6; text-align: center;">
+                      Il link è valido ${Math.round(props.validForHours)} ore e funziona solo per questo indirizzo email. Se è scaduto, chiedi un nuovo invito.
+                    </p>
+                  </td>
+                </tr>` : ''}
               </table>
               
               <!-- Footer Text -->

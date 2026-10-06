@@ -61,6 +61,11 @@ const grantsOf = (uid: string): Array<[string, any]> => Array.from(mocks.db.stor
   .filter(([path, data]) => path.startsWith('access_grants/') && data.subjectId === uid);
 
 describe('inviti via email', () => {
+  it('l’email dice per quanto vale il link', async () => {
+    await emailInvite('bruno@example.com');
+    expect(mocks.send.mock.calls[0][0].html).toContain('Il link è valido 48 ore e funziona solo per questo indirizzo email.');
+  });
+
   it('salva solo l’impronta del codice, con destinatario e scadenza', async () => {
     const token = await emailInvite('Bruno@Example.com');
     expect(mocks.db.store.has(`org_invites/${token}`)).toBe(false);
