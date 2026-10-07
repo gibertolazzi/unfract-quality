@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, use } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRecording } from '@/contexts/RecordingContext';
 import { Mic, Square, Loader2 } from 'lucide-react';
 
-export default function VideoCallPage({ params }: { params: { id: string } }) {
+export default function VideoCallPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // Da Next 15 i parametri della pagina arrivano come Promise.
+  const params = use(paramsPromise);
   const containerRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const { user } = useAuth();

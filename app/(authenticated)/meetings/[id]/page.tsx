@@ -1,7 +1,7 @@
 "use client";
 import { getWebLLMEngine } from '@/lib/webllm';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { getMeetingById, updateMeeting } from '@/lib/meetings';
 import { requestMeetingAnalysis, requestMeetingTitle } from '@/lib/aiClient';
@@ -71,7 +71,9 @@ function FixedAudioPlayer({ src }: { src: string }) {
     </div>
   );
 }
-export default function MeetingDetailPage({ params }: { params: { id: string } }) {
+export default function MeetingDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // Da Next 15 i parametri della pagina arrivano come Promise.
+  const params = use(paramsPromise);
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const dialog = useDialog();

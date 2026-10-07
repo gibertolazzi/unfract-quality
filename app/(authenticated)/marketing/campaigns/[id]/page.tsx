@@ -1,5 +1,6 @@
 import { CampaignSetupView } from "@/components/marketing/CampaignSetupView";
 
-export default function CampaignSetupPage({ params }: { params: { id: string } }) {
-  return <CampaignSetupView campaignId={params.id} />;
+export default async function CampaignSetupPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <CampaignSetupView campaignId={id} />;
 }

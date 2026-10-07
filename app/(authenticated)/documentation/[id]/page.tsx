@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { notFound, useRouter } from 'next/navigation';
 import { DocEditor } from '@/components/documentation/DocEditor';
 import { getDocumentById } from '@/lib/documentation';
@@ -8,7 +8,9 @@ import { Document } from '@/components/documentation/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-export default function DocumentDetailPage({ params }: { params: { id: string } }) {
+export default function DocumentDetailPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  // Da Next 15 i parametri della pagina arrivano come Promise.
+  const params = use(paramsPromise);
   const [doc, setDoc] = useState<Document | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { user, loading: authLoading } = useAuth();
