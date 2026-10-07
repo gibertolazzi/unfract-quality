@@ -1,11 +1,17 @@
 import { readFileSync } from 'node:fs';
-import { afterAll, beforeAll, beforeEach, describe, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
   addDoc, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
+import type { Firestore } from 'firebase/firestore';
+import { createProjectWithBoard as createProjectWith, ProjectCreateError } from '../../lib/projects';
+
+// Il Firestore dell'emulatore ha il tipo "compat", ma va bene alle funzioni modulari.
+const createProjectWithBoard = (db: unknown, input: Parameters<typeof createProjectWith>[1]) =>
+  createProjectWith(db as Firestore, input);
 
 /**
  * Regole di Firestore sull'emulatore. Ogni caso riproduce un'operazione che
@@ -157,6 +163,40 @@ describe('organizzazioni con il loro workspace (lib/orgWorkspace.ts)', () => {
       await setDoc(doc(context.firestore(), 'workspaces/senza-nome'), { structureMode: 'flat' });
     });
     await assertSucceeds(setDoc(doc(anna(), 'workspaces/senza-nome'), { name: 'Acme' }, { merge: true }));
+  });
+});
+
+describe('progetti (lib/projects.ts)', () => {
+  it('progetto, colonne e accesso del creatore in un’unica scrittura', async () => {
+    const db = anna();
+    const projectId = await assertSucceeds(createProjectWithBoard(db, {
+      uid: 'anna', workspaceId: 'w1', name: '  Sito  ', organizationIds: ['o1'],
+    }));
+    await env.withSecurityRulesDisabled(async context => {
+      const admin = context.firestore();
+      const project = await getDoc(doc(admin, 'projects', projectId));
+      expect(project.data()).toMatchObject({ name: 'Sito', workspaceId: 'w1', userId: 'anna', organizationIds: ['o1'] });
+      const columns = await getDocs(query(collection(admin, 'columns'), where('projectId', '==', projectId)));
+      expect(columns.docs.map(c => c.data().title).sort()).toEqual(['Doing', 'Done', 'To Do']);
+      const grant = await getDoc(doc(admin, 'access_grants', `${projectId}_anna`));
+      expect(grant.data()).toMatchObject({ resourceType: 'project', resourceId: projectId, role: 'admin', workspaceId: 'w1' });
+    });
+  });
+
+  it('senza workspace attivo non scrive nulla e lo dice', async () => {
+    await expect(createProjectWithBoard(anna(), { uid: 'anna', workspaceId: null, name: 'Sito' }))
+      .rejects.toMatchObject({ code: 'no-workspace' });
+    await expect(createProjectWithBoard(anna(), { uid: 'anna', workspaceId: 'w1', name: '   ' }))
+      .rejects.toBeInstanceOf(ProjectCreateError);
+  });
+
+  it('chi non ha fatto il login riceve un errore, non un progetto a metà', async () => {
+    await expect(createProjectWithBoard(guest(), { uid: 'anna', workspaceId: 'w1', name: 'Sito' }))
+      .rejects.toMatchObject({ code: 'write-failed' });
+    await env.withSecurityRulesDisabled(async context => {
+      const projects = await getDocs(query(collection(context.firestore(), 'projects'), where('name', '==', 'Sito')));
+      expect(projects.empty).toBe(true);
+    });
   });
 });
 

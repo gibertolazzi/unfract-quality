@@ -108,6 +108,9 @@
     "notesPlaceholder": "Type your notes here..."
   },
   "tasks": {
+    "projectCreateError": "Error creating the project. Please try again.",
+    "projectNoWorkspace": "No active workspace: create or select a workspace before creating the project.",
+    "projectSignedOut": "Your session has expired: please sign in again.",
     "orgCreatedSuccess": "Organization created successfully!",
     "orgCreateError": "Error creating organization",
     "newProject": "New Project",

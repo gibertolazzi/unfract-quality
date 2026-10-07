@@ -6,6 +6,8 @@ import { useDialog } from '@/contexts/DialogContext';
 import { Organization } from './types';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { projectCreateMessage } from '@/lib/projects';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface AssignProjectModalProps {
   organization: Organization;
@@ -17,6 +19,7 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
   const [searchQuery, setSearchQuery] = useState('');
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const toast = useToast();
+  const { t } = useTranslation();
 
   // Progetti che NON sono già in questa organizzazione
   const availableProjects = projects.filter(p => 
@@ -56,19 +59,12 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
 
     setIsCreating(true);
     try {
-      const newProjectId = await createProject(name);
-      if (newProjectId) {
-        await updateDoc(doc(db, 'projects', newProjectId), {
-          organizationIds: arrayUnion(organization.id)
-        });
-        toast.success("Progetto creato e assegnato!");
-        onClose();
-      } else {
-        toast.error("Errore durante la creazione del progetto.");
-      }
+      // Nasce già assegnato all'organizzazione.
+      await createProject(name, [organization.id]);
+      toast.success("Progetto creato e assegnato!");
+      onClose();
     } catch (error) {
-      console.error(error);
-      toast.error("Errore imprevisto.");
+      toast.error(projectCreateMessage(error, t.tasks));
     } finally {
       setIsCreating(false);
     }

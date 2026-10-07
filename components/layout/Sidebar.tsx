@@ -17,6 +17,8 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "@/contexts/TranslationContext";
 import { UserAvatar } from "@/components/shared/UserAvatar";
 import { useChat } from "@/contexts/ChatContext";
+import { useToast } from "@/contexts/ToastContext";
+import { projectCreateMessage } from "@/lib/projects";
 
 type DocNode = Document & { children: DocNode[] };
 
@@ -104,6 +106,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const { unreadCount } = useChat();
   const { t } = useTranslation();
   const { activeWorkspace, workspaces } = useWorkspace();
+  const toast = useToast();
   
   const NAV_ITEMS = useMemo(() => [
     { id: "dashboard", label: t.sidebar.dashboard, Icon: Home, href: "/dashboard" },
@@ -318,7 +321,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
             ) : (
               <span 
                 className="text-sm font-medium truncate flex-1"
-                onClick={(e) => {
+                // Un clic apre il menu dei progetti, il doppio clic rinomina.
+                onDoubleClick={(e) => {
                   e.stopPropagation();
                   setIsDropdownOpen(false);
                   setIsEditing(true);
@@ -528,8 +532,13 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
       {isCreateModalOpen && (
         <CreateProjectModal 
           onClose={() => setIsCreateModalOpen(false)}
-          onCreate={async (name, orgId) => {
-            await createProject(name);
+          onCreate={async (name, organizationIds) => {
+            try {
+              await createProject(name, organizationIds);
+            } catch (error) {
+              toast.error(projectCreateMessage(error, t.tasks));
+              throw error;
+            }
             setIsCreateModalOpen(false);
           }}
         />
