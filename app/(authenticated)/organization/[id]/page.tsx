@@ -62,7 +62,6 @@ export default function OrganizationDetailPage() {
                   role: 'member',
                   createdAt: serverTimestamp(),
                 });
-                console.log("Auto-healed access grant for user");
               }
             } catch (e) {
               console.error("Auto-heal failed", e);

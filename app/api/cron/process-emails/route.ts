@@ -187,8 +187,9 @@ export async function GET(request: Request) {
         sentCount += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        errors.push(`${userData.email}: ${message}`);
-        console.error(`Errore invio email a ${userData.email}:`, error);
+        // L'utente per ID, non per indirizzo email: i log non devono contenere dati personali.
+        errors.push(`${userSnapshot.id}: ${message}`);
+        console.error(`Errore invio email all'utente ${userSnapshot.id}:`, message);
         for (const item of claimed) {
           await adminDb.collection('notifications_queue').doc(item.docId).update({
             processingUntil: FieldValue.delete(),

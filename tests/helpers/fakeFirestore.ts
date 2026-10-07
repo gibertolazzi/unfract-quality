@@ -19,17 +19,28 @@ export function createFakeDb() {
     },
     update: async (data: Record<string, any>) => {
       if (!store.has(path)) throw new Error(`No document: ${path}`);
-      store.set(path, { ...store.get(path), ...data });
+      const current = store.get(path)!;
+      const next = { ...current };
+      for (const [key, value] of Object.entries(data)) {
+        // FieldValue.arrayRemove finto (vedi i test che lo usano).
+        next[key] = value && typeof value === 'object' && '__arrayRemove' in value
+          ? (current[key] || []).filter((item: unknown) => !(value.__arrayRemove as unknown[]).includes(item))
+          : value;
+      }
+      store.set(path, next);
     },
     delete: async () => { store.delete(path); },
   });
 
   const collection = (name: string) => ({
     doc: (id: string) => docRef(`${name}/${id}`),
-    where: (field: string, _op: string, value: unknown) => ({
+    where: (field: string, op: string, value: unknown) => ({
       get: async () => {
+        const matches = (data: Record<string, any>) => op === 'array-contains'
+          ? Array.isArray(data[field]) && data[field].includes(value)
+          : data[field] === value;
         const docs = Array.from(store.entries())
-          .filter(([path, data]) => path.startsWith(`${name}/`) && path.split('/').length === name.split('/').length + 1 && data[field] === value)
+          .filter(([path, data]) => path.startsWith(`${name}/`) && path.split('/').length === name.split('/').length + 1 && matches(data))
           .map(([path]) => ({ ...snapshot(path), ref: docRef(path) }));
         return { empty: docs.length === 0, docs };
       },

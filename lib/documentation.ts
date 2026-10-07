@@ -76,7 +76,6 @@ export function subscribeToDocuments(projectId: string, callback: (docs: Documen
 }
 
 export async function getDocumentById(id: string): Promise<(Document & { projectId?: string }) | null> {
-  console.log("Fetching document by ID:", id);
   try {
     const docRef = doc(db, COLLECTION_NAME, id);
     const docSnap = await getDoc(docRef);

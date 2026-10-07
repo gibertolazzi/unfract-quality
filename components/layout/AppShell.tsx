@@ -38,9 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       const hasWebGPU = 'gpu' in navigator && Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
       
       if (!hasNativeAI && hasWebGPU) {
-        getWebLLMEngine((progress) => {
-          console.log("Preloading WebLLM in background:", progress);
-        }).catch(e => console.error("WebLLM Preload Error:", e));
+        getWebLLMEngine(() => {}).catch(e => console.error("WebLLM Preload Error:", e));
       }
     }
   }, [user]);

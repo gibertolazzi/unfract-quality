@@ -10,12 +10,23 @@ export function DeleteProjectModal({
   onClose
 }: { 
   project: Project; 
-  onConfirm: () => void; 
+  onConfirm: () => Promise<void>; 
   onClose: () => void;
 }) {
   const [value, setValue] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
   const { t } = useTranslation();
-  const isValid = value === project.name;
+  const isValid = value === project.name && !isDeleting;
+
+  const confirm = async () => {
+    if (!isValid) return;
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   if (typeof document === 'undefined') return null;
 
@@ -46,9 +57,7 @@ export function DeleteProjectModal({
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && isValid) {
-                onConfirm();
-              }
+              if (e.key === 'Enter') confirm();
             }}
             placeholder={project.name}
             className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-red-500 transition-colors"
@@ -61,7 +70,7 @@ export function DeleteProjectModal({
           </button>
           <button 
             onClick={() => {
-              if (isValid) onConfirm();
+              confirm();
             }}
             disabled={!isValid}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-full text-sm font-medium transition-colors"

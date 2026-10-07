@@ -2,6 +2,7 @@ import { incrementAiUsage } from '@/lib/usage';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useState, useCallback, useEffect } from 'react';
 import { authedFetch } from '@/lib/authedFetch';
+import { findAiTaskBlock } from '@/lib/aiTaskBlock';
 import { collection, doc, addDoc, updateDoc, onSnapshot, query, where, serverTimestamp, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { deleteStoredFile } from '@/lib/usage';
@@ -164,15 +165,13 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
       if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       let responseText: string = data.text;
       
-      // Check for magic task creation block
-      const taskRegex = /\$\$CREATE_TASK\$\$[\s\S]*?\{([\s\S]*?)\}[\s\S]*?\$\$END_TASK\$\$/;
-      const match = responseText.match(taskRegex);
-      
-      if (match) {
+      // Blocco con cui l'AI chiede di creare un task (vedi lib/aiTaskBlock.ts).
+      const found = findAiTaskBlock(responseText);
+      if (found) {
         try {
-          const jsonStr = "{" + match[1] + "}";
-          const taskData = JSON.parse(jsonStr);
-          
+          if (!found.task) throw new Error('Blocco del task non leggibile');
+          const taskData = found.task;
+
           // 1. Get first column for the project
           const colsQuery = query(collection(db, 'columns'), where('projectId', '==', projectId));
           const colsSnap = await getDocs(colsQuery);
@@ -182,15 +181,15 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
             const cols = colsSnap.docs.map(d => ({id: d.id, ...d.data()})).sort((a:any, b:any) => (a.order || 0) - (b.order || 0));
             columnId = cols[0].id;
           }
-          
+
           // 2. Create the task in Firestore
           const newTaskRef = await addDoc(collection(db, 'tasks'), {
             projectId,
             columnId,
-            title: taskData.title || "Nuova Task",
-            description: taskData.description || "",
-            priority: taskData.priority || "Medium",
-            category: taskData.category || "General",
+            title: taskData.title,
+            description: taskData.description,
+            priority: taskData.priority,
+            category: taskData.category,
             requesterUid: userId,
             assigneeUid: userId,
             createdBy: userId,
@@ -200,16 +199,16 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
             assignees: 1,
             comments: []
           });
-          
+
           // 3. Replace the magic block with the visual TASK tag
-          responseText = responseText.replace(taskRegex, "\n\n[TASK:" + newTaskRef.id + "]");
-          
+          responseText = responseText.replace(found.block, "\n\n[TASK:" + newTaskRef.id + "]");
+
         } catch (err) {
           console.error("Errore durante la creazione automatica della task:", err);
-          responseText = responseText.replace(taskRegex, "\n\n*(Errore: impossibile creare la task nel database)*");
+          responseText = responseText.replace(found.block, "\n\n*(Errore: impossibile creare la task nel database)*");
         }
       }
-      
+
       const modelMessage: Message = { role: 'model', content: responseText };
       currentMessages.push(modelMessage);
 

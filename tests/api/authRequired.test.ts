@@ -36,6 +36,8 @@ const routes: Array<{ name: string; load: () => Promise<any>; method: 'GET' | 'P
   { name: 'stripe/create-checkout', load: () => import('@/app/api/stripe/create-checkout/route'), method: 'POST', path: '/api/stripe/create-checkout', body: { plan: 'pro' } },
   { name: 'auth/google', load: () => import('@/app/api/auth/google/route'), method: 'POST', path: '/api/auth/google' },
   { name: 'auth/microsoft', load: () => import('@/app/api/auth/microsoft/route'), method: 'POST', path: '/api/auth/microsoft' },
+  { name: 'projects/delete', load: () => import('@/app/api/projects/delete/route'), method: 'POST', path: '/api/projects/delete', body: { projectId: 'p1' } },
+  { name: 'organizations/delete', load: () => import('@/app/api/organizations/delete/route'), method: 'POST', path: '/api/organizations/delete', body: { orgId: 'o1' } },
 ];
 
 describe('route che richiedono il login', () => {
