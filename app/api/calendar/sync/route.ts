@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
 import { getValidAccessToken } from '@/lib/oauth';
 import { requireUser } from '@/lib/server/auth';
+import { eventInstant, graphInstant, timeInZone, userTimeZone } from '@/lib/server/timeZone';
 
 export async function GET(req: Request) {
   // L'utente viene dal token: prima bastava un `userId` nella query per leggere il calendario di chiunque.
@@ -18,6 +20,9 @@ export async function GET(req: Request) {
 
   try {
     const events: any[] = [];
+    // Il browser ricalcola data e orari dagli istanti ISO; il fuso serve qui per
+    // gli eventi di tutto il giorno, che valgono dalla mezzanotte dell'utente.
+    const timeZone = userTimeZone((await adminDb.collection('users').doc(userId).get()).data());
 
     // 1. Fetch Google Events
     const googleToken = await getValidAccessToken(userId, 'google');
@@ -36,8 +41,8 @@ export async function GET(req: Request) {
         const gData = await gRes.json();
         const gItems = gData.items || [];
         gItems.forEach((e: any) => {
-          const start = e.start?.dateTime ? new Date(e.start.dateTime) : new Date(e.start?.date);
-          const end = e.end?.dateTime ? new Date(e.end.dateTime) : new Date(e.end?.date);
+          const start = eventInstant(e.start?.dateTime || e.start?.date, timeZone);
+          const end = eventInstant(e.end?.dateTime || e.end?.date, timeZone);
           events.push({
             id: `google-${e.id}`,
             googleEventId: e.id,
@@ -45,8 +50,8 @@ export async function GET(req: Request) {
             date: start.toISOString(),
             startISO: start.toISOString(),
             endISO: end.toISOString(),
-            startTime: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
-            endTime: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+            startTime: timeInZone(start, timeZone),
+            endTime: timeInZone(end, timeZone),
             description: e.description || '',
             meetLink: e.hangoutLink || null,
             color: 'bg-white/10',
@@ -72,8 +77,8 @@ export async function GET(req: Request) {
         const mData = await mRes.json();
         const mItems = mData.value || [];
         mItems.forEach((e: any) => {
-          const start = new Date(e.start?.dateTime + 'Z');
-          const end = new Date(e.end?.dateTime + 'Z');
+          const start = graphInstant(String(e.start?.dateTime), !!e.isAllDay, timeZone);
+          const end = graphInstant(String(e.end?.dateTime), !!e.isAllDay, timeZone);
           events.push({
             id: `microsoft-${e.id}`,
             microsoftEventId: e.id,
@@ -81,8 +86,8 @@ export async function GET(req: Request) {
             date: start.toISOString(),
             startISO: start.toISOString(),
             endISO: end.toISOString(),
-            startTime: `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`,
-            endTime: `${end.getHours().toString().padStart(2, '0')}:${end.getMinutes().toString().padStart(2, '0')}`,
+            startTime: timeInZone(start, timeZone),
+            endTime: timeInZone(end, timeZone),
             description: e.bodyPreview || '',
             meetLink: e.onlineMeeting?.joinUrl || null,
             color: 'bg-[#006AFF]/20',

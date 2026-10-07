@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getValidAccessToken } from '@/lib/oauth';
 import { resolveChannel } from '@/lib/server/calendarChannels';
+import { eventInstant, timeInZone, userTimeZone } from '@/lib/server/timeZone';
 
 // Google will call this endpoint whenever an event changes on the connected calendar
 export async function POST(req: Request) {
@@ -44,6 +45,8 @@ export async function POST(req: Request) {
     if (res.ok) {
       const data = await res.json();
       const updatedEvents = data.items || [];
+      // Gli orari "HH:mm" salvati sull'evento vanno nel fuso dell'utente: il server è in UTC.
+      const timeZone = userTimeZone((await adminDb.collection('users').doc(userId).get()).data());
       
       const batch = adminDb.batch();
       
@@ -62,14 +65,14 @@ export async function POST(req: Request) {
             const newEnd = googleEvent.end?.dateTime || googleEvent.end?.date;
             
             if (newStart && newEnd) {
-              const startDateObj = new Date(newStart);
-              const endDateObj = new Date(newEnd);
+              const startDateObj = eventInstant(newStart, timeZone);
+              const endDateObj = eventInstant(newEnd, timeZone);
               
               batch.update(doc.ref, {
                 title: googleEvent.summary || doc.data().title,
                 date: startDateObj.toISOString(),
-                startTime: `${startDateObj.getHours().toString().padStart(2, '0')}:${startDateObj.getMinutes().toString().padStart(2, '0')}`,
-                endTime: `${endDateObj.getHours().toString().padStart(2, '0')}:${endDateObj.getMinutes().toString().padStart(2, '0')}`,
+                startTime: timeInZone(startDateObj, timeZone),
+                endTime: timeInZone(endDateObj, timeZone),
               });
             }
           }

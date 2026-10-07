@@ -19,6 +19,16 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [bookingStatus, setBookingStatus] = useState<'idle'|'booking'|'success'|'error'>('idle');
+  const [provider, setProvider] = useState<'google' | 'microsoft' | null>('google');
+  const [slotsError, setSlotsError] = useState<string | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+  // Letto nel browser: durante il rendering sul server sarebbe UTC.
+  const [guestTimeZone, setGuestTimeZone] = useState('');
+  const meetingName = provider === 'microsoft' ? 'Microsoft Teams' : 'Google Meet';
+
+  useEffect(() => {
+    setGuestTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
 
   useEffect(() => {
     if (selectedDate) {
@@ -29,18 +39,26 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
 
   const fetchSlots = async (date: Date) => {
     setLoading(true);
+    setSlotsError(null);
     try {
-      const res = await fetch(`/api/calendar/slots?userId=${params.userId}&date=${date.toISOString()}`);
+      // Il giorno scelto, non la mezzanotte del browser in UTC: il server lo
+      // legge nel fuso di chi riceve le prenotazioni.
+      const day = format(date, 'yyyy-MM-dd');
+      const res = await fetch(`/api/calendar/slots?userId=${encodeURIComponent(params.userId)}&date=${day}`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setSlots(data.slots || []);
         if (data.user) setHost(data.user);
         if (data.bookingDuration) setBookingDuration(data.bookingDuration);
+        setProvider(data.provider ?? null);
       } else {
         setSlots([]);
+        setSlotsError(data.error || 'Orari non disponibili. Riprova più tardi.');
       }
     } catch (err) {
       console.error(err);
+      setSlots([]);
+      setSlotsError('Orari non disponibili. Riprova più tardi.');
     }
     setLoading(false);
   };
@@ -48,6 +66,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
   const handleBook = async () => {
     if (!selectedSlot || !guestName || !guestEmail) return;
     setBookingStatus('booking');
+    setBookingError(null);
     try {
       const res = await fetch(`/api/calendar/book`, {
         method: 'POST',
@@ -62,7 +81,11 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
       if (res.ok) {
         setBookingStatus('success');
       } else {
+        const data = await res.json().catch(() => ({}));
+        setBookingError(data.error || null);
         setBookingStatus('error');
+        // Lo slot potrebbe essere stato preso: si ricaricano gli orari liberi.
+        if (res.status === 409 && selectedDate) fetchSlots(selectedDate);
       }
     } catch (err) {
       setBookingStatus('error');
@@ -78,7 +101,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
         <h1 className="text-4xl font-halfre mb-4">Meeting Confermato!</h1>
         <p className="text-white/70 max-w-md mx-auto mb-8">
           Ti abbiamo inviato un invito sul calendario all'indirizzo {guestEmail}. 
-          All'interno troverai anche il link per Google Meet.
+          All'interno troverai anche il link per {meetingName}.
         </p>
         <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors font-medium">
           Prenota un altro meeting
@@ -121,11 +144,16 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
           </div>
           <div className="flex items-center gap-3">
             <Video size={20} className="text-[#858585]" />
-            <span>Google Meet</span>
+            <span>{meetingName}</span>
           </div>
           <div className="mt-4 text-sm leading-relaxed text-[#858585]">
-            Seleziona un giorno e un orario per prenotare una call. I dettagli e il link di Google Meet verranno inviati via email.
+            Seleziona un giorno e un orario per prenotare una call. I dettagli e il link di {meetingName} verranno inviati via email.
           </div>
+          {guestTimeZone && (
+            <div className="text-xs text-[#858585]">
+              Orari nel tuo fuso orario ({guestTimeZone}).
+            </div>
+          )}
         </div>
       </div>
 
@@ -177,7 +205,10 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
                   })
                 ) : (
                   <div className="text-center text-[#858585] py-10">
-                    Nessun orario disponibile in questa data.
+                    {slotsError
+                      || (provider === null
+                        ? 'Questo utente non ha ancora collegato un calendario: le prenotazioni non sono disponibili.'
+                        : 'Nessun orario disponibile in questa data.')}
                   </div>
                 )}
               </div>
@@ -223,7 +254,7 @@ export default function BookingPage({ params }: { params: { userId: string } }) 
 
               {bookingStatus === 'error' && (
                 <div className="p-4 bg-red-500/20 text-red-400 rounded-xl text-sm border border-red-500/30">
-                  Si è verificato un errore durante la prenotazione. Riprova più tardi.
+                  {bookingError || 'Si è verificato un errore durante la prenotazione. Riprova più tardi.'}
                 </div>
               )}
 

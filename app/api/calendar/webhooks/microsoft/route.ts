@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { getValidAccessToken } from '@/lib/oauth';
 import { resolveChannel } from '@/lib/server/calendarChannels';
+import { graphInstant, timeInZone, userTimeZone } from '@/lib/server/timeZone';
 
 // Microsoft Graph Webhook for Calendar
 export async function POST(req: Request) {
@@ -63,14 +64,16 @@ export async function POST(req: Request) {
           const newEnd = msEvent.end?.dateTime;
 
           if (newStart && newEnd) {
-             const startDateObj = new Date(newStart + 'Z'); // MS returns UTC without Z sometimes
-             const endDateObj = new Date(newEnd + 'Z');
+             // Gli orari "HH:mm" salvati sull'evento vanno nel fuso dell'utente: il server è in UTC.
+             const timeZone = userTimeZone((await adminDb.collection('users').doc(userId).get()).data());
+             const startDateObj = graphInstant(newStart, !!msEvent.isAllDay, timeZone);
+             const endDateObj = graphInstant(newEnd, !!msEvent.isAllDay, timeZone);
              
              batch.update(doc.ref, {
                title: msEvent.subject || doc.data().title,
                date: startDateObj.toISOString(),
-               startTime: `${startDateObj.getHours().toString().padStart(2, '0')}:${startDateObj.getMinutes().toString().padStart(2, '0')}`,
-               endTime: `${endDateObj.getHours().toString().padStart(2, '0')}:${endDateObj.getMinutes().toString().padStart(2, '0')}`,
+               startTime: timeInZone(startDateObj, timeZone),
+               endTime: timeInZone(endDateObj, timeZone),
              });
           }
         }
