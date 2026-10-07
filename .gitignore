@@ -43,3 +43,9 @@ sa.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# log degli emulatori Firebase
+firestore-debug.log
+storage-debug.log
+firebase-debug.log
+ui-debug.log

@@ -302,8 +302,9 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         }
 
         // 5. Search AI Hub Conversations
-        if (activeProjectId) {
-          const aiChatsSnap = await getDocs(query(collection(db, "ai_chats"), where("projectId", "==", activeProjectId)));
+        if (activeProjectId && user) {
+          // Le chat dell'AI sono personali: le regole lasciano leggere solo le proprie.
+          const aiChatsSnap = await getDocs(query(collection(db, "ai_chats"), where("projectId", "==", activeProjectId), where("userId", "==", user.uid)));
           aiChatsSnap.forEach(doc => {
             const data = doc.data();
             const title = data.title?.toLowerCase() || '';
@@ -323,7 +324,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     }, 500);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery, accessToken, activeProjectId]);
+  }, [searchQuery, accessToken, activeProjectId, user]);
 
   const formatSeconds = (totalSeconds: number) => {
     const m = Math.floor((totalSeconds % 3600) / 60);

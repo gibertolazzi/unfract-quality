@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint --dir app --dir components --dir lib --dir contexts --dir hooks",
     "typecheck": "tsc --noEmit --incremental false",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:rules": "npx -y firebase-tools@15.29.0 emulators:exec --only firestore,storage --project demo-unfract 'vitest run --config vitest.rules.config.ts'"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -49,6 +50,7 @@
     "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "5.0.2",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",

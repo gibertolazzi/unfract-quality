@@ -1,8 +1,76 @@
 rules_version = '2';
+
+// Regole di Storage per l'app web. Il server usa l'SDK Admin, che non passa da
+// queste regole.
+//
+// Prima chiunque avesse fatto il login poteva caricare qualsiasi file, di
+// qualsiasi dimensione, in qualsiasi percorso (segnalazione S03). Ora:
+// - si carica solo nei percorsi che l'app usa, con un limite di dimensione;
+// - i file del CRM li cancella solo chi li ha caricati;
+// - ogni altro percorso è chiuso.
+//
+// Lettura e cancellazione degli altri percorsi restano a chi ha fatto il login:
+// separarle per organizzazione è il secondo passo, insieme a Firestore. I link
+// di download con token (getDownloadURL) non passano da queste regole.
+
 service firebase.storage {
   match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if request.auth != null;
+
+    function signedIn() {
+      return request.auth != null;
     }
+
+    function maxMB(mb) {
+      return request.resource.size <= mb * 1024 * 1024;
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+
+    // Banner e logo delle organizzazioni.
+    match /organizations/{orgId}/{fileName} {
+      allow read, delete: if signedIn();
+      allow create, update: if signedIn() && maxMB(20) && isImage();
+    }
+
+    // Registrazioni dei meeting. Il limite è largo per non perdere riunioni
+    // lunghe; l'analisi AI ne scarica al massimo 200 MB.
+    match /meetings/{projectId}/{fileName} {
+      allow read, delete: if signedIn();
+      allow create, update: if signedIn() && maxMB(500);
+    }
+
+    // Allegati: documentazione, task, chat, AI Hub.
+    match /documentation/{projectId}/{docId}/{fileName} {
+      allow read, delete: if signedIn();
+      allow create, update: if signedIn() && maxMB(200);
+    }
+    match /tasks/attachments/{fileName} {
+      allow read, delete: if signedIn();
+      allow create, update: if signedIn() && maxMB(200);
+    }
+    match /chats/{chatId}/{fileName} {
+      allow read, delete: if signedIn();
+      allow create, update: if signedIn() && maxMB(200);
+    }
+    match /ai-hub/{projectId}/{fileName} {
+      allow read, delete: if signedIn();
+      allow create, update: if signedIn() && maxMB(200);
+    }
+
+    // Documenti del CRM: chi carica si firma nei metadati (vedi
+    // lib/crm/documentService.ts) e solo lui può cancellare o sostituire il
+    // file. Per Storage, caricare sopra un file esistente è una `create`.
+    match /crm/{projectId}/{year}/{fileName} {
+      allow read: if signedIn();
+      allow create: if signedIn() && maxMB(50)
+        && (resource == null || resource.metadata.uid == request.auth.uid)
+        && request.resource.metadata.uid == request.auth.uid
+        && request.resource.metadata.projectId == projectId;
+      allow delete: if signedIn() && resource.metadata.uid == request.auth.uid;
+    }
+
+    // Ogni altro percorso è chiuso.
   }
 }
