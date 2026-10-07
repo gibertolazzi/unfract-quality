@@ -5,7 +5,6 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { Workspace, AccessGrant } from '@/types/workspace';
-import { migrateToWorkspaces } from '@/lib/workspaceMigration';
 import { ensureWorkspaceQuotas } from '@/lib/usage';
 
 interface WorkspaceContextType {
@@ -70,9 +69,6 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     let unsubscribe: () => void;
 
     const init = async () => {
-      // Esegui la migrazione silente se necessaria
-      await migrateToWorkspaces();
-
       // Trova a quali workspace l'utente ha accesso tramite gli access_grants
       const grantsQuery = query(
         collection(db, 'access_grants'),

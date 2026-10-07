@@ -12,6 +12,7 @@ import { authedFetch } from '@/lib/authedFetch';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { incrementStorageUsage } from '@/lib/usage';
+import { ensureOwnedOrgWorkspace } from '@/lib/orgWorkspace';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { AssignProjectModal } from './AssignProjectModal';
@@ -329,6 +330,9 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 onClick={async () => {
                   try {
                     const { setDoc } = await import('firebase/firestore');
+                    // Prima il workspace completo, se manca: altrimenti il salvataggio
+                    // qui sotto creerebbe un workspace senza nome né proprietario.
+                    if (user) await ensureOwnedOrgWorkspace(org, user.uid);
                     await setDoc(doc(db, 'workspaces', org.id), { structureMode: mode.id }, { merge: true });
                     await updateDoc(doc(db, 'organizations', org.id), { structureMode: mode.id }); // Legacy sync
                     setOrg({ ...org, structureMode: mode.id as any });

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { PlusCircle, UserPlus, Link2, MoreHorizontal, Loader2, X } from 'lucide-react';
 import { OrgCard } from '@/components/organization/OrgCard';
 import { Organization } from '@/components/organization/types';
-import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, getDocs } from 'firebase/firestore';
+import { createOrganization, ensureOwnedOrgWorkspace } from '@/lib/orgWorkspace';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -42,6 +43,10 @@ export default function OrganizationPage() {
           }
         });
         setOrgs(fetchedOrgs);
+        // Organizzazioni create senza workspace: lo aggiunge per chi le possiede.
+        fetchedOrgs.forEach(org => {
+          ensureOwnedOrgWorkspace(org, user.uid).catch(error => console.error('Workspace dell’organizzazione non creato:', error));
+        });
       } catch (error) {
         console.error("Error fetching organizations:", error);
       } finally {
@@ -55,30 +60,29 @@ export default function OrganizationPage() {
     if (!newOrgName.trim() || !user) return;
     setIsCreating(true);
     try {
+      // Organizzazione, workspace e accesso del creatore nascono insieme.
+      const orgId = await createOrganization(user, newOrgName.trim());
       const newOrgData = {
-        name: newOrgName,
+        name: newOrgName.trim(),
         ownerId: user.uid,
         memberUids: [user.uid],
         memberCount: 1,
-        bannerGradient: 'from-[#0061FF] to-[#00D2FF]', // default
+        bannerGradient: 'from-[#0061FF] to-[#00D2FF]',
         members: [{
           uid: user.uid,
           email: user.email || '',
           displayName: user.displayName || 'Utente',
           photoURL: user.photoURL || '',
           initials: (user.displayName || 'U').charAt(0).toUpperCase(),
-          role: 'admin'
+          role: 'admin' as const
         }],
-        createdAt: serverTimestamp()
       };
-      
-      const docRef = await addDoc(collection(db, 'organizations'), newOrgData);
-      setOrgs([{ id: docRef.id, ...newOrgData, createdAt: new Date() } as Organization, ...orgs]);
+      setOrgs([{ id: orgId, ...newOrgData, createdAt: new Date() } as Organization, ...orgs]);
       setIsCreateModalOpen(false);
       setNewOrgName('');
       
       // Optional: Redirect directly to the new org
-      router.push(`/organization/${docRef.id}`);
+      router.push(`/organization/${orgId}`);
     } catch (error) {
       console.error("Error creating organization:", error);
       toast.error("Errore durante la creazione dell'organizzazione.");

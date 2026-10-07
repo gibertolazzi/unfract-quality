@@ -130,13 +130,6 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
         loadedChunks++;
         if (loadedChunks >= chunks.length) {
           setLoading(false);
-          // Migrate orphan data to first project (runs once, tracked via localStorage)
-          const firstProject = loadedProjects[0];
-          if (firstProject) {
-            import('@/lib/migration').then(({ migrateOrphanData }) => {
-              migrateOrphanData(firstProject.id);
-            });
-          }
         }
       });
       unsubscribes.push(unsub);
