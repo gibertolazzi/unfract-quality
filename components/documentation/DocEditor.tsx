@@ -10,7 +10,6 @@ import { HistoryModal } from './HistoryModal';
 import { updateDocument, duplicateDocument, deleteDocument } from '@/lib/documentation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { DocToolbar } from './DocToolbar';
@@ -99,7 +98,8 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const { activeProjectId } = useProject();
-  const { activeWorkspaceId } = useWorkspace();
+  // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
+  const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
   const [doc, setDoc] = useState<Document>(initialDoc);
   const [isEditing, setIsEditing] = useState(searchParams.get('edit') === 'true');
   const [isSaving, setIsSaving] = useState(false);

@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useRef } from 'react';
+import { useProject } from "@/contexts/ProjectContext";
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { trackUpload, deleteStoredFile } from '@/lib/usage';
 import { sendMessage, Mention, Attachment } from '@/lib/chat';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
@@ -46,7 +46,8 @@ function uploadChatFile(chatId: string, file: File, index: number, workspaceId?:
 
 export function ChatInput({ chatId }: { chatId: string }) {
   const { user } = useAuth();
-  const { activeWorkspaceId } = useWorkspace();
+  // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
+  const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
   const { chats } = useChat();
   const chat = chats.find(c => c.id === chatId);
   const myPermissions = chat?.permissions?.[user?.uid || ''] || { canWrite: true };

@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject } from "@/contexts/ProjectContext";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useAiHubChat } from "@/hooks/useAiHubChat";
 import { fetchProjectContext } from "@/lib/ai-hub";
@@ -18,7 +17,8 @@ export function AiHubView() {
   const { user } = useAuth();
   const router = useRouter();
   const { activeProject, activeProjectId } = useProject();
-  const { activeWorkspaceId } = useWorkspace();
+  // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
+  const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
 
   const [inputMessage, setInputMessage] = useState("");
   const [tasks, setTasks] = useState<any[]>([]);

@@ -18,6 +18,7 @@ import { Check, X, Key, MessageSquare, HardDrive, Zap } from 'lucide-react';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import type { Workspace } from '@/types/workspace';
 
 type Notification = {
   id: string;
@@ -56,7 +57,7 @@ const UsagePreviewIcon = ({ aiPercentage = 0, storagePercentage = 0 }: { aiPerce
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, accessToken, settings } = useAuth();
-  const { activeProjectId } = useProject();
+  const { activeProjectId, activeProjectWorkspaceId } = useProject();
   const { activeWorkspace } = useWorkspace();
   const { t, locale } = useTranslation();
   const { 
@@ -68,13 +69,30 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [isQuotasOpen, setIsQuotasOpen] = useState(false);
   const quotasRef = useRef<HTMLDivElement>(null);
 
+  // I consumi del workspace del progetto aperto, aggiornati in tempo reale: è
+  // lì che il server conta spazio e crediti. Il workspace attivo può essere un
+  // altro, perché il menu elenca i progetti di tutti i workspace.
+  const [usageWorkspace, setUsageWorkspace] = useState<Workspace | null>(null);
+  useEffect(() => {
+    if (!activeProjectWorkspaceId) {
+      setUsageWorkspace(null);
+      return;
+    }
+    return onSnapshot(
+      doc(db, 'workspaces', activeProjectWorkspaceId),
+      snap => setUsageWorkspace(snap.exists() ? ({ id: snap.id, ...snap.data() } as Workspace) : null),
+      () => setUsageWorkspace(null),
+    );
+  }, [activeProjectWorkspaceId]);
+  const shownWorkspace = usageWorkspace || activeWorkspace;
+
   const quotas = {
     planTier: 'free',
     storageUsed: 0,
     storageLimit: 1_000_000_000,
     aiCreditsUsed: 0,
     aiCreditsLimit: 120,
-    ...activeWorkspace?.quotas,
+    ...shownWorkspace?.quotas,
   };
   const now = new Date();
   const currentCreditPeriod = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -641,7 +659,10 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             {isQuotasOpen && (
               <div className="absolute top-[54px] right-0 w-[300px] bg-[#121212] border border-white/10 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.8)] overflow-hidden z-50 flex flex-col origin-top-right transition-all duration-300 p-4 gap-4">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-semibold text-white">{t.topbar.quotasTitle}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm font-semibold text-white">{t.topbar.quotasTitle}</span>
+                    {shownWorkspace?.name && <span className="text-[11px] text-white/50 truncate">{shownWorkspace.name}</span>}
+                  </div>
                   {quotas.planTier && (
                     <span className="text-[10px] px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-md font-medium uppercase tracking-wider">
                       {quotas.planTier}

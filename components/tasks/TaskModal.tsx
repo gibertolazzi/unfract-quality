@@ -14,7 +14,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { deleteStoredFile, trackUpload } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
@@ -42,7 +41,8 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const toast = useToast();
   const dialog = useDialog();
   const { activeProjectId } = useProject();
-  const { activeWorkspaceId } = useWorkspace();
+  // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
+  const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');

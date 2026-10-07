@@ -21,6 +21,12 @@ interface ProjectContextType {
   projects: Project[];
   activeProjectId: string | null;
   activeProject: Project | null;
+  /**
+   * Il workspace del progetto aperto: è quello a cui vanno contati spazio e
+   * crediti. Può differire dal workspace attivo, perché il menu elenca i
+   * progetti di tutti i workspace.
+   */
+  activeProjectWorkspaceId: string | null;
   setActiveProjectId: (id: string) => void;
   createProject: (name: string, organizationIds?: string[]) => Promise<string>;
   renameProject: (id: string, newName: string) => Promise<void>;
@@ -32,6 +38,7 @@ const ProjectContext = createContext<ProjectContextType>({
   projects: [],
   activeProjectId: null,
   activeProject: null,
+  activeProjectWorkspaceId: null,
   setActiveProjectId: () => {},
   createProject: async () => { throw new ProjectCreateError('not-signed-in'); },
   renameProject: async () => {},
@@ -184,12 +191,14 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
+  const activeProjectWorkspaceId = activeProject?.workspaceId || activeWorkspaceId || null;
 
   return (
     <ProjectContext.Provider value={{
       projects,
       activeProjectId,
       activeProject,
+      activeProjectWorkspaceId,
       setActiveProjectId,
       createProject,
       renameProject,
