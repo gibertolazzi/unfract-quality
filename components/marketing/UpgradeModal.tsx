@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Check, X, Star } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authedFetch';
+import { useProject } from '@/contexts/ProjectContext';
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface UpgradeModalProps {
   onClose: () => void;
@@ -10,6 +12,10 @@ interface UpgradeModalProps {
 
 export function UpgradeModal({ onClose }: UpgradeModalProps) {
   const { user } = useAuth();
+  // Il piano vale per il workspace del progetto aperto (lo stesso del riquadro consumi).
+  const { activeProjectWorkspaceId } = useProject();
+  const { workspaces } = useWorkspace();
+  const workspaceName = workspaces.find(w => w.id === activeProjectWorkspaceId)?.name;
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -21,11 +27,15 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
 
   // Il prezzo lo sceglie il server in base al piano: qui si manda solo il piano.
   const handleUpgrade = async (planName: string) => {
+    if (!activeProjectWorkspaceId) {
+      alert('Apri un progetto del workspace a cui vuoi applicare il piano.');
+      return;
+    }
     setLoadingPlan(planName);
     try {
       const response = await authedFetch('/api/stripe/create-checkout', {
         method: 'POST',
-        body: JSON.stringify({ plan: planName.toLowerCase() }),
+        body: JSON.stringify({ plan: planName.toLowerCase(), workspaceId: activeProjectWorkspaceId }),
       });
 
       const data = await response.json();
@@ -67,6 +77,9 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
         <div className="text-center mb-14">
           <h2 className="text-[32px] md:text-[40px] font-semibold text-white tracking-tight mb-3">Scegli il piano giusto per il tuo team</h2>
           <p className="text-[#858585] text-[15px] max-w-2xl mx-auto font-light">Tutti i piani includono l'accesso completo alla piattaforma. Scegli in base<br/>alle dimensioni del tuo team e alle necessità tecniche</p>
+          {workspaceName && (
+            <p className="text-white/70 text-[13px] mt-4">Il piano si applica al workspace <span className="text-white font-medium">{workspaceName}</span></p>
+          )}
         </div>
 
         {/* Cards Container */}

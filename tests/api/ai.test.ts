@@ -217,6 +217,26 @@ describe('POST /api/ai/chat', () => {
     expect(mocks.sendMessage).not.toHaveBeenCalled();
   });
 
+  it('402 a crediti del mese finiti, senza chiamare il modello né contare', async () => {
+    const { creditPeriod } = await import('@/lib/server/usage');
+    Object.assign(quotas(), { aiCreditsUsed: 120, aiCreditsPeriod: creditPeriod() });
+    const { POST } = await import('@/app/api/ai/chat/route');
+    const response = await POST(jsonRequest('http://localhost/api/ai/chat', { projectId: 'p1', text: 'x' }, AUTH));
+    expect(response.status).toBe(402);
+    expect((await response.json()).code).toBe('ai-credits-exhausted');
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+    expect(quotas().aiCreditsUsed).toBe(120);
+  });
+
+  it('i crediti del mese scorso non contano: col nuovo mese si riparte', async () => {
+    mocks.sendMessage.mockResolvedValue({ response: { text: () => 'ok' } });
+    Object.assign(quotas(), { aiCreditsUsed: 120, aiCreditsPeriod: '2000-01' });
+    const { POST } = await import('@/app/api/ai/chat/route');
+    const response = await POST(jsonRequest('http://localhost/api/ai/chat', { projectId: 'p1', text: 'x' }, AUTH));
+    expect(response.status).toBe(200);
+    expect(quotas().aiCreditsUsed).toBe(1);
+  });
+
   it('413 con allegati troppo grandi', async () => {
     const { POST } = await import('@/app/api/ai/chat/route');
     const response = await POST(jsonRequest('http://localhost/api/ai/chat',

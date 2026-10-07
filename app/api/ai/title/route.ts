@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
-import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 export const runtime = 'nodejs';
 
@@ -40,6 +40,9 @@ export async function POST(request: Request) {
   const project = await aiProjectWorkspace(auth.user.uid, body?.projectId);
   if (!project.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
+  if (project.outOfCredits) {
+    return NextResponse.json({ error: AI_CREDITS_EXHAUSTED, code: 'ai-credits-exhausted' }, { status: 402 });
   }
 
   let systemInstruction: string | undefined;

@@ -1,5 +1,6 @@
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
+import { canManageWorkspace } from '@/lib/server/usage';
 
 /**
  * Cancellazione di progetti e organizzazioni, dal server.
@@ -37,16 +38,6 @@ async function deleteAll(refs: Ref[]): Promise<number> {
   return unique.length;
 }
 
-async function isWorkspaceAdmin(uid: string, workspaceId: string): Promise<boolean> {
-  const workspace = (await adminDb.collection('workspaces').doc(workspaceId).get()).data();
-  if (workspace?.ownerId === uid) return true;
-  const grants = await adminDb.collection('access_grants').where('subjectId', '==', uid).get();
-  return grants.docs.some(grant => {
-    const g = grant.data();
-    return g.subjectType === 'user' && g.resourceType === 'workspace' && g.workspaceId === workspaceId && g.role === 'admin';
-  });
-}
-
 /** Lo cancella chi l'ha creato o un amministratore del suo workspace. */
 export async function deleteProject(uid: string, projectId: string): Promise<DeleteResult> {
   if (!ID.test(projectId)) return { ok: false, status: 400, error: 'Progetto non valido.' };
@@ -57,7 +48,7 @@ export async function deleteProject(uid: string, projectId: string): Promise<Del
 
   const isCreator = project.userId === uid || project.creatorId === uid;
   const workspaceId = typeof project.workspaceId === 'string' ? project.workspaceId : '';
-  if (!isCreator && !(workspaceId && await isWorkspaceAdmin(uid, workspaceId))) {
+  if (!isCreator && !(workspaceId && await canManageWorkspace(uid, workspaceId))) {
     return { ok: false, status: 403, error: 'Solo chi ha creato il progetto o un amministratore del workspace può cancellarlo.' };
   }
 

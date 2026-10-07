@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
-import { deleteStoredFile, trackUpload } from '@/lib/usage';
+import { deleteStoredFile, trackUpload, uploadErrorMessage } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
@@ -161,7 +161,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     } catch (error) {
       console.error('Upload failed', error);
       await Promise.all(newlyUploadedPaths.map(path => deleteObject(ref(storage, path)).catch(cleanupError => console.error('Error cleaning up file', cleanupError))));
-      toast.error('Impossibile caricare il file. Verifica la connessione e riprova.');
+      toast.error(uploadErrorMessage(error, 'Impossibile caricare il file. Verifica la connessione e riprova.'));
     } finally {
       setIsUploading(false);
       setUploadProgress(0);

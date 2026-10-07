@@ -7,18 +7,25 @@ import { writeAudit } from './audit';
 import { getOpportunityById } from './opportunities';
 import { toMillis } from './helpers';
 import { Page, paginate } from './leadFilters';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { trackUpload } from '@/lib/usage';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { deleteStoredFile, StorageLimitError, trackUpload } from '@/lib/usage';
 
 const COLLECTION_NAME = 'crm_documents';
 
-async function trackWorkspaceStorage(ctx: CrmContextRef, storagePath: string) {
+/**
+ * Conta il file nello spazio del workspace. Restituisce il messaggio per
+ * l'utente se lo spazio è finito (il server ha già cancellato il file).
+ */
+async function trackWorkspaceStorage(ctx: CrmContextRef, storagePath: string): Promise<string | null> {
   try {
     const projectSnap = await getDoc(doc(db, 'projects', ctx.projectId));
     const workspaceId = projectSnap.data()?.workspaceId || ctx.organizationId;
     if (workspaceId) await trackUpload(workspaceId, storagePath);
+    return null;
   } catch (error) {
+    if (error instanceof StorageLimitError) return error.message;
     console.error('Unable to attribute CRM storage usage to its workspace:', error);
+    return null;
   }
 }
 
@@ -546,15 +553,6 @@ function putFile(
   });
 }
 
-/** Rimuove un file rimasto senza metadati. Se anche questo fallisce lo si dice al log, non all'utente. */
-async function discard(path: string): Promise<void> {
-  try {
-    await deleteObject(ref(storage, path));
-  } catch (error) {
-    console.error('Error discarding orphan CRM upload:', path, error);
-  }
-}
-
 export async function uploadDocument(
   ctx: CrmContextRef,
   file: File,
@@ -585,13 +583,15 @@ export async function uploadDocument(
     ...(options.target || {}),
   };
 
+  // Prima lo spazio: se è finito il file non c'è più e non va registrato.
+  const storageFull = await trackWorkspaceStorage(ctx, stored.storagePath);
+  if (storageFull) return { id: null, fileName: file.name, error: storageFull };
+
   const id = await createDocument(ctx, input);
   if (!id) {
-    await discard(stored.storagePath);
+    await deleteStoredFile(stored.storagePath, { usageTracked: true }).catch(error => console.error('Error discarding orphan CRM upload:', error));
     return { id: null, fileName: file.name, error: 'Metadati non salvati: il file è stato rimosso' };
   }
-
-  await trackWorkspaceStorage(ctx, stored.storagePath);
 
   return { id, fileName: file.name };
 }
@@ -630,15 +630,16 @@ export async function uploadDocumentVersion(
     return { id: null, fileName: file.name, error: 'Caricamento non riuscito' };
   }
 
+  const storageFull = await trackWorkspaceStorage(ctx, stored.storagePath);
+  if (storageFull) return { id: null, fileName: file.name, error: storageFull };
+
   try {
     await addDocumentVersion(ctx, document.id, stored);
   } catch (error) {
     console.error('Error recording CRM document version:', error);
-    await discard(stored.storagePath);
+    await deleteStoredFile(stored.storagePath, { usageTracked: true }).catch(cleanupError => console.error('Error discarding orphan CRM upload:', cleanupError));
     return { id: null, fileName: file.name, error: 'Versione non registrata: il file è stato rimosso' };
   }
-
-  await trackWorkspaceStorage(ctx, stored.storagePath);
 
   return { id: document.id, fileName: file.name };
 }

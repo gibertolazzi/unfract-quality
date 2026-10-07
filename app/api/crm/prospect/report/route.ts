@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/crm/prospect/serverAuth';
-import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 /**
  * Le due sezioni discorsive del report, scritte dal modello.
@@ -61,6 +61,9 @@ export async function POST(request: Request) {
   const progetto = await aiProjectWorkspace(guardia.uid, payload?.projectId);
   if (!progetto.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
+  if (progetto.outOfCredits) {
+    return NextResponse.json({ error: AI_CREDITS_EXHAUSTED, code: 'ai-credits-exhausted' }, { status: 402 });
   }
 
   const modello = process.env.PROSPECT_AI_MODEL || MODELLO_PREDEFINITO;

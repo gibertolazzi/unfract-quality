@@ -160,6 +160,14 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
         }),
       });
       const data = await response.json().catch(() => ({}));
+      if (response.status === 402 && typeof data.error === 'string') {
+        // Crediti del mese finiti: lo si dice, senza ripiegare su altri modelli.
+        currentMessages.push({ role: 'model', content: data.error });
+        if (currentChatId) {
+          await updateDoc(doc(db, 'ai_chats', currentChatId), { messages: currentMessages, updatedAt: serverTimestamp() });
+        }
+        return;
+      }
       if (!response.ok || typeof data.text !== 'string') throw new Error(data.error || `HTTP ${response.status}`);
       let responseText: string = data.text;
       

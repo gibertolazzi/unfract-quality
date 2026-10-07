@@ -1,7 +1,8 @@
-import { createHash } from 'node:crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { canAccessProject } from '@/lib/server/projectAccess';
+import { PLAN_QUOTAS, type PlanTier } from '@/lib/stripe/plans';
+import { storageRecordId as recordId } from '@/lib/server/storageBackfill';
 
 /**
  * Contatori di consumo dei workspace (crediti AI e spazio dei file), dal server.
@@ -14,15 +15,23 @@ import { canAccessProject } from '@/lib/server/projectAccess';
  *   e la registra una volta sola in `storage_usage`; quando il file non c'è
  *   più, la toglie.
  * Le regole di Firestore non permettono più al browser di scrivere i contatori.
+ *
+ * I limiti del piano si applicano qui: finiti i crediti del mese le route AI
+ * rispondono 402, e un file che supera lo spazio viene rifiutato e cancellato.
  */
 
 export const DEFAULT_QUOTAS = {
   planTier: 'free',
   storageUsed: 0,
-  storageLimit: 1_000_000_000,
+  storageLimit: PLAN_QUOTAS.free.storageLimit,
   aiCreditsUsed: 0,
-  aiCreditsLimit: 120,
+  aiCreditsLimit: PLAN_QUOTAS.free.aiCreditsLimit,
 } as const;
+
+export const AI_CREDITS_EXHAUSTED =
+  'Crediti AI esauriti per questo mese. Si ricaricano il primo del mese, oppure passa a un piano superiore.';
+export const STORAGE_FULL =
+  'Spazio esaurito per questo workspace: il file non è stato salvato. Libera spazio o passa a un piano superiore.';
 
 export function creditPeriod(now = new Date()): string {
   return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -31,13 +40,70 @@ export function creditPeriod(now = new Date()): string {
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
 
 /**
- * Per le route AI: se l'utente può lavorare sul progetto e su quale workspace
- * contare il credito (`null` per i progetti nati prima dei workspace).
+ * Per le route AI: se l'utente può lavorare sul progetto, su quale workspace
+ * contare il credito (`null` per i progetti nati prima dei workspace) e se i
+ * crediti del mese sono finiti.
  */
-export async function aiProjectWorkspace(uid: string, projectId: unknown): Promise<{ allowed: boolean; workspaceId: string | null }> {
-  if (typeof projectId !== 'string' || !(await canAccessProject(uid, projectId))) return { allowed: false, workspaceId: null };
-  const workspaceId = (await adminDb.collection('projects').doc(projectId).get()).data()?.workspaceId;
-  return { allowed: true, workspaceId: typeof workspaceId === 'string' && ID.test(workspaceId) ? workspaceId : null };
+export async function aiProjectWorkspace(
+  uid: string,
+  projectId: unknown,
+  now = new Date()
+): Promise<{ allowed: boolean; workspaceId: string | null; outOfCredits: boolean }> {
+  if (typeof projectId !== 'string' || !(await canAccessProject(uid, projectId))) {
+    return { allowed: false, workspaceId: null, outOfCredits: false };
+  }
+  const raw = (await adminDb.collection('projects').doc(projectId).get()).data()?.workspaceId;
+  const workspaceId = typeof raw === 'string' && ID.test(raw) ? raw : null;
+  return { allowed: true, workspaceId, outOfCredits: workspaceId ? await aiCreditsExhausted(workspaceId, now) : false };
+}
+
+/** Crediti del mese finiti. Un workspace che non esiste non ha limiti da applicare. */
+export async function aiCreditsExhausted(workspaceId: string, now = new Date()): Promise<boolean> {
+  const snap = await adminDb.collection('workspaces').doc(workspaceId).get();
+  if (!snap.exists) return false;
+  const quotas = withDefaults(snap.data()?.quotas);
+  const used = quotas.aiCreditsPeriod === creditPeriod(now) ? Number(quotas.aiCreditsUsed) || 0 : 0;
+  return used >= Number(quotas.aiCreditsLimit);
+}
+
+/** Proprietario o amministratore del workspace: può gestirne piano e contenuti. */
+export async function canManageWorkspace(uid: string, workspaceId: string): Promise<boolean> {
+  if (!uid || !ID.test(workspaceId)) return false;
+  const workspace = (await adminDb.collection('workspaces').doc(workspaceId).get()).data();
+  if (!workspace) return false;
+  if (workspace.ownerId === uid) return true;
+  const grants = await adminDb.collection('access_grants').where('subjectId', '==', uid).get();
+  return grants.docs.some(grant => {
+    const g = grant.data();
+    return g.subjectType === 'user' && g.resourceType === 'workspace' && g.workspaceId === workspaceId && g.role === 'admin';
+  });
+}
+
+/**
+ * Applica i limiti di un piano al workspace, lasciando stare i contatori.
+ * `billing` tiene il collegamento con l'abbonamento Stripe.
+ */
+export async function applyWorkspacePlan(
+  workspaceId: string,
+  tier: PlanTier | null,
+  billing: Record<string, unknown>,
+  options: { onlySubscription?: string } = {}
+): Promise<boolean> {
+  if (!ID.test(workspaceId)) return false;
+  const ref = adminDb.collection('workspaces').doc(workspaceId);
+  return adminDb.runTransaction(async tx => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return false;
+    const current = snap.data() || {};
+    // Un evento di un abbonamento vecchio non tocca quello nuovo.
+    if (options.onlySubscription && current.billing?.stripeSubscriptionId !== options.onlySubscription) return false;
+    const quotas = withDefaults(current.quotas);
+    tx.set(ref, {
+      quotas: tier ? { ...quotas, planTier: tier, ...PLAN_QUOTAS[tier] } : quotas,
+      billing: { ...(current.billing || {}), ...billing, updatedAt: new Date().toISOString() },
+    }, { merge: true });
+    return true;
+  });
 }
 
 /** Se l'utente fa parte del workspace (accesso o proprietario). */
@@ -95,8 +161,6 @@ export function validStoragePath(path: string): boolean {
   return STORAGE_PATH.test(path) && !path.includes('..') && !path.includes('//');
 }
 
-const recordId = (path: string) => createHash('sha256').update(path).digest('hex');
-
 /**
  * Dimensione del file su Storage, letta con il token dell'utente: valgono le
  * regole di Storage, e il server non ha bisogno di altri permessi.
@@ -112,9 +176,16 @@ export async function storedFileSize(path: string, idToken: string, bucket: stri
   return size;
 }
 
+/** Cancella un file da Storage con il token dell'utente (valgono le regole di Storage). */
+export async function deleteStorageObject(path: string, idToken: string, bucket: string): Promise<boolean> {
+  const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}`;
+  const response = await fetch(url, { method: 'DELETE', headers: { Authorization: `Firebase ${idToken}` }, cache: 'no-store' });
+  return response.ok || response.status === 404;
+}
+
 export type UsageResult =
   | { ok: true; bytes: number }
-  | { ok: false; status: 400 | 403 | 404 | 409; error: string };
+  | { ok: false; status: 400 | 403 | 404 | 409 | 413; error: string };
 
 /** Registra un file appena caricato e ne somma la dimensione. Ripeterlo non conta due volte. */
 export async function trackStoredFile(input: {
@@ -133,14 +204,25 @@ export async function trackStoredFile(input: {
   if (bytes === null) return { ok: false, status: 404, error: 'File non trovato.' };
 
   const workspaceRef = adminDb.collection('workspaces').doc(input.workspaceId);
-  await adminDb.runTransaction(async tx => {
+  const outcome = await adminDb.runTransaction(async tx => {
     const record = await tx.get(recordRef);
-    if (record.exists) return;
+    if (record.exists) return 'tracked' as const;
     const workspace = await tx.get(workspaceRef);
     const quotas = withDefaults(workspace.data()?.quotas);
+    const used = Number(quotas.storageUsed) || 0;
+    if (used + bytes > Number(quotas.storageLimit)) return 'full' as const;
     tx.set(recordRef, { path: input.path, workspaceId: input.workspaceId, bytes, uid: input.uid, createdAt: FieldValue.serverTimestamp() });
-    tx.set(workspaceRef, { quotas: { ...quotas, storageUsed: (Number(quotas.storageUsed) || 0) + bytes } }, { merge: true });
+    tx.set(workspaceRef, { quotas: { ...quotas, storageUsed: used + bytes } }, { merge: true });
+    return 'tracked' as const;
   });
+
+  if (outcome === 'full') {
+    // Il file è già su Storage: senza conteggio non deve restarci.
+    if (!(await deleteStorageObject(input.path, input.idToken, input.bucket))) {
+      console.error('Storage full: unable to delete rejected upload', input.path);
+    }
+    return { ok: false, status: 413, error: STORAGE_FULL };
+  }
   return { ok: true, bytes };
 }
 
