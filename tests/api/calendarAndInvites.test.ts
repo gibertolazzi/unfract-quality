@@ -188,3 +188,16 @@ describe('state OAuth', () => {
     expect(await consumeOAuthState(forged, 'google')).toBeNull();
   });
 });
+
+describe('stato dei calendari collegati', () => {
+  it('dice quali calendari sono collegati, senza i token', async () => {
+    mocks.db.store.set('users/u1/integrations/google', { accessToken: 'secret-access', refreshToken: 'secret-refresh' });
+    mocks.db.store.set('users/other/integrations/microsoft', { accessToken: 'altrui' });
+    const { GET } = await import('@/app/api/calendar/integrations/route');
+    const response = await GET(new Request('http://localhost/api/calendar/integrations', { headers: AUTH }));
+    expect(response.status).toBe(200);
+    const text = await response.text();
+    expect(JSON.parse(text)).toEqual({ google: true, microsoft: false });
+    expect(text).not.toContain('secret');
+  });
+});

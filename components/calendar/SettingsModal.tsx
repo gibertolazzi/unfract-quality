@@ -3,7 +3,7 @@ import { X, Check, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { authedFetch } from '@/lib/authedFetch';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useTranslation } from '@/contexts/TranslationContext';
 
 interface SettingsModalProps {
@@ -51,18 +51,23 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       }
     });
     
-    const unsubG = onSnapshot(doc(db, 'users', user.uid, 'integrations', 'google'), (doc) => {
-      setGoogleConnected(doc.exists());
-    });
-    
-    const unsubM = onSnapshot(doc(db, 'users', user.uid, 'integrations', 'microsoft'), (doc) => {
-      setMicrosoftConnected(doc.exists());
-      setLoadingIntegrations(false);
-    });
+    // I documenti `integrations` contengono i token e li legge solo il server.
+    let cancelled = false;
+    setLoadingIntegrations(true);
+    authedFetch('/api/calendar/integrations')
+      .then(res => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then(data => {
+        if (cancelled) return;
+        setGoogleConnected(!!data.google);
+        setMicrosoftConnected(!!data.microsoft);
+      })
+      .catch(error => console.error('Stato dei calendari non disponibile:', error))
+      .finally(() => {
+        if (!cancelled) setLoadingIntegrations(false);
+      });
 
     return () => {
-      unsubG();
-      unsubM();
+      cancelled = true;
     };
   }, [user, isOpen]);
 

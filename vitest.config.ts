@@ -8,5 +8,7 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Le regole si provano sull'emulatore: `npm run test:rules`.
+    exclude: ['tests/rules/**', 'node_modules/**'],
   },
 });

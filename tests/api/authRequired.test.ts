@@ -31,6 +31,7 @@ const routes: Array<{ name: string; load: () => Promise<any>; method: 'GET' | 'P
   { name: 'ai/chat', load: () => import('@/app/api/ai/chat/route'), method: 'POST', path: '/api/ai/chat', body: { text: 'x' } },
   { name: 'calendar/notify', load: () => import('@/app/api/calendar/notify/route'), method: 'POST', path: '/api/calendar/notify', body: { eventId: 'e1' } },
   { name: 'calendar/sync', load: () => import('@/app/api/calendar/sync/route'), method: 'GET', path: '/api/calendar/sync?userId=victim&timeMin=a&timeMax=b' },
+  { name: 'calendar/integrations', load: () => import('@/app/api/calendar/integrations/route'), method: 'GET', path: '/api/calendar/integrations' },
   { name: 'calendar/create', load: () => import('@/app/api/calendar/create/route'), method: 'POST', path: '/api/calendar/create', body: { userId: 'victim', event: { id: 'e1' } } },
   { name: 'stripe/create-checkout', load: () => import('@/app/api/stripe/create-checkout/route'), method: 'POST', path: '/api/stripe/create-checkout', body: { plan: 'pro' } },
   { name: 'auth/google', load: () => import('@/app/api/auth/google/route'), method: 'POST', path: '/api/auth/google' },

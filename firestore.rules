@@ -1,10 +1,137 @@
 rules_version = '2';
+
+// Regole di Firestore per l'app web. Il server usa l'SDK Admin, che non passa
+// da queste regole.
+//
+// Prima c'era una sola regola: «chi ha fatto il login può leggere e scrivere
+// tutto» (segnalazione S02). Questo è il primo passo: chiude ciò che si può
+// chiudere senza cambiare la forma dei dati.
+// - le collezioni del server non sono più accessibili dal browser;
+// - profilo, calendario, notifiche e chat AI sono visibili solo al proprietario;
+// - i token dei calendari collegati li legge solo il server;
+// - piano, abbonamento e limiti del workspace non si cambiano dal browser.
+//
+// Resta aperto a chi ha fatto il login il resto dei dati condivisi
+// (organizzazioni, workspace, progetti, task, documenti, chat, CRM...).
+// Separarli per organizzazione richiede appartenenze leggibili dalle regole,
+// che oggi i dati non hanno: è il secondo passo.
+
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // Campi che scrive solo il server (webhook di Stripe).
+    function billingFields() {
+      return ['plan', 'stripeCustomerId', 'stripeSubscriptionId', 'subscriptionStatus', 'role', 'isAdmin', 'admin'];
+    }
+
+    // ------------------------------------------------------------ Profili
+    match /users/{uid} {
+      allow read: if isUser(uid);
+      // Alla registrazione il piano è "free"; gli altri campi di fatturazione
+      // non si scrivono dal browser.
+      allow create: if isUser(uid)
+        && !request.resource.data.keys().hasAny(['stripeCustomerId', 'stripeSubscriptionId', 'subscriptionStatus', 'role', 'isAdmin', 'admin'])
+        && (!('plan' in request.resource.data) || request.resource.data.plan == 'free');
+      allow update: if isUser(uid)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(billingFields());
+      allow delete: if false;
+
+      // Eventi del calendario Unfract.
+      match /events/{eventId} {
+        allow read, write: if isUser(uid);
+      }
+
+      // Token di Google e Microsoft: solo il server.
+      match /integrations/{provider} {
+        allow read, write: if false;
+      }
+    }
+
+    // ------------------------------------------------------------ Workspace
+    // Lettura e modifica restano a chi ha fatto il login (secondo passo), ma
+    // proprietario e limiti del piano non si cambiano dal browser. I contatori
+    // di consumo (storageUsed, aiCreditsUsed) li aggiorna ancora il browser.
+    function quotaOf(data, field) {
+      return data.get('quotas', {}).get(field, null);
+    }
+
+    function defaultQuota(field) {
+      return field == 'planTier' ? 'free'
+        : field == 'storageLimit' ? 1000000000
+        : 120;
+    }
+
+    // Invariato, oppure riempito col valore predefinito se mancava.
+    function quotaLimitKept(field) {
+      return quotaOf(request.resource.data, field) == quotaOf(resource.data, field)
+        || (quotaOf(resource.data, field) == null && quotaOf(request.resource.data, field) == defaultQuota(field));
+    }
+
+    function quotaLimitDefault(field) {
+      return quotaOf(request.resource.data, field) == null
+        || quotaOf(request.resource.data, field) == defaultQuota(field);
+    }
+
+    match /workspaces/{workspaceId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && (!('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid)
+        && quotaLimitDefault('planTier')
+        && quotaLimitDefault('storageLimit')
+        && quotaLimitDefault('aiCreditsLimit');
+      allow update: if signedIn()
+        && request.resource.data.get('ownerId', null) == resource.data.get('ownerId', null)
+        && quotaLimitKept('planTier')
+        && quotaLimitKept('storageLimit')
+        && quotaLimitKept('aiCreditsLimit');
+      allow delete: if signedIn() && resource.data.get('ownerId', null) == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------ Notifiche
+    // Chiunque abbia fatto il login può avvisare un altro utente (task
+    // assegnati, richieste di accesso); le legge e le gestisce solo il
+    // destinatario.
+    match /notifications/{notificationId} {
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId is string;
+      allow update: if signedIn() && resource.data.userId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+    }
+
+    // ------------------------------------------------------------ Chat AI
+    match /ai_chats/{chatId} {
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if signedIn() && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------ Solo server
+    // Inviti con codice, stati OAuth, canali dei calendari, blocchi delle
+    // prenotazioni e coda delle email: li legge e scrive solo il server.
+    match /org_invites/{document=**} { allow read, write: if false; }
+    match /oauth_states/{document=**} { allow read, write: if false; }
+    match /calendar_channels/{document=**} { allow read, write: if false; }
+    match /booking_locks/{document=**} { allow read, write: if false; }
+    match /notifications_queue/{document=**} { allow read, write: if false; }
+
+    // ------------------------------------------------------------ Il resto
+    // Dati condivisi, ancora aperti a chi ha fatto il login (secondo passo).
+    // Le collezioni con regole proprie qui sopra sono escluse: le regole di
+    // Firestore si sommano, e questa le riaprirebbe.
     match /{collection}/{document=**} {
-      // La coda email è gestita esclusivamente dal server con Firebase Admin.
-      // Le regole Admin bypassano questa policy, i client autenticati no.
-      allow read, write: if request.auth != null && collection != 'notifications_queue';
+      allow read, write: if signedIn() && !(collection in [
+        'users', 'workspaces', 'notifications', 'ai_chats',
+        'org_invites', 'oauth_states', 'calendar_channels', 'booking_locks', 'notifications_queue'
+      ]);
     }
   }
 }
