@@ -11,7 +11,7 @@ export const metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const locale = normalizeLocale(cookieStore.get("NEXT_LOCALE")?.value);
   const dictionary = await getDictionary(locale);
 

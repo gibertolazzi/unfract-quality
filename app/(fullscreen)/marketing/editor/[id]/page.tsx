@@ -1,5 +1,6 @@
 import { EmailEditorView } from "@/components/marketing/EmailEditorView";
 
-export default function EmailEditorPage({ params }: { params: { id: string } }) {
-  return <EmailEditorView campaignId={params.id} />;
+export default async function EmailEditorPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  return <EmailEditorView campaignId={id} />;
 }

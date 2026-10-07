@@ -9,7 +9,7 @@ interface MentionDropdownProps {
   value: string;
   cursorPosition: number;
   onSelect: (newValue: string, newCursorPos: number, rawTag?: string) => void;
-  anchorRef: React.RefObject<HTMLElement>;
+  anchorRef: React.RefObject<HTMLElement | null>;
   position?: 'top' | 'bottom';
 }
 

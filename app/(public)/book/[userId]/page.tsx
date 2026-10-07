@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, use } from "react";
 import { format, addDays, startOfToday, isSameDay } from "date-fns";
 import { it } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock, Video } from "lucide-react";
@@ -8,7 +8,9 @@ import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { UserAvatar } from '@/components/shared/UserAvatar';
 
-export default function BookingPage({ params }: { params: { userId: string } }) {
+export default function BookingPage({ params: paramsPromise }: { params: Promise<{ userId: string }> }) {
+  // Da Next 15 i parametri della pagina arrivano come Promise.
+  const params = use(paramsPromise);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(startOfToday());
   const [slots, setSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);

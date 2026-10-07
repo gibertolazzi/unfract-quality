@@ -50,8 +50,8 @@ const firebaseWeb = firebaseWebEnv();
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: false,
-  // L'app non usa next/image: l'ottimizzatore (/_next/image) resta spento.
-  // Ha avvisi di sicurezza corretti solo in Next 15.5 (GHSA-2xp9, GHSA-h64f).
+  // L'app non usa next/image: l'ottimizzatore (/_next/image) resta spento,
+  // così non espone una superficie in più.
   images: { unoptimized: true },
   env: firebaseWeb.env,
   webpack(config) {
