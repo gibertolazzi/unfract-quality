@@ -1,6 +1,5 @@
 "use client";
 import { trackUpload } from '@/lib/usage';
-import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -38,7 +37,8 @@ const RecordingContext = createContext<RecordingContextType>({
 export function RecordingProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const { activeProjectId } = useProject();
-  const { activeWorkspaceId } = useWorkspace();
+  // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
+  const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
   const toast = useToast();
   
   const [isRecording, setIsRecording] = useState(false);
