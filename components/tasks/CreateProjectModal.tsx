@@ -10,7 +10,8 @@ import { useTranslation } from '@/contexts/TranslationContext';
 
 interface CreateProjectModalProps {
   onClose: () => void;
-  onCreate: (name: string, organizationIds?: string[]) => void;
+  /** Se lancia, la finestra resta aperta: il messaggio lo mostra chi chiama. */
+  onCreate: (name: string, organizationIds?: string[]) => Promise<void>;
 }
 
 export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProps) {
@@ -27,10 +28,19 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
   const [inviteEmails, setInviteEmails] = useState('');
   const [isSubmittingOrg, setIsSubmittingOrg] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
-    onCreate(name.trim(), selectedOrgIds.length > 0 ? selectedOrgIds : undefined);
+    if (!name.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onCreate(name.trim(), selectedOrgIds.length > 0 ? selectedOrgIds : undefined);
+    } catch {
+      // Errore già mostrato da chi chiama; la finestra resta aperta per riprovare.
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleCreateOrg = async () => {
@@ -180,9 +190,10 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
             </button>
             <button 
               type="submit" 
-              disabled={!name.trim()}
-              className="px-5 py-2.5 bg-[#006AFF] hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-[#006AFF] text-white rounded-full text-sm font-medium transition-colors"
+              disabled={!name.trim() || isSubmitting}
+              className="px-5 py-2.5 bg-[#006AFF] hover:bg-blue-600 disabled:opacity-50 disabled:hover:bg-[#006AFF] text-white rounded-full text-sm font-medium transition-colors flex items-center gap-2"
             >
+              {isSubmitting && <Loader2 size={14} className="animate-spin" />}
               {t.tasks.createProject}
             </button>
           </div>

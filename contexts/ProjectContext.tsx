@@ -2,9 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, serverTimestamp, onSnapshot, orderBy, deleteDoc, or } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, onSnapshot, orderBy, deleteDoc, or } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
+import { createProjectWithBoard, ProjectCreateError } from '@/lib/projects';
 
 export interface Project {
   id: string;
@@ -20,7 +21,7 @@ interface ProjectContextType {
   activeProjectId: string | null;
   activeProject: Project | null;
   setActiveProjectId: (id: string) => void;
-  createProject: (name: string, organizationIds?: string[]) => Promise<string | null>;
+  createProject: (name: string, organizationIds?: string[]) => Promise<string>;
   renameProject: (id: string, newName: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   loading: boolean;
@@ -31,7 +32,7 @@ const ProjectContext = createContext<ProjectContextType>({
   activeProjectId: null,
   activeProject: null,
   setActiveProjectId: () => {},
-  createProject: async () => null,
+  createProject: async () => { throw new ProjectCreateError('not-signed-in'); },
   renameProject: async () => {},
   deleteProject: async () => {},
   loading: true,
@@ -140,44 +141,20 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     };
   }, [user, authLoading, workspaceLoading, activeWorkspaceId, workspaces]);
 
+  // Lancia ProjectCreateError: chi chiama mostra il motivo all'utente.
   const createProject = async (name: string, organizationIds?: string[]) => {
-    if (!user || !activeWorkspaceId) return null;
     try {
-      const { setDoc } = await import('firebase/firestore');
-      const projectData: any = {
+      const projectId = await createProjectWithBoard(db, {
+        uid: user?.uid,
+        workspaceId: activeWorkspaceId,
         name,
-        userId: user.uid,
-        creatorId: user.uid,
-        workspaceId: activeWorkspaceId,
-        createdAt: serverTimestamp()
-      };
-      if (organizationIds && organizationIds.length > 0) {
-        projectData.organizationIds = organizationIds;
-      }
-      const docRef = await addDoc(collection(db, 'projects'), projectData);
-      
-      // Default Kanban Columns
-      Promise.all([
-        addDoc(collection(db, 'columns'), { projectId: docRef.id, title: 'To Do', order: 0, createdAt: serverTimestamp() }),
-        addDoc(collection(db, 'columns'), { projectId: docRef.id, title: 'Doing', order: 1, createdAt: serverTimestamp() }),
-        addDoc(collection(db, 'columns'), { projectId: docRef.id, title: 'Done', order: 2, createdAt: serverTimestamp() })
-      ]).catch(err => console.error('Error creating default columns:', err));
-
-      const grantRef = doc(collection(db, 'access_grants'));
-      await setDoc(grantRef, {
-        workspaceId: activeWorkspaceId,
-        subjectType: 'user',
-        subjectId: user.uid,
-        resourceType: 'project',
-        resourceId: docRef.id,
-        role: 'admin',
-        createdAt: serverTimestamp()
+        organizationIds,
       });
-      setActiveProjectId(docRef.id);
-      return docRef.id;
+      setActiveProjectId(projectId);
+      return projectId;
     } catch (e) {
       console.error("Error creating project:", e);
-      return null;
+      throw e;
     }
   };
 

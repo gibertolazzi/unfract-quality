@@ -108,6 +108,9 @@
     "notesPlaceholder": "Scrivi i tuoi appunti qui..."
   },
   "tasks": {
+    "projectCreateError": "Errore durante la creazione del progetto. Riprova.",
+    "projectNoWorkspace": "Nessun workspace attivo: crea o scegli un workspace prima di creare il progetto.",
+    "projectSignedOut": "Sessione scaduta: accedi di nuovo.",
     "orgCreatedSuccess": "Organizzazione creata con successo!",
     "orgCreateError": "Errore durante la creazione dell'organizzazione",
     "newProject": "Nuovo Progetto",
