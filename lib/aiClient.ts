@@ -27,7 +27,7 @@ export function requestMeetingAnalysis(input: { projectId: string; audioUrl?: st
 }
 
 /** Titolo breve di un meeting a partire dal riepilogo. */
-export async function requestMeetingTitle(text: string, locale: string): Promise<string> {
-  const data = await postJson<{ title: string }>('/api/ai/title', { kind: 'meeting', text, locale });
+export async function requestMeetingTitle(projectId: string, text: string, locale: string): Promise<string> {
+  const data = await postJson<{ title: string }>('/api/ai/title', { kind: 'meeting', projectId, text, locale });
   return data.title;
 }

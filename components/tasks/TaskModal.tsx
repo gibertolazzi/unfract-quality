@@ -15,7 +15,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { deleteStoredFile, incrementStorageUsage } from '@/lib/usage';
+import { deleteStoredFile, trackUpload } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
@@ -148,14 +148,11 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         });
       }
 
-      let usageTracked = false;
-      if (activeWorkspaceId) {
-        const addedBytes = Array.from(files).reduce((total, file) => total + file.size, 0);
-        usageTracked = await incrementStorageUsage(activeWorkspaceId, addedBytes);
-      }
+      const tracked = new Map<string, boolean>();
+      for (const path of newlyUploadedPaths) tracked.set(path, await trackUpload(activeWorkspaceId, path));
       newAttachments.forEach(attachment => {
         if (newlyUploadedPaths.includes(attachment.refPath)) {
-          attachment.usageTracked = usageTracked;
+          attachment.usageTracked = tracked.get(attachment.refPath) === true;
           attachment.workspaceId = activeWorkspaceId || null;
         }
       });

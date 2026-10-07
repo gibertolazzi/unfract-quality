@@ -1,5 +1,5 @@
 "use client";
-import { incrementStorageUsage, incrementAiUsage } from '@/lib/usage';
+import { trackUpload } from '@/lib/usage';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
@@ -198,7 +198,7 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
       await uploadBytes(storageRef, audioBlob);
       audioUrl = await getDownloadURL(storageRef);
       audioStoragePath = storageRef.fullPath;
-      if (activeWorkspaceId) audioUsageTracked = await incrementStorageUsage(activeWorkspaceId, audioBlob.size);
+      audioUsageTracked = await trackUpload(activeWorkspaceId, storageRef.fullPath);
     } catch (uploadError) {
       console.error("Failed to upload audio to storage:", uploadError);
       toast.error("Errore nel salvataggio dell'audio sul cloud.");
@@ -207,7 +207,6 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
     try {
       // L'audio è già su Storage: il server lo prende da lì.
       const result = await requestMeetingAnalysis({ projectId: activeProjectId, audioUrl, transcript });
-      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       
       await saveMeeting(activeProjectId, {
         title: "Nuovo Meeting",

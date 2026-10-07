@@ -5,7 +5,6 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDocs, doc, getDoc } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { Workspace, AccessGrant } from '@/types/workspace';
-import { ensureWorkspaceQuotas } from '@/lib/usage';
 
 interface WorkspaceContextType {
   workspaces: Workspace[];
@@ -96,12 +95,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           if (d.exists()) {
             const workspace = { id: d.id, ...d.data() } as Workspace;
             loadedWorkspaces.push(workspace);
-            const quotaFields: Array<keyof NonNullable<Workspace['quotas']>> = [
-              'planTier', 'storageUsed', 'storageLimit', 'aiCreditsUsed', 'aiCreditsLimit', 'aiCreditsPeriod',
-            ];
-            if (!workspace.quotas || quotaFields.some(field => workspace.quotas?.[field] === undefined || workspace.quotas?.[field] === null)) {
-              ensureWorkspaceQuotas(workspace.id).catch(error => console.error('Unable to initialize workspace quotas:', error));
-            }
+            // Le quote mancanti le completa il server al primo consumo (lib/server/usage.ts).
           }
         });
 

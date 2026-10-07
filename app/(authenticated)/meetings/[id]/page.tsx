@@ -17,7 +17,6 @@ import { TaskModal } from '@/components/tasks/TaskModal';
 import { deleteTaskAttachments } from '@/lib/services/taskService';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { incrementAiUsage } from '@/lib/usage';
 import { TranscriptModal } from '@/components/meetings/TranscriptModal';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -115,8 +114,7 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         toast.success(`${t.meetings.titleGenerated} (WebLLM)!`);
       } else {
         // 3. Fallback Cloud
-        const cloudTitle = await requestMeetingTitle(meeting.summary || meeting.transcript, locale);
-        if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
+        const cloudTitle = await requestMeetingTitle(meeting.projectId || activeProjectId || '', meeting.summary || meeting.transcript, locale);
         newTitle = cloudTitle.replace(/^(Riassunto|Titolo|Meeting|Title)[\\s\\:\\-\\*]*/gi, '').replace(/[*\"']/g, '').trim();
         toast.success(`${t.meetings.titleGenerated} (Cloud)!`);
       }
@@ -305,7 +303,6 @@ export default function MeetingDetailPage({ params }: { params: { id: string } }
         audioUrl: meeting.audioUrl,
         transcript: meeting.transcript,
       });
-      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       const newTitle = meeting.title.replace(" (Trascrizione Fallita)", "");
       
       const newData = {

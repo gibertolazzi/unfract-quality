@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
-import { canAccessProject } from '@/lib/server/projectAccess';
+import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 import { GeminiNotConfiguredError } from '@/lib/server/gemini';
 import { analyzeMeeting, downloadMeetingAudio, meetingAudioPath } from '@/lib/server/meetingAi';
 
@@ -37,7 +37,8 @@ export async function POST(request: Request) {
   const audioUrl = typeof body?.audioUrl === 'string' ? body.audioUrl : '';
   const transcript = typeof body?.transcript === 'string' ? body.transcript.slice(0, MAX_TRANSCRIPT) : '';
 
-  if (!(await canAccessProject(uid, projectId))) {
+  const project = await aiProjectWorkspace(uid, projectId);
+  if (!project.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
   }
 
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await analyzeMeeting(audio, transcript);
+    await countAiCall(project.workspaceId);
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof GeminiNotConfiguredError) {

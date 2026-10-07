@@ -47,7 +47,7 @@ type EsitoAi =
   | { ok: false; note: string };
 
 /** Chiama la route. Un «no» non è mai un errore: è un report senza AI. */
-async function chiediAlModello(prompt: string): Promise<EsitoAi> {
+async function chiediAlModello(projectId: string, prompt: string): Promise<EsitoAi> {
   let token = '';
   try {
     token = (await auth.currentUser?.getIdToken()) || '';
@@ -60,7 +60,7 @@ async function chiediAlModello(prompt: string): Promise<EsitoAi> {
     const risposta = await fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ projectId, prompt }),
     });
     const dati = await risposta.json().catch(() => ({}));
 
@@ -114,7 +114,7 @@ export async function generateReport(
 
   // 2 e 3. L'AI riscrive due sezioni, se supera il controllo.
   if (!options.skipAi) {
-    const esito = await chiediAlModello(buildPrompt(fatti, options.offering || ''));
+    const esito = await chiediAlModello(ctx.projectId, buildPrompt(fatti, options.offering || ''));
 
     if (!esito.ok) {
       aiNote = esito.note;

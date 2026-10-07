@@ -57,8 +57,8 @@ service cloud.firestore {
 
     // ------------------------------------------------------------ Workspace
     // Lettura e modifica restano a chi ha fatto il login (secondo passo), ma
-    // proprietario e limiti del piano non si cambiano dal browser. I contatori
-    // di consumo (storageUsed, aiCreditsUsed) li aggiorna ancora il browser.
+    // proprietario, limiti del piano e contatori di consumo non si cambiano dal
+    // browser: i contatori li aggiorna il server (lib/server/usage.ts).
     function quotaOf(data, field) {
       return data.get('quotas', {}).get(field, null);
     }
@@ -80,18 +80,34 @@ service cloud.firestore {
         || quotaOf(request.resource.data, field) == defaultQuota(field);
     }
 
+    // Contatore invariato.
+    function counterKept(field) {
+      return quotaOf(request.resource.data, field) == quotaOf(resource.data, field);
+    }
+
+    // Un workspace nuovo parte da zero.
+    function counterZero(field) {
+      return quotaOf(request.resource.data, field) == null
+        || quotaOf(request.resource.data, field) == 0;
+    }
+
     match /workspaces/{workspaceId} {
       allow read: if signedIn();
       allow create: if signedIn()
         && (!('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid)
         && quotaLimitDefault('planTier')
         && quotaLimitDefault('storageLimit')
-        && quotaLimitDefault('aiCreditsLimit');
+        && quotaLimitDefault('aiCreditsLimit')
+        && counterZero('storageUsed')
+        && counterZero('aiCreditsUsed');
       allow update: if signedIn()
         && request.resource.data.get('ownerId', null) == resource.data.get('ownerId', null)
         && quotaLimitKept('planTier')
         && quotaLimitKept('storageLimit')
-        && quotaLimitKept('aiCreditsLimit');
+        && quotaLimitKept('aiCreditsLimit')
+        && counterKept('storageUsed')
+        && counterKept('aiCreditsUsed')
+        && counterKept('aiCreditsPeriod');
       allow delete: if signedIn() && resource.data.get('ownerId', null) == request.auth.uid;
     }
 
@@ -116,12 +132,14 @@ service cloud.firestore {
 
     // ------------------------------------------------------------ Solo server
     // Inviti con codice, stati OAuth, canali dei calendari, blocchi delle
-    // prenotazioni e coda delle email: li legge e scrive solo il server.
+    // prenotazioni, coda delle email e registro dello spazio dei file: li
+    // legge e scrive solo il server.
     match /org_invites/{document=**} { allow read, write: if false; }
     match /oauth_states/{document=**} { allow read, write: if false; }
     match /calendar_channels/{document=**} { allow read, write: if false; }
     match /booking_locks/{document=**} { allow read, write: if false; }
     match /notifications_queue/{document=**} { allow read, write: if false; }
+    match /storage_usage/{document=**} { allow read, write: if false; }
 
     // ------------------------------------------------------------ Il resto
     // Dati condivisi, ancora aperti a chi ha fatto il login (secondo passo).
@@ -130,7 +148,8 @@ service cloud.firestore {
     match /{collection}/{document=**} {
       allow read, write: if signedIn() && !(collection in [
         'users', 'workspaces', 'notifications', 'ai_chats',
-        'org_invites', 'oauth_states', 'calendar_channels', 'booking_locks', 'notifications_queue'
+        'org_invites', 'oauth_states', 'calendar_channels', 'booking_locks', 'notifications_queue',
+        'storage_usage'
       ]);
     }
   }

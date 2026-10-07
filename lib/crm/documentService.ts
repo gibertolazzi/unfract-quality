@@ -8,15 +8,15 @@ import { getOpportunityById } from './opportunities';
 import { toMillis } from './helpers';
 import { Page, paginate } from './leadFilters';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
-import { incrementStorageUsage } from '@/lib/usage';
+import { trackUpload } from '@/lib/usage';
 
 const COLLECTION_NAME = 'crm_documents';
 
-async function trackWorkspaceStorage(ctx: CrmContextRef, bytes: number) {
+async function trackWorkspaceStorage(ctx: CrmContextRef, storagePath: string) {
   try {
     const projectSnap = await getDoc(doc(db, 'projects', ctx.projectId));
     const workspaceId = projectSnap.data()?.workspaceId || ctx.organizationId;
-    if (workspaceId) await incrementStorageUsage(workspaceId, bytes);
+    if (workspaceId) await trackUpload(workspaceId, storagePath);
   } catch (error) {
     console.error('Unable to attribute CRM storage usage to its workspace:', error);
   }
@@ -591,7 +591,7 @@ export async function uploadDocument(
     return { id: null, fileName: file.name, error: 'Metadati non salvati: il file è stato rimosso' };
   }
 
-  await trackWorkspaceStorage(ctx, stored.sizeBytes);
+  await trackWorkspaceStorage(ctx, stored.storagePath);
 
   return { id, fileName: file.name };
 }
@@ -638,7 +638,7 @@ export async function uploadDocumentVersion(
     return { id: null, fileName: file.name, error: 'Versione non registrata: il file è stato rimosso' };
   }
 
-  await trackWorkspaceStorage(ctx, stored.sizeBytes);
+  await trackWorkspaceStorage(ctx, stored.storagePath);
 
   return { id: document.id, fileName: file.name };
 }

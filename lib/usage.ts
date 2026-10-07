@@ -1,99 +1,36 @@
-import { doc, updateDoc, increment, runTransaction } from 'firebase/firestore';
-import { db, storage } from './firebase';
 import { deleteObject, ref } from 'firebase/storage';
-import { WorkspaceQuotas } from '@/types/workspace';
+import { storage } from './firebase';
+import { authedFetch } from './authedFetch';
 
-const currentCreditPeriod = () => {
-  const now = new Date();
-  return `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`;
-};
+/**
+ * Contatori di consumo dal browser: non li scrive più il browser.
+ *
+ * I crediti AI li conta il server quando chiama il modello. Per lo spazio, il
+ * browser dice al server quale file ha caricato o cancellato, e il server ne
+ * legge la dimensione vera da Storage (vedi `lib/server/usage.ts`).
+ */
 
-const defaultQuotas = (): WorkspaceQuotas => ({
-  planTier: 'free',
-  storageUsed: 0,
-  storageLimit: 1_000_000_000,
-  aiCreditsUsed: 0,
-  aiCreditsLimit: 120,
-  aiCreditsPeriod: currentCreditPeriod(),
-});
-
-// Backfill missing quota fields on legacy and partially initialized workspaces.
-export async function ensureWorkspaceQuotas(workspaceId: string) {
-  const wsRef = doc(db, 'workspaces', workspaceId);
-  await runTransaction(db, async transaction => {
-    const snap = await transaction.get(wsRef);
-    if (!snap.exists()) throw new Error(`Workspace ${workspaceId} does not exist`);
-    const current = snap.data().quotas || {};
-    const defaults = defaultQuotas();
-    const missing: Partial<WorkspaceQuotas> = {};
-    (Object.keys(defaults) as Array<keyof WorkspaceQuotas>).forEach(key => {
-      if (current[key] === undefined || current[key] === null) missing[key] = defaults[key] as never;
-    });
-    if (current.aiCreditsPeriod === undefined || current.aiCreditsPeriod === null) {
-      missing.aiCreditsUsed = 0;
-      missing.aiCreditsPeriod = defaults.aiCreditsPeriod;
+async function storageUsage(body: Record<string, string>): Promise<boolean> {
+  try {
+    const response = await authedFetch('/api/usage/storage', { method: 'POST', body: JSON.stringify(body) });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      console.error('Spazio usato non aggiornato:', data.error || response.status);
     }
-    if (Object.keys(missing).length) transaction.set(wsRef, { quotas: missing }, { merge: true });
-  });
-}
-
-export async function incrementAiUsage(workspaceId: string, credits: number = 1): Promise<boolean> {
-  if (!workspaceId || !Number.isFinite(credits) || credits <= 0) return false;
-  try {
-    await ensureWorkspaceQuotas(workspaceId);
-    const wsRef = doc(db, 'workspaces', workspaceId);
-    const period = currentCreditPeriod();
-    await runTransaction(db, async transaction => {
-      const snap = await transaction.get(wsRef);
-      const quotas = snap.data()?.quotas || {};
-      const used = quotas.aiCreditsPeriod === period ? Number(quotas.aiCreditsUsed) || 0 : 0;
-      transaction.update(wsRef, {
-        'quotas.aiCreditsUsed': used + credits,
-        'quotas.aiCreditsPeriod': period,
-      });
-    });
-    return true;
-  } catch (err) {
-    console.error("Failed to increment AI usage:", err);
+    return response.ok;
+  } catch (error) {
+    console.error('Spazio usato non aggiornato:', error);
     return false;
   }
 }
 
-export async function incrementStorageUsage(workspaceId: string, bytes: number): Promise<boolean> {
-  if (!workspaceId || !Number.isFinite(bytes) || bytes <= 0) return false;
-  try {
-    await ensureWorkspaceQuotas(workspaceId);
-    const wsRef = doc(db, 'workspaces', workspaceId);
-    await updateDoc(wsRef, {
-      'quotas.storageUsed': increment(bytes)
-    });
-    return true;
-  } catch (err) {
-    console.error("Failed to increment storage usage:", err);
-    return false;
-  }
+/** Dopo un caricamento: il file conta nello spazio del workspace. */
+export async function trackUpload(workspaceId: string | null | undefined, storagePath: string): Promise<boolean> {
+  if (!workspaceId || !storagePath) return false;
+  return storageUsage({ action: 'track', workspaceId, path: storagePath });
 }
 
-export async function decrementStorageUsage(workspaceId: string, bytes: number): Promise<boolean> {
-  if (!workspaceId || !Number.isFinite(bytes) || bytes <= 0) return false;
-  try {
-    await ensureWorkspaceQuotas(workspaceId);
-    const wsRef = doc(db, 'workspaces', workspaceId);
-    await runTransaction(db, async transaction => {
-      const snap = await transaction.get(wsRef);
-      const currentUsage = Number(snap.data()?.quotas?.storageUsed) || 0;
-      transaction.update(wsRef, {
-        'quotas.storageUsed': Math.max(0, currentUsage - bytes),
-      });
-    });
-    return true;
-  } catch (err) {
-    console.error('Failed to decrement storage usage:', err);
-    return false;
-  }
-}
-
-/** Delete one stored object and only then undo bytes that were actually metered. */
+/** Cancella un file e, se era conteggiato, lo toglie dallo spazio del workspace. */
 export async function deleteStoredFile(
   storagePath: string,
   options: { workspaceId?: string; bytes?: number; usageTracked?: boolean } = {}
@@ -103,11 +40,7 @@ export async function deleteStoredFile(
     await deleteObject(ref(storage, storagePath));
   } catch (error) {
     if ((error as { code?: string })?.code !== 'storage/object-not-found') throw error;
-    // A previous cleanup may have deleted the object before a later record update failed.
-    // Its usage decrement was performed by that successful deletion; don't decrement twice.
-    return;
   }
-  if (options.usageTracked && options.workspaceId && options.bytes) {
-    await decrementStorageUsage(options.workspaceId, options.bytes);
-  }
+  // Il server toglie i byte solo se il file non c'è più e non l'ha già fatto.
+  if (options.usageTracked) await storageUsage({ action: 'release', path: storagePath });
 }

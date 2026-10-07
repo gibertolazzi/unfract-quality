@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/crm/prospect/serverAuth';
+import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 /**
  * Le due sezioni discorsive del report, scritte dal modello.
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
   if (prompt.length > LIMITE_PROMPT) {
     return NextResponse.json({ error: 'Prompt troppo lungo.', code: 'TOO_LONG' }, { status: 400 });
   }
+  // Il credito AI si conta sul workspace del progetto del CRM.
+  const progetto = await aiProjectWorkspace(guardia.uid, payload?.projectId);
+  if (!progetto.allowed) {
+    return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
 
   const modello = process.env.PROSPECT_AI_MODEL || MODELLO_PREDEFINITO;
 
@@ -105,6 +111,7 @@ export async function POST(request: Request) {
       });
     }
 
+    await countAiCall(progetto.workspaceId);
     return NextResponse.json({ ok: true, text: testo, model: modello });
   } catch (error) {
     console.error('Chiamata al modello fallita:', error);
