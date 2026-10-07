@@ -3,8 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Folder, Users, Plus, Loader2 } from 'lucide-react';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { createOrganization } from '@/lib/orgWorkspace';
 import { useToast } from '@/contexts/ToastContext';
 import { authedFetch } from '@/lib/authedFetch';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -38,24 +37,8 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
     if (!newOrgName.trim() || !user) return;
     setIsSubmittingOrg(true);
     try {
-      const newOrgData = {
-        name: newOrgName.trim(),
-        ownerId: user.uid,
-        memberUids: [user.uid],
-        memberCount: 1,
-        bannerGradient: 'from-[#0061FF] to-[#00D2FF]',
-        members: [{
-          uid: user.uid,
-          email: user.email || '',
-          displayName: user.displayName || 'Utente',
-          photoURL: user.photoURL || '',
-          initials: (user.displayName || 'U').charAt(0).toUpperCase(),
-          role: 'admin'
-        }],
-        createdAt: serverTimestamp()
-      };
-      
-      const docRef = await addDoc(collection(db, 'organizations'), newOrgData);
+      // Organizzazione, workspace e accesso del creatore nascono insieme.
+      const orgId = await createOrganization(user, newOrgName.trim());
       
       // Handle invites
       const emails = inviteEmails.split(',').map(e => e.trim()).filter(e => e.includes('@'));
@@ -63,12 +46,12 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
         await Promise.all(emails.map(email =>
           authedFetch('/api/email/invite', {
             method: 'POST',
-            body: JSON.stringify({ orgId: docRef.id, email })
+            body: JSON.stringify({ orgId, email })
           }).catch(err => console.error("Errore invio invito:", err))
         ));
       }
 
-      setSelectedOrgIds([...selectedOrgIds, docRef.id]);
+      setSelectedOrgIds([...selectedOrgIds, orgId]);
       setIsCreatingOrg(false);
       setNewOrgName('');
       setInviteEmails('');

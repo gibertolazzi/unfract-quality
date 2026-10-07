@@ -4,7 +4,7 @@ import {
   assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment,
 } from '@firebase/rules-unit-testing';
 import {
-  addDoc, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, setDoc, updateDoc, where,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs, increment, query, serverTimestamp, setDoc, updateDoc, where, writeBatch,
 } from 'firebase/firestore';
 
 /**
@@ -132,6 +132,31 @@ describe('workspace', () => {
   it('il proprietario non si cambia', async () => {
     await assertFails(updateDoc(doc(bruno(), 'workspaces/w1'), { ownerId: 'bruno' }));
     await assertFails(deleteDoc(doc(bruno(), 'workspaces/w1')));
+  });
+});
+
+describe('organizzazioni con il loro workspace (lib/orgWorkspace.ts)', () => {
+  it('organizzazione, workspace e accesso del creatore in un’unica scrittura', async () => {
+    const db = bruno();
+    const orgRef = doc(collection(db, 'organizations'));
+    const batch = writeBatch(db);
+    batch.set(orgRef, { name: 'Nuova', ownerId: 'bruno', memberUids: ['bruno'], members: [{ uid: 'bruno', role: 'admin' }], createdAt: serverTimestamp() });
+    batch.set(doc(db, 'workspaces', orgRef.id), {
+      name: 'Nuova', ownerId: 'bruno', structureMode: 'teams',
+      quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 },
+      createdAt: serverTimestamp(),
+    });
+    batch.set(doc(db, 'access_grants', `${orgRef.id}_bruno`), {
+      workspaceId: orgRef.id, subjectType: 'user', subjectId: 'bruno', resourceType: 'workspace', resourceId: orgRef.id, role: 'admin', createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
+  });
+
+  it('un workspace rimasto senza nome si completa senza cambiarne il proprietario', async () => {
+    await env.withSecurityRulesDisabled(async context => {
+      await setDoc(doc(context.firestore(), 'workspaces/senza-nome'), { structureMode: 'flat' });
+    });
+    await assertSucceeds(setDoc(doc(anna(), 'workspaces/senza-nome'), { name: 'Acme' }, { merge: true }));
   });
 });
 
