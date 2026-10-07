@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
-import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 import { GeminiNotConfiguredError } from '@/lib/server/gemini';
 import { analyzeMeeting, downloadMeetingAudio, meetingAudioPath } from '@/lib/server/meetingAi';
 
@@ -40,6 +40,9 @@ export async function POST(request: Request) {
   const project = await aiProjectWorkspace(uid, projectId);
   if (!project.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
+  if (project.outOfCredits) {
+    return NextResponse.json({ error: AI_CREDITS_EXHAUSTED, code: 'ai-credits-exhausted' }, { status: 402 });
   }
 
   let audio = null;

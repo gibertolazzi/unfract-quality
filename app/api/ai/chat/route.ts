@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
-import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 export const runtime = 'nodejs';
 
@@ -57,6 +57,9 @@ export async function POST(request: Request) {
   const project = await aiProjectWorkspace(auth.user.uid, body?.projectId);
   if (!project.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
+  if (project.outOfCredits) {
+    return NextResponse.json({ error: AI_CREDITS_EXHAUSTED, code: 'ai-credits-exhausted' }, { status: 402 });
   }
 
   const systemInstruction = `Sei Unfract AI, l'assistente strategico del progetto aziendale. \n\nContesto del progetto:\n${projectContext}\n\nRispondi in modo professionale e conciso. Considera solo le attività ancora aperte: non proporre né taggare come prossime azioni le attività completate. Se menzioni un'attività esistente, usa [TASK:id] solo per un ID presente nell'elenco delle attività aperte.\n1. Se l'utente ti chiede di creare una nuova task (o accetti di farlo), DEVI crearla scrivendo ALLA FINE della tua risposta l'esatto blocco:\n$CREATE_TASK$\n{"title": "Titolo breve", "priority": "High", "description": "Descrizione estesa", "category": "General"}\n$END_TASK$\n\nIl sistema intercetterà questo blocco e creerà la task nel database reale!`;

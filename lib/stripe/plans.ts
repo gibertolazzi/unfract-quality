@@ -16,6 +16,18 @@ export const PLANS = {
 
 export type PlanId = keyof typeof PLANS;
 
+/**
+ * Limiti di ogni piano, per workspace (gli stessi della finestra di upgrade).
+ * Il piano pagato vale per il workspace scelto al checkout.
+ */
+export const PLAN_QUOTAS = {
+  free: { storageLimit: 1_000_000_000, aiCreditsLimit: 120 },
+  pro: { storageLimit: 15_000_000_000, aiCreditsLimit: 1200 },
+  scale: { storageLimit: 100_000_000_000, aiCreditsLimit: 2500 },
+} as const;
+
+export type PlanTier = keyof typeof PLAN_QUOTAS;
+
 export function isPlanId(value: unknown): value is PlanId {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(PLANS, value);
 }

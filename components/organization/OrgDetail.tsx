@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authedFetch';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { trackUpload } from '@/lib/usage';
+import { trackUpload, uploadErrorMessage } from '@/lib/usage';
 import { ensureOwnedOrgWorkspace } from '@/lib/orgWorkspace';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -107,14 +107,14 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       const storageRef = ref(storage, `organizations/${org.id}/banner_${Date.now()}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      
-      await updateDoc(doc(db, 'organizations', org.id), { bannerUrl: url });
+      // Prima il conteggio: se lo spazio è finito il file è già stato rimosso.
       await trackUpload(org.id, storageRef.fullPath);
+      await updateDoc(doc(db, 'organizations', org.id), { bannerUrl: url });
       setOrg({ ...org, bannerUrl: url });
       toast.success("Banner caricato.");
     } catch (err) {
       console.error(err);
-      toast.error("Errore durante l'upload del banner.");
+      toast.error(uploadErrorMessage(err, "Errore durante l'upload del banner."));
     } finally {
       setIsUploadingBanner(false);
     }
@@ -129,14 +129,13 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       const storageRef = ref(storage, `organizations/${org.id}/logo_${Date.now()}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      
-      await updateDoc(doc(db, 'organizations', org.id), { logoUrl: url });
       await trackUpload(org.id, storageRef.fullPath);
+      await updateDoc(doc(db, 'organizations', org.id), { logoUrl: url });
       setOrg({ ...org, logoUrl: url });
       toast.success("Logo caricato.");
     } catch (err) {
       console.error(err);
-      toast.error("Errore durante l'upload del logo.");
+      toast.error(uploadErrorMessage(err, "Errore durante l'upload del logo."));
     } finally {
       setIsUploadingLogo(false);
     }

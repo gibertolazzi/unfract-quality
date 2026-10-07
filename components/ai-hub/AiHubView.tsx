@@ -8,7 +8,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useAiHubChat } from "@/hooks/useAiHubChat";
 import { fetchProjectContext } from "@/lib/ai-hub";
 import { db } from "@/lib/firebase";
-import { trackUpload } from "@/lib/usage";
+import { deleteStoredFile, StorageLimitError, trackUpload } from "@/lib/usage";
+import { useToast } from "@/contexts/ToastContext";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -19,6 +20,7 @@ export function AiHubView() {
   const { activeProject, activeProjectId } = useProject();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
   const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
+  const toast = useToast();
 
   const [inputMessage, setInputMessage] = useState("");
   const [tasks, setTasks] = useState<any[]>([]);
@@ -133,6 +135,16 @@ export function AiHubView() {
         }
       } catch (e) {
         console.error("Error uploading attachments:", e);
+        if (e instanceof StorageLimitError) {
+          // Spazio finito: il messaggio resta da inviare. Gli allegati già
+          // caricati si tolgono, altrimenti occuperebbero spazio senza essere usati.
+          await Promise.all(uploadedFiles.map(f => f.storagePath
+            ? deleteStoredFile(f.storagePath, { usageTracked: f.usageTracked }).catch(console.error)
+            : undefined));
+          toast.error(e.message);
+          setIsUploadingMedia(false);
+          return;
+        }
       }
     }
     

@@ -1,5 +1,5 @@
 "use client";
-import { trackUpload } from '@/lib/usage';
+import { trackUpload, uploadErrorMessage } from '@/lib/usage';
 import { getWebLLMEngine, isWebLLMLoaded } from '@/lib/webllm';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -160,7 +160,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       toast.success("Media caricato con successo!");
     } catch (error) {
       console.error(error);
-      toast.error("Errore durante il caricamento del file.");
+      toast.error(uploadErrorMessage(error, "Errore durante il caricamento del file."));
     } finally {
       setIsUploadingMedia(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -652,7 +652,12 @@ ${contextText}`;
               
               if (!response || useCloud) {
                 toast.info("Generazione in corso...");
-                response = await generateDocContent(user ? await user.getIdToken() : '', activeProjectId || '', prompt, contextText);
+                const generated = await generateDocContent(user ? await user.getIdToken() : '', activeProjectId || '', prompt, contextText);
+                if (generated.error !== undefined) {
+                  toast.error(generated.error);
+                  return;
+                }
+                response = generated.text;
               }
               
               // Clean markdown backticks

@@ -57,8 +57,9 @@ service cloud.firestore {
 
     // ------------------------------------------------------------ Workspace
     // Lettura e modifica restano a chi ha fatto il login (secondo passo), ma
-    // proprietario, limiti del piano e contatori di consumo non si cambiano dal
-    // browser: i contatori li aggiorna il server (lib/server/usage.ts).
+    // proprietario, limiti del piano, contatori di consumo e abbonamento
+    // (`billing`) non si cambiano dal browser: li aggiorna il server
+    // (lib/server/usage.ts e il webhook di Stripe).
     function quotaOf(data, field) {
       return data.get('quotas', {}).get(field, null);
     }
@@ -95,6 +96,7 @@ service cloud.firestore {
       allow read: if signedIn();
       allow create: if signedIn()
         && (!('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid)
+        && !('billing' in request.resource.data)
         && quotaLimitDefault('planTier')
         && quotaLimitDefault('storageLimit')
         && quotaLimitDefault('aiCreditsLimit')
@@ -102,6 +104,7 @@ service cloud.firestore {
         && counterZero('aiCreditsUsed');
       allow update: if signedIn()
         && request.resource.data.get('ownerId', null) == resource.data.get('ownerId', null)
+        && request.resource.data.get('billing', null) == resource.data.get('billing', null)
         && quotaLimitKept('planTier')
         && quotaLimitKept('storageLimit')
         && quotaLimitKept('aiCreditsLimit')

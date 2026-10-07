@@ -32,8 +32,15 @@ export function createFakeDb() {
     delete: async () => { store.delete(path); },
   });
 
+  const inCollection = (name: string, path: string) =>
+    path.startsWith(`${name}/`) && path.split('/').length === name.split('/').length + 1;
+
   const collection = (name: string) => ({
     doc: (id: string) => docRef(`${name}/${id}`),
+    get: async () => {
+      const docs = Array.from(store.keys()).filter(path => inCollection(name, path)).map(path => ({ ...snapshot(path), ref: docRef(path) }));
+      return { empty: docs.length === 0, docs };
+    },
     where: (field: string, op: string, value: unknown) => ({
       get: async () => {
         const matches = (data: Record<string, any>) => op === 'array-contains'

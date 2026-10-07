@@ -147,6 +147,13 @@ describe('workspace', () => {
     await assertFails(updateDoc(doc(bruno(), 'workspaces/w1'), { ownerId: 'bruno' }));
     await assertFails(deleteDoc(doc(bruno(), 'workspaces/w1')));
   });
+
+  it('l’abbonamento (billing) lo scrive solo il server', async () => {
+    await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { billing: { subscriptionStatus: 'active', plan: 'scale' } }));
+    await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'billing.subscriptionStatus': 'canceled' }));
+    await assertFails(addDoc(collection(bruno(), 'workspaces'), { name: 'X', ownerId: 'bruno', billing: { plan: 'pro' } }));
+    await assertFails(setDoc(doc(anna(), 'workspaces/legacy'), { billing: { plan: 'pro' } }, { merge: true }));
+  });
 });
 
 describe('organizzazioni con il loro workspace (lib/orgWorkspace.ts)', () => {

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { adminDb } from '@/lib/firebase-admin';
 import { planForPrice } from '@/lib/stripe/plans';
+import { applyWorkspacePlan } from '@/lib/server/usage';
 
 export const runtime = 'nodejs';
 
@@ -13,7 +14,12 @@ export const runtime = 'nodejs';
  * chiunque poteva fingersi Stripe e attivare un piano a pagamento.
  *
  * Il piano attivato dipende dal prezzo effettivamente pagato, non dai metadata.
+ * I limiti (spazio, crediti AI) passano al workspace scelto al checkout; se
+ * l'abbonamento finisce, il workspace torna ai limiti free.
  */
+
+/** Stati in cui l'abbonamento non dà più diritto al piano. */
+const ENDED = ['canceled', 'unpaid', 'incomplete_expired'];
 export async function POST(req: Request) {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -59,18 +65,46 @@ export async function POST(req: Request) {
           subscriptionStatus: 'active',
           updatedAt: new Date().toISOString(),
         }, { merge: true });
-        console.log(`Piano ${plan} attivato per l'utente ${userId}`);
+
+        const workspaceId = session.metadata?.workspaceId;
+        if (workspaceId) {
+          const applied = await applyWorkspacePlan(workspaceId, plan, {
+            plan,
+            paidBy: userId,
+            stripeCustomerId: session.customer,
+            stripeSubscriptionId: session.subscription,
+            subscriptionStatus: 'active',
+          });
+          if (!applied) console.error(`Checkout ${session.id}: workspace ${workspaceId} non trovato, limiti non aggiornati.`);
+        } else {
+          console.error(`Checkout ${session.id}: nessun workspace nei metadata, limiti non aggiornati.`);
+        }
+        console.log(`Piano ${plan} attivato per l'utente ${userId}${workspaceId ? ` sul workspace ${workspaceId}` : ''}`);
         break;
       }
 
       case 'customer.subscription.deleted':
       case 'customer.subscription.updated': {
         const subscription = event.data.object as Stripe.Subscription;
+        const ended = event.type === 'customer.subscription.deleted' || ENDED.includes(subscription.status);
         const usersRef = await adminDb.collection('users').where('stripeCustomerId', '==', subscription.customer).get();
-        if (!usersRef.empty && subscription.status === 'canceled') {
+        if (!usersRef.empty && ended) {
           const userDoc = usersRef.docs[0];
-          await userDoc.ref.update({ plan: 'free', subscriptionStatus: 'canceled' });
+          await userDoc.ref.update({ plan: 'free', subscriptionStatus: subscription.status });
           console.log(`Abbonamento cancellato per l'utente ${userDoc.id}`);
+        }
+
+        const workspaceId = subscription.metadata?.workspaceId;
+        if (workspaceId) {
+          // Attivo: il piano del prezzo in corso (anche dopo un cambio di piano).
+          // Finito: limiti free. Altri stati (es. pagamento in ritardo): si
+          // aggiorna solo lo stato, Stripe riprova a incassare.
+          const paidPlan = (subscription.items?.data || []).map(item => planForPrice(item.price?.id)).find(Boolean) || null;
+          const tier = ended ? 'free' : ['active', 'trialing'].includes(subscription.status) ? paidPlan : null;
+          await applyWorkspacePlan(workspaceId, tier, {
+            ...(tier ? { plan: tier } : {}),
+            subscriptionStatus: ended ? 'canceled' : subscription.status,
+          }, { onlySubscription: subscription.id });
         }
         break;
       }

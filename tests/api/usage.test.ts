@@ -40,6 +40,11 @@ beforeEach(async () => {
     // Il server legge i metadati con il token dell'utente, non con permessi propri.
     expect((init.headers as Record<string, string>).Authorization).toBe('Firebase token-anna');
     const path = decodeURIComponent(url.split('/o/')[1]);
+    if (init.method === 'DELETE') {
+      const existed = path in files;
+      delete files[path];
+      return new Response(null, { status: existed ? 204 : 404 });
+    }
     return path in files ? Response.json({ name: path, size: String(files[path]) }) : new Response('{}', { status: 404 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -95,8 +100,48 @@ describe('spazio dei file', () => {
     });
   });
 
+  it('spazio finito: 413, file cancellato da Storage e niente conteggio', async () => {
+    mocks.db.store.get('workspaces/w1').quotas.storageLimit = 2000;
+    const response = await usage({ action: 'track', workspaceId: 'w1', path: 'chats/c1/foto.png' });
+    expect(response.status).toBe(413);
+    expect(response.body.error).toMatch(/Spazio esaurito/);
+    expect('chats/c1/foto.png' in files).toBe(false);
+    expect(used()).toBe(500);
+    expect(mocks.db.store.size).toBe(3);
+    // Un file che ci sta passa ancora.
+    expect((await usage({ action: 'track', workspaceId: 'w1', path: 'tasks/attachments/a.pdf' })).status).toBe(200);
+    expect(used()).toBe(1500);
+  });
+
   it('azione sconosciuta: 400', async () => {
     expect((await usage({ action: 'reset', workspaceId: 'w1' })).status).toBe(400);
+  });
+});
+
+describe('piano del workspace', () => {
+  it('applica i limiti del piano senza toccare i contatori', async () => {
+    const { applyWorkspacePlan } = await import('@/lib/server/usage');
+    expect(await applyWorkspacePlan('w1', 'scale', { stripeSubscriptionId: 'sub_1', subscriptionStatus: 'active' })).toBe(true);
+    expect(mocks.db.store.get('workspaces/w1').quotas).toMatchObject({
+      planTier: 'scale', storageLimit: 100_000_000_000, aiCreditsLimit: 2500, storageUsed: 500, aiCreditsUsed: 3,
+    });
+    expect(mocks.db.store.get('workspaces/w1').billing).toMatchObject({ stripeSubscriptionId: 'sub_1', subscriptionStatus: 'active' });
+  });
+
+  it('un evento di un altro abbonamento non cambia il piano', async () => {
+    const { applyWorkspacePlan } = await import('@/lib/server/usage');
+    await applyWorkspacePlan('w1', 'pro', { stripeSubscriptionId: 'sub_new', subscriptionStatus: 'active' });
+    expect(await applyWorkspacePlan('w1', 'free', { subscriptionStatus: 'canceled' }, { onlySubscription: 'sub_old' })).toBe(false);
+    expect(mocks.db.store.get('workspaces/w1').quotas.planTier).toBe('pro');
+  });
+
+  it('chi gestisce il workspace: proprietario o amministratore, non un membro', async () => {
+    const { canManageWorkspace } = await import('@/lib/server/usage');
+    mocks.db.store.set('access_grants/w1_carla', { subjectType: 'user', subjectId: 'carla', resourceType: 'workspace', workspaceId: 'w1', role: 'admin' });
+    expect(await canManageWorkspace('anna', 'w1')).toBe(true);
+    expect(await canManageWorkspace('carla', 'w1')).toBe(true);
+    expect(await canManageWorkspace('bruno', 'w1')).toBe(false);
+    expect(await canManageWorkspace('anna', 'w2')).toBe(false);
   });
 });
 

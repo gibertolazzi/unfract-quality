@@ -2,14 +2,18 @@ import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { requireUser } from '@/lib/server/auth';
 import { isPlanId, PLANS } from '@/lib/stripe/plans';
+import { adminDb } from '@/lib/firebase-admin';
+import { canManageWorkspace } from '@/lib/server/usage';
 
 export const runtime = 'nodejs';
 
 /**
  * Crea la sessione di pagamento Stripe.
  *
- * Il client manda solo il piano (`pro` o `scale`). Prezzo, utente ed email li
- * decide il server: prima arrivavano tutti dal browser, senza login.
+ * Il client manda solo il piano (`pro` o `scale`) e il workspace a cui
+ * applicarlo. Prezzo, utente ed email li decide il server: prima arrivavano
+ * tutti dal browser, senza login. Il piano lo può cambiare solo chi gestisce
+ * il workspace (proprietario o amministratore).
  */
 export async function POST(request: Request) {
   const auth = await requireUser(request);
@@ -34,6 +38,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Quantità non valida.' }, { status: 400 });
   }
 
+  const workspaceId = typeof body?.workspaceId === 'string' ? body.workspaceId : '';
+  if (!(await canManageWorkspace(user.uid, workspaceId))) {
+    return NextResponse.json({ error: 'Il piano lo può cambiare solo il proprietario o un amministratore del workspace.' }, { status: 403 });
+  }
+  const billing = (await adminDb.collection('workspaces').doc(workspaceId).get()).data()?.billing;
+  if (['active', 'trialing', 'past_due'].includes(billing?.subscriptionStatus)) {
+    return NextResponse.json({ error: 'Questo workspace ha già un abbonamento attivo.' }, { status: 409 });
+  }
+
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
 
   try {
@@ -46,8 +59,8 @@ export async function POST(request: Request) {
       line_items: [{ price: PLANS[plan].priceId, quantity }],
       success_url: `${appUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/dashboard`,
-      metadata: { userId: user.uid, plan },
-      subscription_data: { metadata: { userId: user.uid, plan } },
+      metadata: { userId: user.uid, plan, workspaceId },
+      subscription_data: { metadata: { userId: user.uid, plan, workspaceId } },
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });

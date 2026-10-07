@@ -1,5 +1,5 @@
 "use client";
-import { trackUpload } from '@/lib/usage';
+import { trackUpload, uploadErrorMessage } from '@/lib/usage';
 
 import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -201,7 +201,11 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
       audioUsageTracked = await trackUpload(activeWorkspaceId, storageRef.fullPath);
     } catch (uploadError) {
       console.error("Failed to upload audio to storage:", uploadError);
-      toast.error("Errore nel salvataggio dell'audio sul cloud.");
+      // Senza audio salvato (anche per spazio finito) il meeting usa solo la trascrizione.
+      audioUrl = '';
+      audioStoragePath = '';
+      audioUsageTracked = false;
+      toast.error(uploadErrorMessage(uploadError, "Errore nel salvataggio dell'audio sul cloud."));
     }
 
     try {

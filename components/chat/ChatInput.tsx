@@ -4,7 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useProject } from "@/contexts/ProjectContext";
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
-import { trackUpload, deleteStoredFile } from '@/lib/usage';
+import { trackUpload, deleteStoredFile, StorageLimitError } from '@/lib/usage';
 import { sendMessage, Mention, Attachment } from '@/lib/chat';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { Send, ImagePlus, Paperclip, Loader2, X, File as FileIcon, Plus, Mic, Square, Trash2 } from 'lucide-react';
@@ -110,6 +110,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
     setIsUploading(true);
     setUploadError('');
     const failedFiles: string[] = [];
+    let storageFull = '';
 
     // Upload in sequence to avoid saturating the connection with large selections.
     for (let index = 0; index < files.length; index += 1) {
@@ -121,11 +122,12 @@ export function ChatInput({ chatId }: { chatId: string }) {
       } catch (error) {
         console.error(`Failed to upload ${file.name}:`, error);
         failedFiles.push(file.name);
+        if (error instanceof StorageLimitError) storageFull = error.message;
       }
     }
 
     if (failedFiles.length > 0) {
-      setUploadError(`Caricamento non riuscito per: ${failedFiles.join(', ')}`);
+      setUploadError(storageFull || `Caricamento non riuscito per: ${failedFiles.join(', ')}`);
     }
     setIsUploading(false);
   };
@@ -187,7 +189,15 @@ export function ChatInput({ chatId }: { chatId: string }) {
               },
               async () => {
                 const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-                const usageTracked = await trackUpload(activeWorkspaceId, uploadTask.snapshot.ref.fullPath);
+                let usageTracked = false;
+                try {
+                  usageTracked = await trackUpload(activeWorkspaceId, uploadTask.snapshot.ref.fullPath);
+                } catch (error) {
+                  // Spazio finito: il server ha già tolto il file, il messaggio non parte.
+                  if (error instanceof StorageLimitError) setUploadError(error.message);
+                  setIsUploading(false);
+                  return;
+                }
                 
                 // Automatically send message with audio attachment
                 try {

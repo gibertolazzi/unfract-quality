@@ -3,7 +3,7 @@
 import { verifyIdToken } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 import { geminiClient } from '@/lib/server/gemini';
-import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 const MAX_PROMPT = 8_000;
 const MAX_CONTEXT = 20_000;
@@ -22,13 +22,18 @@ NON racchiudere la risposta in backtick.`;
  * Le server action non ricevono header personalizzati, quindi l'ID token
  * dell'utente arriva come primo argomento e viene verificato qui.
  */
-export async function generateDocContent(idToken: string, projectId: string, prompt: string, context = '') {
+export async function generateDocContent(
+  idToken: string, projectId: string, prompt: string, context = ''
+): Promise<{ text: string; error?: undefined } | { error: string; text?: undefined }> {
   const user = await verifyIdToken(idToken);
   if (!user) throw new Error('Autenticazione richiesta.');
   if (tooManyRequests(`doc-ai:${user.uid}`, 20)) throw new Error('Troppe richieste. Riprova fra un minuto.');
   // Il credito si conta sul workspace del progetto del documento.
   const project = await aiProjectWorkspace(user.uid, projectId);
   if (!project.allowed) throw new Error('Progetto non trovato.');
+  // Le server action in produzione nascondono il messaggio degli errori:
+  // questo lo si restituisce, così l'utente sa perché non è stato generato nulla.
+  if (project.outOfCredits) return { error: AI_CREDITS_EXHAUSTED };
 
   const cleanPrompt = String(prompt || '').slice(0, MAX_PROMPT);
   if (!cleanPrompt.trim()) throw new Error('Prompt mancante.');
@@ -44,7 +49,7 @@ export async function generateDocContent(idToken: string, projectId: string, pro
     let response = result.response.text();
     response = response.replace(/^\s*\`\`\`(html|markdown|md)?/g, '').replace(/\`\`\`\s*$/g, '').trim();
     await countAiCall(project.workspaceId);
-    return response;
+    return { text: response };
   } catch (error) {
     console.error("AI Generation Error:", error);
     throw new Error("Failed to generate content");
