@@ -3,7 +3,7 @@ import { trackUpload } from '@/lib/usage';
 import { getWebLLMEngine, isWebLLMLoaded } from '@/lib/webllm';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronLeft, Edit2, Lock, Link as LinkIcon, MoreHorizontal, MessageSquare, Clock, Plus, Trash2, Check, Star, Copy, Download, MonitorPlay, Link2 } from 'lucide-react';
+import { ChevronLeft, Edit2, Lock, Link as LinkIcon, MoreHorizontal, MessageSquare, Clock, Plus, Trash2, Check, Star, Copy, Download, MonitorPlay, Link2, Loader2 } from 'lucide-react';
 import { Document, DocBlock, Comment } from './types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { HistoryModal } from './HistoryModal';
@@ -11,7 +11,6 @@ import { updateDocument, duplicateDocument, deleteDocument } from '@/lib/documen
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/contexts/ToastContext';
-import { useDialog } from '@/contexts/DialogContext';
 import { DocToolbar } from './DocToolbar';
 import { CustomPrompt } from '@/components/shared/CustomPrompt';
 import { useEditor, EditorContent, ReactNodeViewRenderer } from '@tiptap/react';
@@ -105,9 +104,9 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const toast = useToast();
-  const dialog = useDialog();
   const [isFavorite, setIsFavorite] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [slashMenu, setSlashMenu] = useState<{ top: number; bottom: number; left: number } | null>(null);
   const [itemSelectorConfig, setItemSelectorConfig] = useState<{ isOpen: boolean; type: 'task' | 'event' | 'meeting' | 'document' } | null>(null);
@@ -341,21 +340,17 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
     }
   };
 
+  // La conferma è già il modale "Elimina Documento": prima se ne apriva un secondo.
   const handleDelete = async () => {
-    const isConfirmed = await dialog.confirm({
-      title: "Elimina Documento",
-      message: "Sei sicuro di voler eliminare questo documento?",
-      isDestructive: true,
-      confirmText: "Elimina"
-    });
-    if (isConfirmed) {
-      const success = await deleteDocument(doc.id);
-      if (success) {
-        router.push('/documentation');
-        toast.success("Documento eliminato.");
-      } else {
-        toast.error("Errore durante l'eliminazione.");
-      }
+    if (isDeleting) return;
+    setIsDeleting(true);
+    const success = await deleteDocument(doc.id);
+    setIsDeleting(false);
+    if (success) {
+      router.push('/documentation');
+      toast.success("Documento eliminato.");
+    } else {
+      toast.error("Errore durante l'eliminazione.");
     }
     setIsDeleteModalOpen(false);
   };
@@ -507,7 +502,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
             <p className="text-white/60 text-sm mb-6">Sei sicuro di voler eliminare definitivamente "{doc.title}"? Questa azione non può essere annullata.</p>
             <div className="flex items-center justify-end gap-3">
               <button onClick={() => setIsDeleteModalOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-medium text-white hover:bg-white/10">Annulla</button>
-              <button onClick={handleDelete} className="px-5 py-2.5 rounded-full text-sm font-medium bg-red-500 hover:bg-red-600 text-white flex items-center gap-2"><Trash2 size={16} /> Elimina</button>
+              <button onClick={handleDelete} disabled={isDeleting} className="px-5 py-2.5 rounded-full text-sm font-medium bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white flex items-center gap-2">{isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} Elimina</button>
             </div>
           </div>
         </div>

@@ -41,8 +41,24 @@ function firebaseWebEnv() {
     'NEXT_PUBLIC_FIREBASE_APP_ID',
   ];
   const missing = required.filter(name => !env[name]);
+  // Un segnaposto come "..." non è vuoto, ma Firebase lo rifiuta solo quando
+  // l'app è già online (al login): meglio fermare la build qui.
+  const invalid = required.filter(name => env[name] && !validFirebaseValue(name, env[name]));
   const defined = Object.fromEntries(Object.entries(env).filter(([, value]) => value !== undefined));
-  return { env: defined, missing };
+  return { env: defined, missing, invalid };
+}
+
+const FIREBASE_FORMATS = {
+  NEXT_PUBLIC_FIREBASE_API_KEY: /^AIza[0-9A-Za-z_-]{35}$/,
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: /^\d+$/,
+  NEXT_PUBLIC_FIREBASE_APP_ID: /^1:\d+:web:[0-9a-f]+$/,
+};
+const PLACEHOLDER = /^(\.+|x+|changeme|todo|your[-_].*|<.*>)$/i;
+
+function validFirebaseValue(name, value) {
+  const text = String(value).trim();
+  if (PLACEHOLDER.test(text)) return false;
+  return FIREBASE_FORMATS[name] ? FIREBASE_FORMATS[name].test(text) : true;
 }
 
 const firebaseWeb = firebaseWebEnv();
@@ -59,6 +75,12 @@ const nextConfig = {
       throw new Error(
         `Configurazione Firebase mancante: ${firebaseWeb.missing.join(', ')}. ` +
         'Impostale in .env.local (vedi .env.example) o nelle variabili del deploy.'
+      );
+    }
+    if (firebaseWeb.invalid.length) {
+      throw new Error(
+        `Configurazione Firebase non valida (segnaposto o formato sbagliato): ${firebaseWeb.invalid.join(', ')}. ` +
+        'Copia i valori dalla console Firebase in .env.local o nelle variabili del deploy.'
       );
     }
     return config;
