@@ -393,8 +393,12 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
           project={projectToDelete}
           onClose={() => setProjectToDelete(null)}
           onConfirm={async () => {
-            await deleteProject(projectToDelete.id);
-            setProjectToDelete(null);
+            try {
+              await deleteProject(projectToDelete.id);
+              setProjectToDelete(null);
+            } catch (error) {
+              toast.error(error instanceof Error ? error.message : 'Cancellazione non riuscita. Riprova.');
+            }
           }}
         />
       )}

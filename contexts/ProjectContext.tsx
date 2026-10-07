@@ -2,10 +2,11 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, updateDoc, doc, onSnapshot, orderBy, deleteDoc, or } from 'firebase/firestore';
+import { collection, query, where, getDocs, updateDoc, doc, onSnapshot, orderBy, or } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
 import { createProjectWithBoard, ProjectCreateError } from '@/lib/projects';
+import { authedFetch } from '@/lib/authedFetch';
 
 export interface Project {
   id: string;
@@ -170,13 +171,16 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
 
 
 
+  // Dal server: cancella anche colonne, task, ruoli e accessi del progetto.
+  // Lancia un errore con il messaggio da mostrare all'utente.
   const deleteProject = async (id: string) => {
-    try {
-      await deleteDoc(doc(db, 'projects', id));
-      // State and active project fallback will be handled by the onSnapshot listener.
-    } catch (e) {
-      console.error("Error deleting project:", e);
-    }
+    const response = await authedFetch('/api/projects/delete', {
+      method: 'POST',
+      body: JSON.stringify({ projectId: id }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'Cancellazione non riuscita. Riprova.');
+    // Il progetto sparisce dall'elenco tramite onSnapshot.
   };
 
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
