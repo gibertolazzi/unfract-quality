@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
+import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 export const runtime = 'nodejs';
 
@@ -15,7 +16,7 @@ const MAX_ATTACHMENT_BASE64 = 20 * 1024 * 1024 * 4 / 3;
 /**
  * Risposta della chat dell'AI Hub.
  *
- * Body: `{ text, history, projectContext, attachments? }`, dove `history` è
+ * Body: `{ projectId, text, history, projectContext, attachments? }`, dove `history` è
  * `[{ role: 'user' | 'model', content }]` e gli allegati sono
  * `{ data: base64, mimeType }`. Le istruzioni di sistema le scrive il server:
  * il client manda solo il contesto del progetto che ci va dentro.
@@ -52,6 +53,11 @@ export async function POST(request: Request) {
   if (!text.trim() && attachments.length === 0) {
     return NextResponse.json({ error: 'Messaggio vuoto.' }, { status: 400 });
   }
+  // Il credito si conta sul workspace del progetto.
+  const project = await aiProjectWorkspace(auth.user.uid, body?.projectId);
+  if (!project.allowed) {
+    return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
 
   const systemInstruction = `Sei Unfract AI, l'assistente strategico del progetto aziendale. \n\nContesto del progetto:\n${projectContext}\n\nRispondi in modo professionale e conciso. Considera solo le attività ancora aperte: non proporre né taggare come prossime azioni le attività completate. Se menzioni un'attività esistente, usa [TASK:id] solo per un ID presente nell'elenco delle attività aperte.\n1. Se l'utente ti chiede di creare una nuova task (o accetti di farlo), DEVI crearla scrivendo ALLA FINE della tua risposta l'esatto blocco:\n$CREATE_TASK$\n{"title": "Titolo breve", "priority": "High", "description": "Descrizione estesa", "category": "General"}\n$END_TASK$\n\nIl sistema intercetterà questo blocco e creerà la task nel database reale!`;
 
@@ -62,6 +68,7 @@ export async function POST(request: Request) {
     for (const a of attachments) parts.push({ inlineData: { data: a.data, mimeType: a.mimeType } });
 
     const result = await withRetry(() => chat.sendMessage(parts));
+    await countAiCall(project.workspaceId);
     return NextResponse.json({ text: result.response.text() });
   } catch (error) {
     if (error instanceof GeminiNotConfiguredError) {

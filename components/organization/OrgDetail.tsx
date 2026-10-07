@@ -12,7 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authedFetch';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
-import { incrementStorageUsage } from '@/lib/usage';
+import { trackUpload } from '@/lib/usage';
 import { ensureOwnedOrgWorkspace } from '@/lib/orgWorkspace';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -109,7 +109,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       const url = await getDownloadURL(storageRef);
       
       await updateDoc(doc(db, 'organizations', org.id), { bannerUrl: url });
-      if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
+      await trackUpload(org.id, storageRef.fullPath);
       setOrg({ ...org, bannerUrl: url });
       toast.success("Banner caricato.");
     } catch (err) {
@@ -131,7 +131,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       const url = await getDownloadURL(storageRef);
       
       await updateDoc(doc(db, 'organizations', org.id), { logoUrl: url });
-      if (activeWorkspaceId) await incrementStorageUsage(activeWorkspaceId, file.size);
+      await trackUpload(org.id, storageRef.fullPath);
       setOrg({ ...org, logoUrl: url });
       toast.success("Logo caricato.");
     } catch (err) {

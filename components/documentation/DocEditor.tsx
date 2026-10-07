@@ -1,5 +1,5 @@
 "use client";
-import { incrementStorageUsage, incrementAiUsage } from '@/lib/usage';
+import { trackUpload } from '@/lib/usage';
 import { getWebLLMEngine, isWebLLMLoaded } from '@/lib/webllm';
 
 import React, { useState, useRef, useEffect } from 'react';
@@ -130,9 +130,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       const storageRef = ref(storage, `documentation/${activeProjectId}/${doc.id}/${Date.now()}-${file.name}`);
       await uploadBytes(storageRef, file);
       const url = await getDownloadURL(storageRef);
-      const usageTracked = activeWorkspaceId
-        ? await incrementStorageUsage(activeWorkspaceId, file.size)
-        : false;
+      const usageTracked = await trackUpload(activeWorkspaceId, storageRef.fullPath);
       const storageFile = {
         storagePath: storageRef.fullPath,
         sizeBytes: file.size,
@@ -659,8 +657,7 @@ ${contextText}`;
               
               if (!response || useCloud) {
                 toast.info("Generazione in corso...");
-                response = await generateDocContent(user ? await user.getIdToken() : '', prompt, contextText);
-                if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
+                response = await generateDocContent(user ? await user.getIdToken() : '', activeProjectId || '', prompt, contextText);
               }
               
               // Clean markdown backticks

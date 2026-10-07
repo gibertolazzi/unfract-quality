@@ -116,19 +116,27 @@ describe('workspace', () => {
     await assertFails(addDoc(collection(bruno(), 'workspaces'), { name: 'X', ownerId: 'bruno', quotas: { aiCreditsLimit: 100000 } }));
   });
 
-  it('i contatori di consumo si aggiornano, i limiti no', async () => {
-    await assertSucceeds(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.aiCreditsUsed': 5, 'quotas.aiCreditsPeriod': '2026-10' }));
-    await assertSucceeds(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.storageUsed': increment(2048) }));
+  it('contatori di consumo e limiti non si cambiano dal browser', async () => {
     await assertSucceeds(updateDoc(doc(anna(), 'workspaces/w1'), { name: 'Acme srl', bannerGradient: 'x' }));
+    await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.aiCreditsUsed': 5, 'quotas.aiCreditsPeriod': '2026-10' }));
+    await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.storageUsed': increment(2048) }));
+    await assertFails(updateDoc(doc(bruno(), 'workspaces/w1'), { 'quotas.storageUsed': 1 }));
+    await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.aiCreditsPeriod': '2020-01' }));
     await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.planTier': 'enterprise' }));
     await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.aiCreditsLimit': 99999 }));
     await assertFails(updateDoc(doc(anna(), 'workspaces/w1'), { 'quotas.storageLimit': 1e12 }));
   });
 
-  it('le quote mancanti si riempiono solo con i valori predefiniti', async () => {
+  it('i limiti mancanti si riempiono solo con i valori predefiniti, i contatori no', async () => {
     await assertSucceeds(setDoc(doc(anna(), 'workspaces/legacy'), {
-      quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120, aiCreditsPeriod: '2026-10' },
+      quotas: { planTier: 'free', storageLimit: 1_000_000_000, aiCreditsLimit: 120 },
     }, { merge: true }));
+    await assertFails(setDoc(doc(anna(), 'workspaces/legacy'), { quotas: { storageUsed: 0 } }, { merge: true }));
+  });
+
+  it('un workspace nuovo parte con i contatori a zero', async () => {
+    await assertFails(addDoc(collection(bruno(), 'workspaces'), { name: 'X', ownerId: 'bruno', quotas: { storageUsed: 5 } }));
+    await assertFails(addDoc(collection(bruno(), 'workspaces'), { name: 'X', ownerId: 'bruno', quotas: { aiCreditsUsed: -100 } }));
   });
 
   it('le quote mancanti non si riempiono con un piano superiore', async () => {
@@ -239,7 +247,7 @@ describe('chat AI', () => {
 
 describe('collezioni del server', () => {
   it('chiuse al browser, anche a chi ha fatto il login', async () => {
-    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q']) {
+    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u']) {
       await assertFails(getDoc(doc(anna(), path)));
       await assertFails(setDoc(doc(anna(), path), { x: 1 }));
     }

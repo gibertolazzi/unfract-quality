@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
+import { aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 
 export const runtime = 'nodejs';
 
@@ -13,6 +14,8 @@ const MAX_SOURCE = 30_000;
  *
  * - `meeting`: titolo di un meeting dal suo riepilogo, in italiano o inglese;
  * - `chat`: titolo di una chat dell'AI Hub dal primo messaggio.
+ *
+ * `projectId` è obbligatorio: il credito si conta sul workspace del progetto.
  */
 export async function POST(request: Request) {
   const auth = await requireUser(request);
@@ -34,6 +37,10 @@ export async function POST(request: Request) {
   if ((kind !== 'meeting' && kind !== 'chat') || !source.trim()) {
     return NextResponse.json({ error: 'Richiesta non valida.' }, { status: 400 });
   }
+  const project = await aiProjectWorkspace(auth.user.uid, body?.projectId);
+  if (!project.allowed) {
+    return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
+  }
 
   let systemInstruction: string | undefined;
   let prompt: string;
@@ -52,6 +59,7 @@ export async function POST(request: Request) {
   try {
     const model = geminiClient().getGenerativeModel({ model: 'gemini-3.8-flash', ...(systemInstruction ? { systemInstruction } : {}) });
     const result = await withRetry(() => model.generateContent(prompt));
+    await countAiCall(project.workspaceId);
     return NextResponse.json({ title: result.response.text().trim().slice(0, 200) });
   } catch (error) {
     if (error instanceof GeminiNotConfiguredError) {

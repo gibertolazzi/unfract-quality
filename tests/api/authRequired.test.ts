@@ -37,6 +37,7 @@ const routes: Array<{ name: string; load: () => Promise<any>; method: 'GET' | 'P
   { name: 'auth/google', load: () => import('@/app/api/auth/google/route'), method: 'POST', path: '/api/auth/google' },
   { name: 'auth/microsoft', load: () => import('@/app/api/auth/microsoft/route'), method: 'POST', path: '/api/auth/microsoft' },
   { name: 'projects/delete', load: () => import('@/app/api/projects/delete/route'), method: 'POST', path: '/api/projects/delete', body: { projectId: 'p1' } },
+  { name: 'usage/storage', load: () => import('@/app/api/usage/storage/route'), method: 'POST', path: '/api/usage/storage', body: { action: 'track', workspaceId: 'w1', path: 'chats/c/x' } },
   { name: 'organizations/delete', load: () => import('@/app/api/organizations/delete/route'), method: 'POST', path: '/api/organizations/delete', body: { orgId: 'o1' } },
 ];
 

@@ -1,4 +1,3 @@
-import { incrementAiUsage } from '@/lib/usage';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useState, useCallback, useEffect } from 'react';
 import { authedFetch } from '@/lib/authedFetch';
@@ -93,11 +92,10 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
     try {
       const response = await authedFetch('/api/ai/title', {
         method: 'POST',
-        body: JSON.stringify({ kind: 'chat', text: firstMessage }),
+        body: JSON.stringify({ kind: 'chat', projectId, text: firstMessage }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.title) throw new Error(data.error || `HTTP ${response.status}`);
-      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       return String(data.title).trim();
     } catch (e) {
       console.error("Errore generazione titolo:", e);
@@ -154,6 +152,7 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
       const response = await authedFetch('/api/ai/chat', {
         method: 'POST',
         body: JSON.stringify({
+          projectId,
           text,
           history: messages.map(m => ({ role: m.role, content: m.content })),
           projectContext: projectContextText,
@@ -162,7 +161,6 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || typeof data.text !== 'string') throw new Error(data.error || `HTTP ${response.status}`);
-      if (activeWorkspaceId) await incrementAiUsage(activeWorkspaceId, 1);
       let responseText: string = data.text;
       
       // Blocco con cui l'AI chiede di creare un task (vedi lib/aiTaskBlock.ts).

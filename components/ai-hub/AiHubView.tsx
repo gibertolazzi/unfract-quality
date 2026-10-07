@@ -9,7 +9,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useAiHubChat } from "@/hooks/useAiHubChat";
 import { fetchProjectContext } from "@/lib/ai-hub";
 import { db } from "@/lib/firebase";
-import { incrementStorageUsage } from "@/lib/usage";
+import { trackUpload } from "@/lib/usage";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -120,9 +120,7 @@ export function AiHubView() {
           const storageRef = ref(storage, `ai-hub/${activeProjectId}/${Date.now()}_${file.name}`);
           await uploadBytes(storageRef, file);
           const url = await getDownloadURL(storageRef);
-          const usageTracked = activeWorkspaceId
-            ? await incrementStorageUsage(activeWorkspaceId, file.size)
-            : false;
+          const usageTracked = await trackUpload(activeWorkspaceId, storageRef.fullPath);
           uploadedFiles.push({
             url,
             name: file.name,
