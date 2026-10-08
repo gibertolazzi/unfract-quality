@@ -41,7 +41,8 @@ export async function generateDocContent(
 
   try {
     const model = geminiClient().getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      // gemini-1.5-flash non esiste più (404): stesso modello delle altre route AI.
+      model: 'gemini-3.8-flash',
       systemInstruction: cleanContext ? `${SYSTEM_INSTRUCTION}\n${cleanContext}` : SYSTEM_INSTRUCTION,
     });
 
