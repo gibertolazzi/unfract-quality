@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 
 /**
  * Invio email del CRM.
@@ -19,7 +20,7 @@ import { Resend } from 'resend';
  * 3. Chiave di idempotenza: un doppio clic o un retry non spediscono due volte.
  *
  * COSA QUESTA ROUTE NON PUÒ FARE: verificare il consenso del destinatario.
- * Senza SDK admin non legge Firestore, quindi il controllo su consenso e
+ * Non legge i dati del CRM, quindi il controllo su consenso e
  * soppressione avviene nel browser prima della chiamata ed è falsificabile da
  * chi sa costruire una richiesta. Vedi docs/EMAIL.md e docs/DEROGHE.md.
  */
@@ -53,26 +54,16 @@ async function verifyIdToken(idToken: string, apiKey: string): Promise<{ uid: st
 /**
  * Chiavi di idempotenza già servite, con il momento in cui sono arrivate.
  *
- * Sta in memoria: su Vercel ogni istanza ha la sua e si azzera a ogni riavvio.
- * Ferma il doppio clic e il retry immediato, NON una duplicazione a distanza di
- * ore o fra istanze diverse. Per quello serve una collezione condivisa, cioè
- * un backend.
+ * Sta in memoria e ferma il doppio clic sulla stessa istanza. Fra istanze
+ * diverse, o dopo un riavvio, il doppione lo ferma Resend: la stessa chiave
+ * gli arriva come `Idempotency-Key` e per 24 ore non spedisce due volte.
  */
 const servedKeys = new Map<string, number>();
 const IDEMPOTENCY_TTL = 10 * 60 * 1000;
 
-/** Invii per utente, per non trasformare un errore in una campagna. */
-const rateWindow = new Map<string, number[]>();
+/** Invii per utente, per non trasformare un errore in una campagna. Il
+ *  contatore è su Firestore, condiviso fra le istanze (segnalazione S21). */
 const RATE_LIMIT = 30;
-const RATE_WINDOW = 60 * 1000;
-
-function tooManyRequests(uid: string): boolean {
-  const now = Date.now();
-  const recent = (rateWindow.get(uid) || []).filter(at => now - at < RATE_WINDOW);
-  recent.push(now);
-  rateWindow.set(uid, recent);
-  return recent.length > RATE_LIMIT;
-}
 
 function prune() {
   const now = Date.now();
@@ -110,7 +101,7 @@ export async function POST(request: any) {
     return NextResponse.json({ error: 'Autenticazione non valida.' }, { status: 401 });
   }
 
-  if (tooManyRequests(user.uid)) {
+  if (await tooManyRequestsShared(`crm-email:${user.uid}`, RATE_LIMIT)) {
     return NextResponse.json(
       { error: 'Troppi invii in poco tempo. Riprova fra un minuto.' },
       { status: 429 }
@@ -155,14 +146,14 @@ export async function POST(request: any) {
   servedKeys.set(key, Date.now());
 
   try {
-        const result = await resend.emails.send({
+    const result = await resend.emails.send({
       from: fromAddress,
       to: String(to),
       subject: String(subject),
       text: String(text),
       html: html ? String(html) : undefined,
       replyTo: replyTo ? String(replyTo) : undefined,
-    });
+    }, { idempotencyKey: `crm:${key}`.slice(0, 256) });
 
     if (result.error) {
       // La chiave viene liberata: l'invio non è avvenuto, il retry è legittimo.

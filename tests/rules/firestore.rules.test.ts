@@ -254,7 +254,7 @@ describe('chat AI', () => {
 
 describe('collezioni del server', () => {
   it('chiuse al browser, anche a chi ha fatto il login', async () => {
-    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u']) {
+    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u', 'rate_limits/r']) {
       await assertFails(getDoc(doc(anna(), path)));
       await assertFails(setDoc(doc(anna(), path), { x: 1 }));
     }

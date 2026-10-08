@@ -1,3 +1,5 @@
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
+
 /**
  * L'autenticazione delle route della sezione, in un posto solo.
  *
@@ -16,10 +18,6 @@
  * prodotto: è una chiamata in più per richiesta, ed è il prezzo della deroga
  * che tiene il CRM senza backend.
  */
-
-/** Il limite vale **per utente**: un ciclo sbagliato in una pagina non deve
- *  diventare un abuso a nome di tutto il progetto. */
-const finestre = new Map<string, number[]>();
 
 export interface AuthOk {
   ok: true;
@@ -53,14 +51,6 @@ async function verificaToken(idToken: string, apiKey: string): Promise<string> {
   }
 }
 
-function troppeRichieste(chiave: string, limite: number, finestraMs: number): boolean {
-  const adesso = Date.now();
-  const recenti = (finestre.get(chiave) || []).filter(quando => adesso - quando < finestraMs);
-  recenti.push(adesso);
-  finestre.set(chiave, recenti);
-  return recenti.length > limite;
-}
-
 export interface GuardOptions {
   /** Nome dell'operazione: entra nel conteggio, così due route non si sommano. */
   operation: string;
@@ -89,7 +79,9 @@ export async function guardRequest(request: Request, options: GuardOptions): Pro
   if (!uid) return { ok: false, status: 401, error: 'Autenticazione non valida.' };
 
   const finestraMs = options.windowMs ?? 60_000;
-  if (troppeRichieste(`${options.operation}:${uid}`, options.limit, finestraMs)) {
+  // Il limite vale **per utente** ed è condiviso fra le istanze (S21): un ciclo
+  // sbagliato in una pagina non deve diventare un abuso a nome del progetto.
+  if (await tooManyRequestsShared(`prospect-${options.operation}:${uid}`, options.limit, finestraMs)) {
     return { ok: false, status: 429,
       error: `Troppe richieste in poco tempo. Riprova fra ${Math.round(finestraMs / 1000)} secondi.` };
   }

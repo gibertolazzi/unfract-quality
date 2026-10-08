@@ -4,7 +4,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getCalendarEventEmailHtml } from '@/lib/emailTemplates';
 import { escapeIcsText, icsSingleLine } from '@/lib/ics';
 import { requireUser } from '@/lib/server/auth';
-import { tooManyRequests } from '@/lib/server/rateLimit';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 
 export const runtime = 'nodejs';
 
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { user } = auth;
 
-  if (tooManyRequests(`calendar-notify:${user.uid}`, 30)) {
+  if (await tooManyRequestsShared(`calendar-notify:${user.uid}`, 30)) {
     return NextResponse.json({ error: 'Troppi invii in poco tempo. Riprova fra un minuto.' }, { status: 429 });
   }
 

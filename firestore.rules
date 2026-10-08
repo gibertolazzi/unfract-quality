@@ -135,14 +135,16 @@ service cloud.firestore {
 
     // ------------------------------------------------------------ Solo server
     // Inviti con codice, stati OAuth, canali dei calendari, blocchi delle
-    // prenotazioni, coda delle email e registro dello spazio dei file: li
-    // legge e scrive solo il server.
+    // prenotazioni, coda delle email, registro dello spazio dei file e
+    // contatori dei limiti di richieste: li legge e scrive solo il server.
+    // Un contatore aperto si potrebbe azzerare da sé.
     match /org_invites/{document=**} { allow read, write: if false; }
     match /oauth_states/{document=**} { allow read, write: if false; }
     match /calendar_channels/{document=**} { allow read, write: if false; }
     match /booking_locks/{document=**} { allow read, write: if false; }
     match /notifications_queue/{document=**} { allow read, write: if false; }
     match /storage_usage/{document=**} { allow read, write: if false; }
+    match /rate_limits/{document=**} { allow read, write: if false; }
 
     // ------------------------------------------------------------ Il resto
     // Dati condivisi, ancora aperti a chi ha fatto il login (secondo passo).
@@ -152,7 +154,7 @@ service cloud.firestore {
       allow read, write: if signedIn() && !(collection in [
         'users', 'workspaces', 'notifications', 'ai_chats',
         'org_invites', 'oauth_states', 'calendar_channels', 'booking_locks', 'notifications_queue',
-        'storage_usage'
+        'storage_usage', 'rate_limits'
       ]);
     }
   }

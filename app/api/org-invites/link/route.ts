@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { requireUser } from '@/lib/server/auth';
-import { tooManyRequests } from '@/lib/server/rateLimit';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { createOrgInvite, isOrgMember } from '@/lib/server/orgInvites';
 
 export const runtime = 'nodejs';
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { user } = auth;
 
-  if (tooManyRequests(`invite-link:${user.uid}`, 10)) {
+  if (await tooManyRequestsShared(`invite-link:${user.uid}`, 10)) {
     return NextResponse.json({ error: 'Troppe richieste. Riprova fra un minuto.' }, { status: 429 });
   }
 
