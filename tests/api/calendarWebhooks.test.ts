@@ -51,6 +51,30 @@ describe('avvisi dei calendari: orari nel fuso dell’utente', () => {
     expect(event.date).toBe('2026-10-12T13:00:00.000Z');
   });
 
+  it('Google: più eventi cambiati, una sola query per cercarli', async () => {
+    mocks.db.store.set('users/u1/events/e2', { title: 'Demo', googleEventId: 'g2' });
+    mocks.db.store.set('users/u1/events/e3', { title: 'Altro', googleEventId: 'g9' });
+    mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
+      items: [
+        { id: 'g1', summary: 'Call spostata', start: { dateTime: '2026-10-12T15:00:00+02:00' }, end: { dateTime: '2026-10-12T16:00:00+02:00' } },
+        { id: 'g2', status: 'cancelled' },
+        { id: 'g-sconosciuto', summary: 'Non è in Unfract', start: { dateTime: '2026-10-12T10:00:00+02:00' }, end: { dateTime: '2026-10-12T11:00:00+02:00' } },
+      ],
+    })));
+    const collection = vi.spyOn(mocks.db, 'collection');
+    const { POST } = await import('@/app/api/calendar/webhooks/google/route');
+    await POST(new Request('http://localhost/api/calendar/webhooks/google', {
+      method: 'POST',
+      headers: { 'x-goog-channel-id': 'ch1', 'x-goog-channel-token': 's3cret', 'x-goog-resource-state': 'exists' },
+    }));
+
+    expect(collection.mock.calls.filter(([name]) => name === 'users/u1/events')).toHaveLength(1);
+    expect(mocks.db.store.get('users/u1/events/e1').title).toBe('Call spostata');
+    expect(mocks.db.store.has('users/u1/events/e2')).toBe(false);
+    expect(mocks.db.store.get('users/u1/events/e3')).toEqual({ title: 'Altro', googleEventId: 'g9' });
+    collection.mockRestore();
+  });
+
   it('Microsoft: gli orari UTC di Graph diventano ora di Roma', async () => {
     mocks.fetch.mockResolvedValue(new Response(JSON.stringify({
       subject: 'Call', start: { dateTime: '2026-11-02T13:00:00.0000000' }, end: { dateTime: '2026-11-02T14:15:00.0000000' },
