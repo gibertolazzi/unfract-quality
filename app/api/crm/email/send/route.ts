@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 /**
  * Invio email del CRM.
@@ -83,7 +84,7 @@ function prune() {
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 
-export async function POST(request: any) {
+export async function POST(request: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const resendKey = process.env.RESEND_API_KEY;
   const firebaseApiKey = process.env.FIREBASE_WEB_API_KEY;
@@ -117,14 +118,12 @@ export async function POST(request: any) {
     );
   }
 
-  let payload: any;
-  try {
-    payload = await request.json();
-  } catch {
+  const payload = await readJsonObject(request);
+  if (!payload) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const { to, subject, text, html, replyTo, idempotencyKey } = payload || {};
+  const { to, subject, text, html, replyTo, idempotencyKey } = payload;
 
   if (!to || !EMAIL_PATTERN.test(String(to))) {
     return NextResponse.json({ error: 'Destinatario non valido.' }, { status: 400 });

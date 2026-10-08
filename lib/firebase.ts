@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, initializeFirestore } from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
@@ -22,10 +22,10 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 // Initialize Firestore and Auth
-// Configure Firestore to use long polling to prevent AbortError during Next.js Hot Reloads
-const db = !getApps().length
-  ? initializeFirestore(app, { experimentalAutoDetectLongPolling: true } as any)
-  : getFirestore(app);
+// Il long polling automatico è già il comportamento predefinito dell'SDK.
+// Il vecchio ramo con initializeFirestore non partiva mai: getApps() non è
+// più vuoto dopo initializeApp (segnalazione Q06).
+const db = getFirestore(app);
 const auth = getAuth(app);
 const storage = getStorage(app);
 

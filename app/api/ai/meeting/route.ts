@@ -4,6 +4,7 @@ import { tooManyRequests } from '@/lib/server/rateLimit';
 import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 import { GeminiNotConfiguredError } from '@/lib/server/gemini';
 import { analyzeMeeting, downloadMeetingAudio, meetingAudioPath } from '@/lib/server/meetingAi';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -26,16 +27,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Troppe richieste. Riprova fra un minuto.' }, { status: 429 });
   }
 
-  let body: any;
-  try {
-    body = await request.json();
-  } catch {
+  const body = await readJsonObject(request);
+  if (!body) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const projectId = typeof body?.projectId === 'string' ? body.projectId : '';
-  const audioUrl = typeof body?.audioUrl === 'string' ? body.audioUrl : '';
-  const transcript = typeof body?.transcript === 'string' ? body.transcript.slice(0, MAX_TRANSCRIPT) : '';
+  const projectId = typeof body.projectId === 'string' ? body.projectId : '';
+  const audioUrl = typeof body.audioUrl === 'string' ? body.audioUrl : '';
+  const transcript = typeof body.transcript === 'string' ? body.transcript.slice(0, MAX_TRANSCRIPT) : '';
 
   const project = await aiProjectWorkspace(uid, projectId);
   if (!project.allowed) {

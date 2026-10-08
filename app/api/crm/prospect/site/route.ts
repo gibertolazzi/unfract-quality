@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { websiteReader } from '@/lib/crm/prospect/providers/website';
 import { guardRequest } from '@/lib/crm/prospect/serverAuth';
 import { normalizeDomain } from '@/lib/crm/prospect/base';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 /**
  * Lettura del sito di un'azienda.
@@ -26,14 +27,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: guardia.error }, { status: guardia.status });
   }
 
-  let payload: any;
-  try {
-    payload = await request.json();
-  } catch {
+  const payload = await readJsonObject(request);
+  if (!payload) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const dominio = normalizeDomain(String(payload?.domain || ''));
+  const dominio = normalizeDomain(String(payload.domain || ''));
   if (!dominio || !dominio.includes('.')) {
     return NextResponse.json(
       { error: 'Serve un dominio, per esempio «illy.com».', code: 'INVALID_INPUT' },

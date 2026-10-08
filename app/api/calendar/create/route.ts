@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     // 1. Google Calendar Sync
     const googleToken = await getValidAccessToken(userId, 'google');
     if (googleToken) {
-      const googlePayload: any = {
+      const googlePayload: Record<string, unknown> = {
         summary: event.title,
         description: event.description,
         start: { dateTime: startDateISO },
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
     // 2. Microsoft Calendar Sync
     const microsoftToken = await getValidAccessToken(userId, 'microsoft');
     if (microsoftToken) {
-      const microsoftPayload: any = {
+      const microsoftPayload: Record<string, unknown> = {
         subject: event.title,
         body: { contentType: 'HTML', content: event.description || '' },
         start: { dateTime: startDateISO, timeZone: 'UTC' },
@@ -136,7 +136,7 @@ export async function POST(req: Request) {
       microsoftEventId 
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('Calendar Create API Error:', error);
     return NextResponse.json({ error: 'Sincronizzazione dell’evento non riuscita.' }, { status: 500 });
   }

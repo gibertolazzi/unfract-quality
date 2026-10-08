@@ -4,6 +4,9 @@ import { adminAuth, adminDb } from '@/lib/firebase-admin';
 
 const EMAIL_TYPES = new Set(['assignment', 'requester', 'changes', 'mention', 'message']);
 
+/** Una menzione salvata su messaggi, task e commenti. */
+type Mention = { type?: string; id?: string };
+
 export async function POST(request: Request) {
   const authorization = request.headers.get('authorization') || '';
   const token = authorization.startsWith('Bearer ') ? authorization.slice(7) : '';
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
       if (message.chatId !== chatId || message.senderId !== identity.uid || !members.includes(identity.uid) || !members.includes(recipientId)) {
         return NextResponse.json({ error: 'Notifica chat non autorizzata' }, { status: 403 });
       }
-      if (type === 'mention' && !(message.mentions || []).some((mention: any) => mention.type === 'user' && mention.id === recipientId)) {
+      if (type === 'mention' && !(message.mentions || []).some((mention: Mention) => mention.type === 'user' && mention.id === recipientId)) {
         return NextResponse.json({ error: 'Destinatario non menzionato nel messaggio' }, { status: 403 });
       }
       actionUrl = `/chat`;
@@ -69,9 +72,9 @@ export async function POST(request: Request) {
       }
       if (type === 'mention') {
         const taskMentions = Array.isArray(task.mentions) ? task.mentions : [];
-        const commentMentions = (Array.isArray(task.comments) ? task.comments : []).flatMap((comment: any) => comment.mentions || []);
+        const commentMentions = (Array.isArray(task.comments) ? task.comments : []).flatMap((comment: { mentions?: Mention[] }) => comment.mentions || []);
         const mentions = [...taskMentions, ...commentMentions];
-        if (!mentions.some((mention: any) => mention.type === 'user' && mention.id === recipientId)) {
+        if (!mentions.some((mention: Mention) => mention.type === 'user' && mention.id === recipientId)) {
           return NextResponse.json({ error: 'Destinatario non menzionato nella task' }, { status: 403 });
         }
       }

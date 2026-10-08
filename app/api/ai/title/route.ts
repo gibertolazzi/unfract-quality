@@ -3,6 +3,7 @@ import { requireUser } from '@/lib/server/auth';
 import { tooManyRequests } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
 import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 export const runtime = 'nodejs';
 
@@ -25,19 +26,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Troppe richieste. Riprova fra un minuto.' }, { status: 429 });
   }
 
-  let body: any;
-  try {
-    body = await request.json();
-  } catch {
+  const body = await readJsonObject(request);
+  if (!body) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const kind = body?.kind;
-  const source = typeof body?.text === 'string' ? body.text.slice(0, MAX_SOURCE) : '';
+  const kind = body.kind;
+  const source = typeof body.text === 'string' ? body.text.slice(0, MAX_SOURCE) : '';
   if ((kind !== 'meeting' && kind !== 'chat') || !source.trim()) {
     return NextResponse.json({ error: 'Richiesta non valida.' }, { status: 400 });
   }
-  const project = await aiProjectWorkspace(auth.user.uid, body?.projectId);
+  const project = await aiProjectWorkspace(auth.user.uid, body.projectId);
   if (!project.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
   }
@@ -48,7 +47,7 @@ export async function POST(request: Request) {
   let systemInstruction: string | undefined;
   let prompt: string;
   if (kind === 'meeting') {
-    const english = body?.locale === 'en';
+    const english = body.locale === 'en';
     systemInstruction = english
       ? 'Extract the main topic from the summary and write a title of at most 5 words. Reply only with the title, without markdown or prefixes.'
       : "Estrai l'argomento principale dal riepilogo e scrivi un titolo di massimo 5 parole. Rispondi solo con il titolo, senza markdown o prefissi.";
