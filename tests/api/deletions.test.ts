@@ -22,7 +22,9 @@ const has = (path: string) => mocks.db.store.has(path);
 
 async function call(route: 'projects' | 'organizations', body: unknown, uid: string) {
   as(uid);
-  const { POST } = await import(`@/app/api/${route}/delete/route`);
+  const { POST } = route === 'projects'
+    ? await import('@/app/api/projects/delete/route')
+    : await import('@/app/api/organizations/delete/route');
   const response = await POST(jsonRequest(`http://localhost/api/${route}/delete`, body, AUTH));
   return { status: response.status, body: await response.json() };
 }
