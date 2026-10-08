@@ -19,7 +19,10 @@ beforeEach(async () => {
   await import('@/lib/firebase-admin');
 });
 vi.mock('@/lib/oauth', () => ({ getValidAccessToken: mocks.getValidAccessToken }));
-vi.mock('@/lib/server/rateLimit', () => ({ tooManyRequests: mocks.tooManyRequests }));
+vi.mock('@/lib/server/rateLimit', () => ({
+  tooManyRequests: mocks.tooManyRequests,
+  tooManyRequestsShared: async (...args: unknown[]) => mocks.tooManyRequests(...args),
+}));
 
 // Lunedì 12 ottobre 2026, ora legale: le 09:00 di Roma sono le 07:00 UTC.
 const DAY = '2026-10-12';

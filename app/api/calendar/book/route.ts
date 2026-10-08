@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { availableSlots, type BookingProvider } from '@/lib/server/bookingSlots';
-import { tooManyRequests } from '@/lib/server/rateLimit';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { dayInZone, userTimeZone } from '@/lib/server/timeZone';
 
 export const runtime = 'nodejs';
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   }
 
   // Ogni prenotazione manda un invito dal calendario dell'utente.
-  if (tooManyRequests(`calendar-book:${userId}`, 5, 10 * 60_000)) {
+  if (await tooManyRequestsShared(`calendar-book:${userId}`, 5, 10 * 60_000)) {
     return NextResponse.json({ error: 'Troppe prenotazioni in poco tempo. Riprova fra qualche minuto.' }, { status: 429 });
   }
 
