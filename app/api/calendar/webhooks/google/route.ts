@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { QueryDocumentSnapshot } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { getValidAccessToken } from '@/lib/oauth';
 import { resolveChannel } from '@/lib/server/calendarChannels';
@@ -48,37 +49,45 @@ export async function POST(req: Request) {
       // Gli orari "HH:mm" salvati sull'evento vanno nel fuso dell'utente: il server è in UTC.
       const timeZone = userTimeZone((await adminDb.collection('users').doc(userId).get()).data());
       
+      // Gli eventi di Unfract collegati, con una query ogni 30 id (il massimo
+      // di `in`) invece di una per evento.
+      const googleIds = Array.from(new Set<string>(updatedEvents.map((event: { id?: string }) => event.id).filter(Boolean)));
+      const linked = new Map<string, QueryDocumentSnapshot>();
+      for (let i = 0; i < googleIds.length; i += 30) {
+        const snapshot = await adminDb.collection(`users/${userId}/events`).where('googleEventId', 'in', googleIds.slice(i, i + 30)).get();
+        for (const doc of snapshot.docs) {
+          const googleEventId = doc.get('googleEventId');
+          if (!linked.has(googleEventId)) linked.set(googleEventId, doc);
+        }
+      }
+
       const batch = adminDb.batch();
-      
+
       for (const googleEvent of updatedEvents) {
-        // Find if we have this event in Unfract
-        const unfractEventsQuery = await adminDb.collection(`users/${userId}/events`).where('googleEventId', '==', googleEvent.id).get();
-        
-        if (!unfractEventsQuery.empty) {
-          const doc = unfractEventsQuery.docs[0];
-          
-          if (googleEvent.status === 'cancelled') {
-            batch.delete(doc.ref);
-          } else {
-            // Update time and title
-            const newStart = googleEvent.start?.dateTime || googleEvent.start?.date;
-            const newEnd = googleEvent.end?.dateTime || googleEvent.end?.date;
-            
-            if (newStart && newEnd) {
-              const startDateObj = eventInstant(newStart, timeZone);
-              const endDateObj = eventInstant(newEnd, timeZone);
-              
-              batch.update(doc.ref, {
-                title: googleEvent.summary || doc.data().title,
-                date: startDateObj.toISOString(),
-                startTime: timeInZone(startDateObj, timeZone),
-                endTime: timeInZone(endDateObj, timeZone),
-              });
-            }
+        const doc = linked.get(googleEvent.id);
+        if (!doc) continue;
+
+        if (googleEvent.status === 'cancelled') {
+          batch.delete(doc.ref);
+        } else {
+          // Update time and title
+          const newStart = googleEvent.start?.dateTime || googleEvent.start?.date;
+          const newEnd = googleEvent.end?.dateTime || googleEvent.end?.date;
+
+          if (newStart && newEnd) {
+            const startDateObj = eventInstant(newStart, timeZone);
+            const endDateObj = eventInstant(newEnd, timeZone);
+
+            batch.update(doc.ref, {
+              title: googleEvent.summary || doc.data().title,
+              date: startDateObj.toISOString(),
+              startTime: timeInZone(startDateObj, timeZone),
+              endTime: timeInZone(endDateObj, timeZone),
+            });
           }
         }
       }
-      
+
       await batch.commit();
       console.log(`Synced ${updatedEvents.length} events from Google for user ${userId}`);
     }

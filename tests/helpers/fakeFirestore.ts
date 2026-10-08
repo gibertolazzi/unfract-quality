@@ -41,25 +41,33 @@ export function createFakeDb() {
       const docs = Array.from(store.keys()).filter(path => inCollection(name, path)).map(path => ({ ...snapshot(path), ref: docRef(path) }));
       return { empty: docs.length === 0, docs };
     },
-    where: (field: string, op: string, value: unknown) => ({
-      get: async () => {
+    where: (field: string, op: string, value: unknown) => {
+      const run = async (limit = Infinity) => {
         const matches = (data: Record<string, any>) => op === 'array-contains'
           ? Array.isArray(data[field]) && data[field].includes(value)
-          : data[field] === value;
+          : op === 'in'
+            ? (value as unknown[]).includes(data[field])
+            : data[field] === value;
         const docs = Array.from(store.entries())
           .filter(([path, data]) => path.startsWith(`${name}/`) && path.split('/').length === name.split('/').length + 1 && matches(data))
+          .slice(0, limit)
           .map(([path]) => ({ ...snapshot(path), ref: docRef(path) }));
         return { empty: docs.length === 0, docs };
-      },
-    }),
+      };
+      return { get: () => run(), limit: (n: number) => ({ get: () => run(n) }) };
+    },
   });
+
+  const getAll = async (...refs: any[]) => Promise.all(refs.map(ref => ref.get().then((snap: any) => ({ ...snap, ref }))));
 
   return {
     store,
     doc: docRef,
     collection,
+    getAll,
     runTransaction: async <T>(fn: (tx: any) => Promise<T>) => fn({
       get: (ref: any) => ref.get(),
+      getAll,
       set: (ref: any, data: any, options?: any) => ref.set(data, options),
       update: (ref: any, data: any) => ref.update(data),
       delete: (ref: any) => ref.delete(),
