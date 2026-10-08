@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { Part } from '@google/generative-ai';
 import { z } from 'zod';
 import { requireUser } from '@/lib/server/auth';
-import { tooManyRequests } from '@/lib/server/rateLimit';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
 import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 import { readJsonObject } from '@/lib/server/requestBody';
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const auth = await requireUser(request);
   if (!auth.ok) return auth.response;
 
-  if (tooManyRequests(`ai-chat:${auth.user.uid}`, 20)) {
+  if (await tooManyRequestsShared(`ai-chat:${auth.user.uid}`, 20)) {
     return NextResponse.json({ error: 'Troppe richieste. Riprova fra un minuto.' }, { status: 429 });
   }
 

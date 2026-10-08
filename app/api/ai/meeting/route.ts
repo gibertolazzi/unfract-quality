@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
-import { tooManyRequests } from '@/lib/server/rateLimit';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
 import { GeminiNotConfiguredError } from '@/lib/server/gemini';
 import { analyzeMeeting, downloadMeetingAudio, meetingAudioPath } from '@/lib/server/meetingAi';
@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { uid } = auth.user;
 
-  if (tooManyRequests(`ai-meeting:${uid}`, 5)) {
+  if (await tooManyRequestsShared(`ai-meeting:${uid}`, 5)) {
     return NextResponse.json({ error: 'Troppe richieste. Riprova fra un minuto.' }, { status: 429 });
   }
 

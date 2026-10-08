@@ -12,6 +12,7 @@ type QueueItem = QueuedNotification & {
   recipientId: string;
   type: EmailType;
   createdAt: number;
+  attempts: number;
 };
 
 function preferenceEnabled(type: EmailType, settings: Record<string, any>): boolean {
@@ -28,19 +29,39 @@ function intervalMs(frequency: string): number {
   return frequency === '5min' ? 5 * 60_000 : 3 * 60_000;
 }
 
-async function claim(docId: string, now: number): Promise<boolean> {
-  const ref = adminDb.collection('notifications_queue').doc(docId);
+/** Notifiche lette per giro: il cron gira ogni minuto, il resto passa al giro dopo. */
+const QUEUE_BATCH = 300;
+/** Dopo tanti invii falliti la notifica si abbandona, invece di riprovare per sempre. */
+const MAX_ATTEMPTS = 5;
+
+const queueRef = (docId: string) => adminDb.collection('notifications_queue').doc(docId);
+
+/** Prende in carico le notifiche di un destinatario in una sola transazione. */
+async function claim(docIds: string[], now: number): Promise<Set<string>> {
   return adminDb.runTransaction(async transaction => {
-    const snapshot = await transaction.get(ref);
-    if (!snapshot.exists || snapshot.get('processed') === true) return false;
-    const leaseUntil = snapshot.get('processingUntil') as Timestamp | undefined;
-    if (leaseUntil && leaseUntil.toMillis() > now) return false;
-    transaction.update(ref, {
-      processingUntil: Timestamp.fromMillis(now + 5 * 60_000),
-      attempts: FieldValue.increment(1),
-    });
-    return true;
+    const snapshots = await transaction.getAll(...docIds.map(queueRef));
+    const claimed = new Set<string>();
+    for (const snapshot of snapshots) {
+      if (!snapshot.exists || snapshot.get('processed') === true) continue;
+      const leaseUntil = snapshot.get('processingUntil') as Timestamp | undefined;
+      if (leaseUntil && leaseUntil.toMillis() > now) continue;
+      transaction.update(snapshot.ref, {
+        processingUntil: Timestamp.fromMillis(now + 5 * 60_000),
+        attempts: FieldValue.increment(1),
+      });
+      claimed.add(snapshot.id);
+    }
+    return claimed;
   });
+}
+
+/** Stessa modifica su più notifiche, a blocchi di 500 (il massimo di un batch). */
+async function updateAll(docIds: string[], data: Record<string, unknown>) {
+  for (let i = 0; i < docIds.length; i += 500) {
+    const batch = adminDb.batch();
+    for (const docId of docIds.slice(i, i + 500)) batch.update(queueRef(docId), data);
+    await batch.commit();
+  }
 }
 
 function titleFor(item: QueueItem): string {
@@ -79,7 +100,7 @@ export async function GET(request: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY);
 
   try {
-    const snapshot = await adminDb.collection('notifications_queue').where('processed', '==', false).get();
+    const snapshot = await adminDb.collection('notifications_queue').where('processed', '==', false).limit(QUEUE_BATCH).get();
     if (snapshot.empty) return NextResponse.json({ message: 'Nessuna notifica in coda', processedCount: 0 });
 
     const grouped = new Map<string, QueueItem[]>();
@@ -98,6 +119,7 @@ export async function GET(request: Request) {
         messageHtml: data.messageHtml || '',
         actionUrl: data.actionUrl || '/',
         createdAt: data.createdAt?.toMillis?.() || Date.now(),
+        attempts: Number(data.attempts) || 0,
       };
       grouped.set(item.recipientId, [...(grouped.get(item.recipientId) || []), item]);
     }
@@ -106,47 +128,35 @@ export async function GET(request: Request) {
     let processedCount = 0;
     const errors: string[] = [];
 
+    // I destinatari in una sola lettura, invece di una per destinatario.
     const recipientEntries = Array.from(grouped.entries());
+    const userSnapshots = await adminDb.getAll(...recipientEntries.map(([recipientId]) => adminDb.collection('users').doc(recipientId)));
+    const done = { processed: true, processedAt: FieldValue.serverTimestamp(), processingUntil: FieldValue.delete() };
+
     for (let recipientIndex = 0; recipientIndex < recipientEntries.length; recipientIndex += 1) {
-      const recipientId = recipientEntries[recipientIndex][0];
       const items = recipientEntries[recipientIndex][1];
-      const userSnapshot = await adminDb.collection('users').doc(recipientId).get();
+      const userSnapshot = userSnapshots[recipientIndex];
       const userData = userSnapshot.data();
       const settings = userData?.settings || {};
-      const enabled: QueueItem[] = [];
 
-      for (const item of items) {
-        if (preferenceEnabled(item.type, settings)) {
-          enabled.push(item);
-        } else {
-          await adminDb.collection('notifications_queue').doc(item.docId).update({
-            processed: true,
-            processedAt: FieldValue.serverTimestamp(),
-            processingUntil: FieldValue.delete(),
-          });
-          processedCount += 1;
-        }
-      }
+      const skipped = items.filter(item => !preferenceEnabled(item.type, settings));
+      const exhausted = items.filter(item => preferenceEnabled(item.type, settings) && item.attempts >= MAX_ATTEMPTS);
+      const enabled = items.filter(item => preferenceEnabled(item.type, settings) && item.attempts < MAX_ATTEMPTS);
+      await updateAll(skipped.map(item => item.docId), done);
+      await updateAll(exhausted.map(item => item.docId), { ...done, lastError: `Abandoned after ${MAX_ATTEMPTS} attempts` });
+      processedCount += skipped.length + exhausted.length;
 
       if (!userData?.email) {
-        for (const item of enabled) {
-          await adminDb.collection('notifications_queue').doc(item.docId).update({
-            processed: true,
-            processedAt: FieldValue.serverTimestamp(),
-            processingUntil: FieldValue.delete(),
-            lastError: 'Recipient email is missing',
-          });
-          processedCount += 1;
-        }
+        await updateAll(enabled.map(item => item.docId), { ...done, lastError: 'Recipient email is missing' });
+        processedCount += enabled.length;
         continue;
       }
 
       const waitMs = intervalMs(settings.groupFrequency || '3min');
       const due = enabled.filter(item => Date.now() - item.createdAt >= waitMs);
-      const claimed: QueueItem[] = [];
-      for (const item of due) {
-        if (await claim(item.docId, Date.now())) claimed.push(item);
-      }
+      if (!due.length) continue;
+      const claimedIds = await claim(due.map(item => item.docId), Date.now());
+      const claimed = due.filter(item => claimedIds.has(item.docId));
       if (!claimed.length) continue;
 
       try {
@@ -175,27 +185,18 @@ export async function GET(request: Request) {
             });
 
         if (result.error) throw new Error(result.error.message);
-        for (const item of claimed) {
-          await adminDb.collection('notifications_queue').doc(item.docId).update({
-            processed: true,
-            processedAt: FieldValue.serverTimestamp(),
-            processingUntil: FieldValue.delete(),
-            resendId: result.data?.id || null,
-          });
-          processedCount += 1;
-        }
+        await updateAll(claimed.map(item => item.docId), { ...done, resendId: result.data?.id || null });
+        processedCount += claimed.length;
         sentCount += 1;
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         // L'utente per ID, non per indirizzo email: i log non devono contenere dati personali.
         errors.push(`${userSnapshot.id}: ${message}`);
         console.error(`Errore invio email all'utente ${userSnapshot.id}:`, message);
-        for (const item of claimed) {
-          await adminDb.collection('notifications_queue').doc(item.docId).update({
-            processingUntil: FieldValue.delete(),
-            lastError: message.slice(0, 1000),
-          });
-        }
+        await updateAll(claimed.map(item => item.docId), {
+          processingUntil: FieldValue.delete(),
+          lastError: message.slice(0, 1000),
+        });
       }
     }
 

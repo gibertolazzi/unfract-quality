@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import { adminDb } from '@/lib/firebase-admin';
 import { getOrgInviteEmailHtml } from '@/lib/emailTemplates';
 import { requireUser } from '@/lib/server/auth';
-import { tooManyRequests } from '@/lib/server/rateLimit';
+import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { createOrgInvite, INVITE_TTL_MS, isOrgMember } from '@/lib/server/orgInvites';
 
 export const runtime = 'nodejs';
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (!auth.ok) return auth.response;
   const { user } = auth;
 
-  if (tooManyRequests(`invite:${user.uid}`, 20)) {
+  if (await tooManyRequestsShared(`invite:${user.uid}`, 20)) {
     return NextResponse.json({ error: 'Troppi inviti in poco tempo. Riprova fra un minuto.' }, { status: 429 });
   }
 
