@@ -49,3 +49,6 @@ firestore-debug.log
 storage-debug.log
 firebase-debug.log
 ui-debug.log
+
+# impostazioni locali di Claude Code (anteprima, permessi): non vanno nel repository
+.claude/
