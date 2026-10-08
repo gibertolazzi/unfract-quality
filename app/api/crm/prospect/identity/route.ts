@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { viesProvider } from '@/lib/crm/prospect/providers/vies';
 import { partitaIvaValida } from '@/lib/crm/prospect/recognize';
 import { guardRequest } from '@/lib/crm/prospect/serverAuth';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 /**
  * Verifica di una partita IVA presso VIES.
@@ -29,14 +30,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: guardia.error }, { status: guardia.status });
   }
 
-  let payload: any;
-  try {
-    payload = await request.json();
-  } catch {
+  const payload = await readJsonObject(request);
+  if (!payload) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const vatNumber = String(payload?.vatNumber || '').trim();
+  const vatNumber = String(payload.vatNumber || '').trim();
   if (!vatNumber) {
     return NextResponse.json({ error: 'Partita IVA mancante.' }, { status: 400 });
   }

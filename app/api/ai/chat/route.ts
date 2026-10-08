@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
+import type { Part } from '@google/generative-ai';
+import { z } from 'zod';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { geminiClient, GeminiNotConfiguredError, withRetry } from '@/lib/server/gemini';
 import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 export const runtime = 'nodejs';
 
@@ -12,6 +15,17 @@ const MAX_HISTORY = 50;
 const MAX_ATTACHMENTS = 5;
 // Gemini accetta allegati inline fino a circa 20 MB in tutto.
 const MAX_ATTACHMENT_BASE64 = 20 * 1024 * 1024 * 4 / 3;
+
+const HistoryMessage = z.object({ role: z.enum(['user', 'model']), content: z.string() });
+const Attachment = z.object({ data: z.string(), mimeType: z.string() });
+
+/** Le voci di una lista che rispettano lo schema; il resto si scarta. */
+function validItems<T>(value: unknown, schema: z.ZodType<T>): T[] {
+  return (Array.isArray(value) ? value : []).flatMap(item => {
+    const parsed = schema.safeParse(item);
+    return parsed.success ? [parsed.data] : [];
+  });
+}
 
 /**
  * Risposta della chat dell'AI Hub.
@@ -29,24 +43,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Troppe richieste. Riprova fra un minuto.' }, { status: 429 });
   }
 
-  let body: any;
-  try {
-    body = await request.json();
-  } catch {
+  const body = await readJsonObject(request);
+  if (!body) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const text = typeof body?.text === 'string' ? body.text.slice(0, MAX_TEXT) : '';
-  const projectContext = typeof body?.projectContext === 'string' ? body.projectContext.slice(0, MAX_CONTEXT) : '';
-  const history = (Array.isArray(body?.history) ? body.history : [])
-    .slice(-MAX_HISTORY)
-    .filter((m: any) => (m?.role === 'user' || m?.role === 'model') && typeof m?.content === 'string')
-    .map((m: any) => ({ role: m.role, parts: [{ text: m.content.slice(0, MAX_TEXT) }] }));
-  const attachments = (Array.isArray(body?.attachments) ? body.attachments : [])
-    .filter((a: any) => typeof a?.data === 'string' && typeof a?.mimeType === 'string')
-    .slice(0, MAX_ATTACHMENTS);
+  const text = typeof body.text === 'string' ? body.text.slice(0, MAX_TEXT) : '';
+  const projectContext = typeof body.projectContext === 'string' ? body.projectContext.slice(0, MAX_CONTEXT) : '';
+  // Le voci malformate si scartano una per una, senza respingere la richiesta.
+  const history = validItems(Array.isArray(body.history) ? body.history.slice(-MAX_HISTORY) : [], HistoryMessage)
+    .map(m => ({ role: m.role, parts: [{ text: m.content.slice(0, MAX_TEXT) }] }));
+  const attachments = validItems(body.attachments, Attachment).slice(0, MAX_ATTACHMENTS);
 
-  const attachmentSize = attachments.reduce((total: number, a: any) => total + a.data.length, 0);
+  const attachmentSize = attachments.reduce((total, a) => total + a.data.length, 0);
   if (attachmentSize > MAX_ATTACHMENT_BASE64) {
     return NextResponse.json({ error: 'Allegati troppo grandi.' }, { status: 413 });
   }
@@ -54,7 +63,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Messaggio vuoto.' }, { status: 400 });
   }
   // Il credito si conta sul workspace del progetto.
-  const project = await aiProjectWorkspace(auth.user.uid, body?.projectId);
+  const project = await aiProjectWorkspace(auth.user.uid, body.projectId);
   if (!project.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
   }
@@ -67,7 +76,7 @@ export async function POST(request: Request) {
   try {
     const model = geminiClient().getGenerativeModel({ model: 'gemini-3.8-flash', systemInstruction });
     const chat = model.startChat({ history, generationConfig: { maxOutputTokens: 8192 } });
-    const parts: any[] = [{ text }];
+    const parts: Part[] = [{ text }];
     for (const a of attachments) parts.push({ inlineData: { data: a.data, mimeType: a.mimeType } });
 
     const result = await withRetry(() => chat.sendMessage(parts));

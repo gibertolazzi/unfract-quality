@@ -15,7 +15,7 @@ type QueueItem = QueuedNotification & {
   attempts: number;
 };
 
-function preferenceEnabled(type: EmailType, settings: Record<string, any>): boolean {
+function preferenceEnabled(type: EmailType, settings: Record<string, unknown>): boolean {
   switch (type) {
     case 'assignment': return settings.emailAssignee !== false;
     case 'requester': return settings.emailRequester === true;

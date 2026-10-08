@@ -50,7 +50,7 @@ export async function GET(request: Request) {
 
     const tokens = await tokenResponse.json();
     
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       accessToken: tokens.access_token,
       expiresAt: Date.now() + (tokens.expires_in * 1000),
       updatedAt: new Date().toISOString()
@@ -103,7 +103,7 @@ export async function GET(request: Request) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?sync=success`);
 
 
-  } catch (err: any) {
+  } catch (err) {
     console.error('Microsoft OAuth callback error:', err);
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=oauth_failed`);
   }

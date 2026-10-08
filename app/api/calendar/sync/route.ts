@@ -4,6 +4,27 @@ import { getValidAccessToken } from '@/lib/oauth';
 import { requireUser } from '@/lib/server/auth';
 import { eventInstant, graphInstant, timeInZone, userTimeZone } from '@/lib/server/timeZone';
 
+/** I campi usati degli eventi di Google Calendar e di Microsoft Graph. */
+interface EventTime { dateTime?: string; date?: string }
+interface GoogleEvent {
+  id: string;
+  summary?: string;
+  description?: string;
+  hangoutLink?: string;
+  start?: EventTime;
+  end?: EventTime;
+}
+interface GraphEvent {
+  id: string;
+  subject?: string;
+  bodyPreview?: string;
+  isAllDay?: boolean;
+  start?: EventTime;
+  end?: EventTime;
+  onlineMeeting?: { joinUrl?: string } | null;
+}
+type SyncedEvent = Record<string, string | boolean | null>;
+
 export async function GET(req: Request) {
   // L'utente viene dal token: prima bastava un `userId` nella query per leggere il calendario di chiunque.
   const auth = await requireUser(req);
@@ -19,7 +40,7 @@ export async function GET(req: Request) {
   }
 
   try {
-    const events: any[] = [];
+    const events: SyncedEvent[] = [];
     // Il browser ricalcola data e orari dagli istanti ISO; il fuso serve qui per
     // gli eventi di tutto il giorno, che valgono dalla mezzanotte dell'utente.
     const timeZone = userTimeZone((await adminDb.collection('users').doc(userId).get()).data());
@@ -40,9 +61,9 @@ export async function GET(req: Request) {
       if (gRes.ok) {
         const gData = await gRes.json();
         const gItems = gData.items || [];
-        gItems.forEach((e: any) => {
-          const start = eventInstant(e.start?.dateTime || e.start?.date, timeZone);
-          const end = eventInstant(e.end?.dateTime || e.end?.date, timeZone);
+        gItems.forEach((e: GoogleEvent) => {
+          const start = eventInstant(e.start?.dateTime || e.start?.date || '', timeZone);
+          const end = eventInstant(e.end?.dateTime || e.end?.date || '', timeZone);
           events.push({
             id: `google-${e.id}`,
             googleEventId: e.id,
@@ -76,7 +97,7 @@ export async function GET(req: Request) {
       if (mRes.ok) {
         const mData = await mRes.json();
         const mItems = mData.value || [];
-        mItems.forEach((e: any) => {
+        mItems.forEach((e: GraphEvent) => {
           const start = graphInstant(String(e.start?.dateTime), !!e.isAllDay, timeZone);
           const end = graphInstant(String(e.end?.dateTime), !!e.isAllDay, timeZone);
           events.push({
@@ -99,7 +120,7 @@ export async function GET(req: Request) {
     }
 
     return NextResponse.json({ events });
-  } catch (err: any) {
+  } catch (err) {
     console.error('Sync Error:', err);
     return NextResponse.json({ error: 'Sincronizzazione del calendario non riuscita.' }, { status: 500 });
   }

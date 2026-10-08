@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { guardRequest } from '@/lib/crm/prospect/serverAuth';
 import { AI_CREDITS_EXHAUSTED, aiProjectWorkspace, countAiCall } from '@/lib/server/usage';
+import { readJsonObject } from '@/lib/server/requestBody';
 
 /**
  * Le due sezioni discorsive del report, scritte dal modello.
@@ -43,14 +44,12 @@ export async function POST(request: Request) {
     });
   }
 
-  let payload: any;
-  try {
-    payload = await request.json();
-  } catch {
+  const payload = await readJsonObject(request);
+  if (!payload) {
     return NextResponse.json({ error: 'Richiesta non leggibile.' }, { status: 400 });
   }
 
-  const prompt = String(payload?.prompt || '');
+  const prompt = String(payload.prompt || '');
   if (!prompt.trim()) {
     return NextResponse.json({ error: 'Prompt mancante.' }, { status: 400 });
   }
@@ -58,7 +57,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Prompt troppo lungo.', code: 'TOO_LONG' }, { status: 400 });
   }
   // Il credito AI si conta sul workspace del progetto del CRM.
-  const progetto = await aiProjectWorkspace(guardia.uid, payload?.projectId);
+  const progetto = await aiProjectWorkspace(guardia.uid, payload.projectId);
   if (!progetto.allowed) {
     return NextResponse.json({ error: 'Progetto non trovato.' }, { status: 404 });
   }
@@ -101,7 +100,7 @@ export async function POST(request: Request) {
     }
 
     const dati = await risposta.json();
-    const testo = dati?.candidates?.[0]?.content?.parts?.map((p: any) => p?.text || '').join('') || '';
+    const testo = dati?.candidates?.[0]?.content?.parts?.map((p: { text?: string } | null) => p?.text || '').join('') || '';
 
     if (!testo.trim()) {
       // Succede quando il modello si rifiuta: la risposta arriva vuota con un
