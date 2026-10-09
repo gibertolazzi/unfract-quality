@@ -2,15 +2,17 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { getStorage } from "firebase/storage";
+import { authDomainFor } from "./authDomain";
 
 // Your web app's Firebase configuration.
 // I valori arrivano solo dall'ambiente: next.config.mjs li controlla e ferma
 // la build se mancano (su App Hosting li ricava da FIREBASE_WEBAPP_CONFIG).
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: typeof window !== 'undefined' && window.location.hostname === 'app.unfract.com'
-    ? 'app.unfract.com'
-    : process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  authDomain: authDomainFor(
+    typeof window !== 'undefined' ? window.location.hostname : undefined,
+    process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  ),
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
