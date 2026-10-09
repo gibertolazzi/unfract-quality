@@ -3,17 +3,29 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useClock } from "@/contexts/ClockContext";
-import { collection, onSnapshot, query, where, doc, updateDoc } from "firebase/firestore";
+import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { fetchCalendarEvents } from "@/lib/googleCalendar";
-import { format, startOfDay, endOfDay } from "date-fns";
+import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import Link from "next/link";
 import { useProject } from "@/contexts/ProjectContext";
 import { CheckCircle2, Circle, CircleDot, ArrowRight, Video, ExternalLink } from "lucide-react";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { subscribeToEvents } from "@/lib/calendar";
+import { authedFetch } from "@/lib/authedFetch";
+
+interface DashboardEvent {
+  id: string;
+  title: string;
+  startTime: string;
+  endTime: string;
+  meetLink?: string;
+  date: Date;
+  googleEventId?: string;
+  microsoftEventId?: string;
+}
 
 export function DashboardView() {
-  const { user, accessToken } = useAuth();
+  const { user } = useAuth();
   const { activeProjectId } = useProject();
   const { t } = useTranslation();
   
@@ -24,8 +36,10 @@ export function DashboardView() {
 
   const [tasks, setTasks] = useState<any[]>([]);
   const [columns, setColumns] = useState<any[]>([]);
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<DashboardEvent[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [notes, setNotes] = useState("");
+  const notesSaveTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user || !activeProjectId) {
@@ -48,30 +62,113 @@ export function DashboardView() {
   }, [user, activeProjectId]);
 
   useEffect(() => {
-    const loadEvents = async () => {
-      if (accessToken) {
-        setIsSyncing(true);
-        try {
-          const now = new Date();
-          const start = startOfDay(now);
-          const end = endOfDay(now);
-          const rawEvents = await fetchCalendarEvents(accessToken, start, end);
-          const mapped = (rawEvents.items || []).map((ev: any) => ({
-            id: ev.id,
-            title: ev.summary || t.dashboard.untitled,
-            startTime: ev.start.dateTime ? format(new Date(ev.start.dateTime), "HH:mm") : t.dashboard.allDay,
-            endTime: ev.end.dateTime ? format(new Date(ev.end.dateTime), "HH:mm") : "",
-            meetLink: ev.hangoutLink
-          }));
-          setEvents(mapped);
-        } catch (error) {
-          console.error("Errore fetch eventi:", error);
+    if (!user) {
+      setEvents([]);
+      return;
+    }
+
+    const today = new Date();
+    const start = startOfDay(today);
+    const end = endOfDay(today);
+    let firestoreEvents: DashboardEvent[] = [];
+    let externalEvents: DashboardEvent[] = [];
+
+    const updateEvents = () => {
+      const knownGoogle = new Set(firestoreEvents.map(event => event.googleEventId).filter(Boolean));
+      const knownMicrosoft = new Set(firestoreEvents.map(event => event.microsoftEventId).filter(Boolean));
+      const merged = [
+        ...firestoreEvents,
+        ...externalEvents.filter(event =>
+          !(event.googleEventId && knownGoogle.has(event.googleEventId)) &&
+          !(event.microsoftEventId && knownMicrosoft.has(event.microsoftEventId))
+        ),
+      ]
+        .sort((a, b) => a.date.getTime() - b.date.getTime())
+        .slice(0, 6);
+      setEvents(merged);
+    };
+
+    const unsubscribe = subscribeToEvents(user.uid, (savedEvents) => {
+      firestoreEvents = savedEvents
+        .filter(event => isWithinInterval(event.date, { start, end }))
+        .map(event => ({
+          id: event.id,
+          title: event.title || t.dashboard.untitled,
+          startTime: event.startTime || t.dashboard.allDay,
+          endTime: event.endTime || "",
+          meetLink: event.meetLink,
+          date: event.date,
+          googleEventId: event.googleEventId,
+          microsoftEventId: event.microsoftEventId,
+        }));
+      updateEvents();
+    });
+
+    const loadExternalEvents = async () => {
+      setIsSyncing(true);
+      try {
+        const response = await authedFetch(
+          `/api/calendar/sync?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
+        );
+        if (!response.ok) {
+          throw new Error(`Calendar sync failed: ${response.status}`);
         }
+        const data = await response.json();
+        externalEvents = (data.events || []).map((event: any): DashboardEvent => {
+          const eventStart = new Date(event.startISO || event.date);
+          const eventEnd = new Date(event.endISO || event.date);
+          return {
+            id: event.id,
+            title: event.title || t.dashboard.untitled,
+            startTime: event.startTime || format(eventStart, "HH:mm"),
+            endTime: event.endTime || format(eventEnd, "HH:mm"),
+            meetLink: event.meetLink || undefined,
+            date: eventStart,
+            googleEventId: event.googleEventId,
+            microsoftEventId: event.microsoftEventId,
+          };
+        });
+        updateEvents();
+      } catch (error) {
+        console.error("Errore fetch eventi calendario:", error);
+        updateEvents();
+      } finally {
         setIsSyncing(false);
       }
     };
-    loadEvents();
-  }, [accessToken]);
+
+    loadExternalEvents();
+    return () => unsubscribe();
+  }, [user, t.dashboard.allDay, t.dashboard.untitled]);
+
+  useEffect(() => {
+    if (!user) {
+      setNotes("");
+      return;
+    }
+
+    getDoc(doc(db, "users", user.uid))
+      .then(snapshot => setNotes(snapshot.data()?.dashboardNotes || ""))
+      .catch(error => console.error("Unable to load dashboard notes:", error));
+  }, [user]);
+
+  const persistNotes = (value: string) => {
+    if (!user) return;
+    if (notesSaveTimeout.current) clearTimeout(notesSaveTimeout.current);
+    setDoc(doc(db, "users", user.uid), { dashboardNotes: value }, { merge: true })
+      .catch(error => console.error("Unable to save dashboard notes:", error));
+  };
+
+  const handleNotesChange = (value: string) => {
+    setNotes(value);
+    if (!user) return;
+    if (notesSaveTimeout.current) clearTimeout(notesSaveTimeout.current);
+    notesSaveTimeout.current = setTimeout(() => persistNotes(value), 500);
+  };
+
+  useEffect(() => () => {
+    if (notesSaveTimeout.current) clearTimeout(notesSaveTimeout.current);
+  }, []);
 
   const formatTime = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -309,7 +406,13 @@ export function DashboardView() {
             <h3 className="text-[16px] font-medium text-white/90 mb-4">{t.dashboard.notes}</h3>
             <div className="relative w-full flex-1 min-h-[180px]">
               <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "repeating-linear-gradient(transparent, transparent 31px, rgba(255,255,255,0.03) 31px, rgba(255,255,255,0.03) 32px)", backgroundPosition: "0 4px" }} />
-              <textarea className="w-full h-full bg-transparent resize-none outline-none text-white/70 text-[14px] leading-[32px] pt-1 custom-scrollbar" placeholder={t.dashboard.notesPlaceholder} />
+              <textarea
+                value={notes}
+                onChange={(event) => handleNotesChange(event.target.value)}
+                onBlur={() => persistNotes(notes)}
+                className="w-full h-full bg-transparent resize-none outline-none text-white/70 text-[14px] leading-[32px] pt-1 custom-scrollbar"
+                placeholder={t.dashboard.notesPlaceholder}
+              />
             </div>
           </div>
 
