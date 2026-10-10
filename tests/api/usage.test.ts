@@ -74,9 +74,18 @@ describe('spazio dei file', () => {
 
   it('file inesistente o percorso fuori dalle cartelle dell’app: niente conteggio', async () => {
     expect((await usage({ action: 'track', workspaceId: 'w1', path: 'chats/c1/nessuno.png' })).status).toBe(404);
-    for (const path of ['users/anna/x', 'chats/../users/x', '', 'chats/c1/a b']) {
+    for (const path of ['users/anna/x', 'chats/../users/x', '', 'chats/c1/a\nb', 'chats/c1/a\tb']) {
       expect((await usage({ action: 'track', workspaceId: 'w1', path })).status).toBe(400);
     }
+    expect(used()).toBe(500);
+  });
+
+  it('nomi di file con spazi: si contano e si tolgono come gli altri', async () => {
+    files['tasks/p1/1700_Foto del cantiere.png'] = 300;
+    expect((await usage({ action: 'track', workspaceId: 'w1', path: 'tasks/p1/1700_Foto del cantiere.png' })).body.bytes).toBe(300);
+    expect(used()).toBe(800);
+    delete files['tasks/p1/1700_Foto del cantiere.png'];
+    expect((await usage({ action: 'release', path: 'tasks/p1/1700_Foto del cantiere.png' })).body.bytes).toBe(300);
     expect(used()).toBe(500);
   });
 
