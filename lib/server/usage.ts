@@ -154,8 +154,12 @@ export async function countAiCall(workspaceId: string | null): Promise<void> {
 
 // ------------------------------------------------------------------ spazio dei file
 
-/** Cartelle in cui l'app carica file (le stesse delle regole di Storage). */
-const STORAGE_PATH = /^(organizations|meetings|documentation|tasks|chats|ai-hub|crm)\/[^\s]{1,900}$/;
+/**
+ * Cartelle in cui l'app carica file (le stesse delle regole di Storage). Gli
+ * spazi sono ammessi: allegati, documenti e AI Hub tengono il nome originale
+ * del file («Foto 1.png»). Esclusi solo i caratteri di controllo.
+ */
+const STORAGE_PATH = /^(organizations|meetings|documentation|tasks|chats|ai-hub|crm)\/[^\x00-\x1f\x7f]{1,900}$/;
 
 export function validStoragePath(path: string): boolean {
   return STORAGE_PATH.test(path) && !path.includes('..') && !path.includes('//');
