@@ -7,11 +7,8 @@
  * dati raccolti (`report/compose.ts`). Non è un ripiego mascherato da scelta:
  * la versione senza AI è la base, e l'AI riscrive due sezioni su sei.
  *
- * La chiave sta **solo sul server**. Il prodotto oggi ne ha una in
- * `NEXT_PUBLIC_GEMINI_API_KEY`, che finisce nel JavaScript del browser ed è
- * leggibile da chiunque apra gli strumenti di sviluppo — è la segnalazione 8 al
- * team. Riusarla qui vorrebbe dire spostare il problema, non risolverlo:
- * questa route legge `GEMINI_API_KEY`, e se non c'è dice che non c'è.
+ * La chiave sta **solo sul server**: questa route legge `GEMINI_API_KEY`, e se
+ * non c'è dice che non c'è.
  */
 
 export interface AiFailure {

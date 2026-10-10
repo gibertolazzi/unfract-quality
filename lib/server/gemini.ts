@@ -8,23 +8,13 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
  * copiare e usare a spese di Unfract (segnalazione S09). Ora le chiamate
  * passano dalle route `/api/ai/*` e la chiave non esce dal server.
  *
- * `GEMINI_API_KEY` è quella giusta. Il ripiego su `NEXT_PUBLIC_GEMINI_API_KEY`
- * tiene in piedi le funzioni AI finché la nuova chiave non è impostata sul
- * deploy: letta solo qui, non finisce più nel bundle del browser. Quando
- * `GEMINI_API_KEY` c'è, la vecchia chiave va revocata e il ripiego tolto.
+ * La chiave è `GEMINI_API_KEY`. Il ripiego sulla vecchia
+ * `NEXT_PUBLIC_GEMINI_API_KEY` è stato tolto: quella chiave è revocata dall'8
+ * ottobre e la nuova è sul deploy.
  */
 
-let warned = false;
-
 export function geminiApiKey(): string {
-  const key = process.env.GEMINI_API_KEY || '';
-  if (key) return key;
-  const legacy = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-  if (legacy && !warned) {
-    warned = true;
-    console.warn('GEMINI_API_KEY non impostata: uso la vecchia NEXT_PUBLIC_GEMINI_API_KEY. Va sostituita e revocata.');
-  }
-  return legacy;
+  return process.env.GEMINI_API_KEY || '';
 }
 
 export function geminiClient(): GoogleGenerativeAI {
