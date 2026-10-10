@@ -85,11 +85,16 @@ const nextConfig = {
     }
     return config;
   },
+  // Login con Google dallo stesso dominio del sito (vedi lib/authDomain.ts),
+  // verso il progetto Firebase di questo deploy: prima puntava sempre a
+  // unfract-prod, anche dall'ambiente di prova.
   async rewrites() {
+    const projectId = firebaseWeb.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    if (!projectId) return [];
     return [
       {
         source: '/__/auth/:path*',
-        destination: 'https://unfract-prod.firebaseapp.com/__/auth/:path*',
+        destination: `https://${projectId}.firebaseapp.com/__/auth/:path*`,
       },
     ];
   },
