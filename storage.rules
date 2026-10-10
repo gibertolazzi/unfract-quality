@@ -4,14 +4,24 @@ rules_version = '2';
 // queste regole.
 //
 // Prima chiunque avesse fatto il login poteva caricare qualsiasi file, di
-// qualsiasi dimensione, in qualsiasi percorso (segnalazione S03). Ora:
-// - si carica solo nei percorsi che l'app usa, con un limite di dimensione;
-// - i file del CRM li cancella solo chi li ha caricati;
-// - ogni altro percorso è chiuso.
+// qualsiasi dimensione, in qualsiasi percorso (segnalazione S03).
 //
-// Lettura e cancellazione degli altri percorsi restano a chi ha fatto il login:
-// separarle per organizzazione è il secondo passo, insieme a Firestore. I link
-// di download con token (getDownloadURL) non passano da queste regole.
+// Primo passo: si carica solo nei percorsi che l'app usa, con un limite di
+// dimensione; ogni altro percorso è chiuso.
+//
+// Secondo passo (questo): ogni azienda usa solo i propri file, con la stessa
+// catena delle regole di Firestore. Un file di un progetto lo usa chi può usare
+// il progetto: chi l'ha creato, o un membro dell'organizzazione del suo
+// workspace (`memberUids`). Un file di una chat lo usano i partecipanti.
+//
+// - Le regole di Storage leggono al massimo due documenti di Firestore per
+//   richiesta: progetto e organizzazione. Per questo il proprietario di un
+//   workspace personale passa come creatore del progetto (i progetti di un
+//   workspace personale li crea solo lui, vedi firestore.rules).
+// - Nessuno elenca i file: l'app non lo fa mai.
+// - I link di download con token (getDownloadURL) non passano da queste
+//   regole: chi ha il link scarica il file. L'app li crea subito dopo il
+//   caricamento e li salva nei documenti, che sono protetti da Firestore.
 
 service firebase.storage {
   match /b/{bucket}/o {
@@ -28,47 +38,76 @@ service firebase.storage {
       return request.resource.contentType.matches('image/.*');
     }
 
+    function inOrg(orgId) {
+      return request.auth.uid in firestore.get(/databases/(default)/documents/organizations/$(orgId)).data.get('memberUids', []);
+    }
+
+    // Stessa regola di `projectAllows` in firestore.rules, senza il documento
+    // del workspace (vedi sopra).
+    function inProject(projectId) {
+      let p = firestore.get(/databases/(default)/documents/projects/$(projectId)).data;
+      return signedIn() && (
+        p.get('userId', null) == request.auth.uid
+        || p.get('creatorId', null) == request.auth.uid
+        || inOrg(p.get('workspaceId', '')));
+    }
+
+    function inChat(chatId) {
+      return signedIn()
+        && request.auth.uid in firestore.get(/databases/(default)/documents/chats/$(chatId)).data.get('members', []);
+    }
+
     // Banner e logo delle organizzazioni.
     match /organizations/{orgId}/{fileName} {
-      allow read, delete: if signedIn();
-      allow create, update: if signedIn() && maxMB(20) && isImage();
+      allow get, delete: if signedIn() && inOrg(orgId);
+      allow create, update: if signedIn() && inOrg(orgId) && maxMB(20) && isImage();
     }
 
     // Registrazioni dei meeting. Il limite è largo per non perdere riunioni
     // lunghe; l'analisi AI ne scarica al massimo 200 MB.
     match /meetings/{projectId}/{fileName} {
-      allow read, delete: if signedIn();
-      allow create, update: if signedIn() && maxMB(500);
+      allow get, delete: if inProject(projectId);
+      allow create, update: if inProject(projectId) && maxMB(500);
     }
 
     // Allegati: documentazione, task, chat, AI Hub.
     match /documentation/{projectId}/{docId}/{fileName} {
-      allow read, delete: if signedIn();
-      allow create, update: if signedIn() && maxMB(200);
+      allow get, delete: if inProject(projectId);
+      allow create, update: if inProject(projectId) && maxMB(200);
     }
-    match /tasks/attachments/{fileName} {
-      allow read, delete: if signedIn();
-      allow create, update: if signedIn() && maxMB(200);
+    match /tasks/{projectId}/{fileName} {
+      allow get, delete: if inProject(projectId);
+      allow create, update: if inProject(projectId) && maxMB(200);
     }
     match /chats/{chatId}/{fileName} {
-      allow read, delete: if signedIn();
-      allow create, update: if signedIn() && maxMB(200);
+      allow get, delete: if inChat(chatId);
+      allow create, update: if inChat(chatId) && maxMB(200);
     }
     match /ai-hub/{projectId}/{fileName} {
-      allow read, delete: if signedIn();
-      allow create, update: if signedIn() && maxMB(200);
+      allow get, delete: if inProject(projectId);
+      allow create, update: if inProject(projectId) && maxMB(200);
+    }
+
+    // Allegati dei task caricati prima del secondo passo, senza il progetto
+    // nel percorso: non se ne caricano di nuovi. Senza elenco, per usarli
+    // bisogna conoscerne il nome esatto. `get` solo se il file non c'è più:
+    // serve al server per togliere un file cancellato dal conteggio dello
+    // spazio (lib/server/usage.ts).
+    match /tasks/attachments/{fileName} {
+      allow get: if signedIn() && resource == null;
+      allow delete: if signedIn();
     }
 
     // Documenti del CRM: chi carica si firma nei metadati (vedi
     // lib/crm/documentService.ts) e solo lui può cancellare o sostituire il
     // file. Per Storage, caricare sopra un file esistente è una `create`.
     match /crm/{projectId}/{year}/{fileName} {
-      allow read: if signedIn();
-      allow create: if signedIn() && maxMB(50)
+      allow get: if inProject(projectId);
+      allow create: if inProject(projectId) && maxMB(50)
         && (resource == null || resource.metadata.uid == request.auth.uid)
         && request.resource.metadata.uid == request.auth.uid
         && request.resource.metadata.projectId == projectId;
-      allow delete: if signedIn() && resource.metadata.uid == request.auth.uid;
+      allow delete: if inProject(projectId) && resource.metadata.uid == request.auth.uid;
     }
 
     // Ogni altro percorso è chiuso.

@@ -37,6 +37,12 @@ describe('conteggio retroattivo dello spazio', () => {
     ]);
   });
 
+  it('allegati dei task con il progetto nel percorso (dal 10 ottobre)', async () => {
+    const plan = await planStorageBackfill(db as any, [{ path: 'tasks/p2/1_b.pdf', bytes: 50 }, { path: 'tasks/sparito/1_c.pdf', bytes: 60 }]);
+    expect(plan.totals).toEqual({ w2: 50 });
+    expect(plan.unassigned.map(u => u.path)).toEqual(['tasks/sparito/1_c.pdf']);
+  });
+
   it('scrive i record mancanti e ricalcola i contatori dalla somma dei record', async () => {
     // Un file già contato dal server dopo la #14 resta com'è e conta nella somma.
     db.store.set(`storage_usage/${storageRecordId('ai-hub/p1/1_doc.pdf')}`, { path: 'ai-hub/p1/1_doc.pdf', workspaceId: 'w1', bytes: 200 });

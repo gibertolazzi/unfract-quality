@@ -155,7 +155,7 @@ export async function countAiCall(workspaceId: string | null): Promise<void> {
 // ------------------------------------------------------------------ spazio dei file
 
 /** Cartelle in cui l'app carica file (le stesse delle regole di Storage). */
-const STORAGE_PATH = /^(organizations|meetings|documentation|tasks\/attachments|chats|ai-hub|crm)\/[^\s]{1,900}$/;
+const STORAGE_PATH = /^(organizations|meetings|documentation|tasks|chats|ai-hub|crm)\/[^\s]{1,900}$/;
 
 export function validStoragePath(path: string): boolean {
   return STORAGE_PATH.test(path) && !path.includes('..') && !path.includes('//');
