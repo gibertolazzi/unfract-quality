@@ -41,27 +41,16 @@ export default function OrganizationDetailPage() {
               setActiveWorkspaceId(orgId);
             }
             
-            // Auto-heal: Ensure they have a workspace access grant
+            // Auto-heal: Ensure they have a workspace access grant.
+            // ID fisso (`<organizzazione>_<utente>`): si legge con una
+            // lettura sola e non si duplica.
             try {
-              const { collection, query, where, getDocs, setDoc, serverTimestamp } = await import('firebase/firestore');
-              const grantsRef = collection(db, 'access_grants');
-              const q = query(
-                grantsRef, 
-                where('subjectId', '==', user.uid), 
-                where('workspaceId', '==', orgId)
-              );
-              const snap = await getDocs(q);
-              if (snap.empty) {
-                const grantRef = doc(grantsRef);
-                await setDoc(grantRef, {
-                  workspaceId: orgId,
-                  subjectType: 'user',
-                  subjectId: user.uid,
-                  resourceType: 'workspace',
-                  resourceId: orgId,
-                  role: 'member',
-                  createdAt: serverTimestamp(),
-                });
+              const { setDoc } = await import('firebase/firestore');
+              const { workspaceGrant, workspaceGrantId } = await import('@/lib/orgWorkspace');
+              const grantRef = doc(db, 'access_grants', workspaceGrantId(orgId, user.uid));
+              const grant = await getDoc(grantRef);
+              if (!grant.exists()) {
+                await setDoc(grantRef, workspaceGrant(orgId, user.uid, 'member'));
               }
             } catch (e) {
               console.error("Auto-heal failed", e);

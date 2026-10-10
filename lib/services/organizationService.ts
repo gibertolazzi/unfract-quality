@@ -1,20 +1,17 @@
 import { db } from '@/lib/firebase';
-import { collection, doc, query, onSnapshot, updateDoc, arrayRemove } from 'firebase/firestore';
+import { collection, doc, query, where, onSnapshot, updateDoc, arrayRemove } from 'firebase/firestore';
 import { Organization } from '@/types/organization';
 
 export const OrganizationService = {
   subscribe(userUid: string, callback: (orgs: Organization[]) => void) {
-    const orgsRef = collection(db, 'organizations');
-    const q = query(orgsRef);
+    // Solo le organizzazioni di cui l'utente fa parte. Prima le scaricava
+    // tutte e filtrava qui: ogni utente riceveva i membri di ogni azienda.
+    const q = query(collection(db, 'organizations'), where('memberUids', 'array-contains', userUid));
 
     return onSnapshot(q, (snapshot) => {
       const fetchedOrgs: Organization[] = [];
       snapshot.forEach(doc => {
-        const data = doc.data() as any;
-        const isMember = data.members?.some((m: any) => m.uid === userUid);
-        if (isMember) {
-          fetchedOrgs.push({ id: doc.id, ...data } as Organization);
-        }
+        fetchedOrgs.push({ id: doc.id, ...doc.data() } as Organization);
       });
       callback(fetchedOrgs);
     }, (error) => {

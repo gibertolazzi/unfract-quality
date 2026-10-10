@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { OrgMember } from '@/types/organization';
 import { ProjectMemberAccess, CustomRole, AppModule, PermissionLevel } from '@/types/iam';
+import { subscribeUserProjectAccess } from '@/lib/services/iamService';
 import { useProject } from '@/contexts/ProjectContext';
 
 const MODULES: { id: AppModule; label: string }[] = [
@@ -37,14 +38,13 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
   });
 
   useEffect(() => {
-    // 1. Fetch all accesses for this user
-    const unsub = onSnapshot(query(collection(db, 'project_members'), where('userId', '==', member.uid)), async (snap) => {
+    // 1. Accessi di questo utente nei progetti visibili (letti per ID).
+    const unsub = subscribeUserProjectAccess(projects.map(p => p.id), member.uid, async (memberAccesses) => {
       const accessList: (ProjectMemberAccess & { projectName: string; roleName: string })[] = [];
       
-      for (const d of snap.docs) {
-        const access = d.data() as ProjectMemberAccess;
+      for (const access of memberAccesses) {
         const project = projects.find(p => p.id === access.projectId);
-        if (!project) continue; // Skip if project not found or not part of this org (if filtered)
+        if (!project) continue;
         
         let roleName = 'Ruolo Sconosciuto';
         try {
@@ -54,7 +54,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
           }
         } catch (e) {}
 
-        accessList.push({ ...access, id: d.id, projectName: project.name, roleName });
+        accessList.push({ ...access, projectName: project.name, roleName });
       }
       
       setAccesses(accessList);

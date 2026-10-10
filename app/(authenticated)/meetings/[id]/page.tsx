@@ -239,8 +239,11 @@ export default function MeetingDetailPage({ params: paramsPromise }: { params: P
           if (globalTaskSnapshot.exists()) await deleteTaskAttachments(globalTaskSnapshot.data());
           await deleteDoc(doc(db, 'tasks', task.globalTaskId));
         } else {
+          // Anche per progetto: le regole di Firestore lasciano cercare i
+          // task solo dentro un progetto a cui si ha accesso.
           const tasksQuery = query(
             collection(db, 'tasks'),
+            where('projectId', '==', meeting.projectId || activeProjectId || ''),
             where('meetingId', '==', params.id),
             where('meetingTaskIdx', '==', idx)
           );

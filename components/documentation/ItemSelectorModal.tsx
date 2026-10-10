@@ -24,22 +24,24 @@ export function ItemSelectorModal({ isOpen, type, projectId, onClose, onSelect }
     const fetchItems = async () => {
       setLoading(true);
       try {
+        // Senza progetto non cerca niente: prima leggeva i task, i meeting e i
+        // documenti di tutte le aziende.
         let q;
         if (type === 'task') {
           q = projectId 
             ? query(collection(db, 'tasks'), where('projectId', '==', projectId))
-            : query(collection(db, 'tasks'));
+            : undefined;
         } else if (type === 'event') {
           // Calendar events for user
           q = query(collection(db, 'users', user.uid, 'events'));
         } else if (type === 'meeting') {
           q = projectId
             ? query(collection(db, 'meetings'), where('projectId', '==', projectId))
-            : query(collection(db, 'meetings'));
+            : undefined;
         } else if (type === 'document') {
           q = projectId
             ? query(collection(db, 'documentation'), where('projectId', '==', projectId))
-            : query(collection(db, 'documentation'));
+            : undefined;
         }
 
         if (q) {
@@ -52,6 +54,8 @@ export function ItemSelectorModal({ isOpen, type, projectId, onClose, onSelect }
             };
           });
           setItems(fetchedItems);
+        } else {
+          setItems([]);
         }
       } catch (error) {
         console.error('Error fetching items for selector:', error);

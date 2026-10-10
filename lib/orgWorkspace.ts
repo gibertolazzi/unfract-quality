@@ -24,19 +24,22 @@ const DEFAULT_QUOTAS = {
   aiCreditsLimit: 120,
 } as const;
 
-/** ID dell'accesso del creatore: fisso, così non si duplica. */
-export function ownerGrantId(orgId: string, uid: string): string {
-  return `${orgId}_${uid}`;
+/**
+ * ID dell'accesso di un utente a un workspace: fisso, così non si duplica e
+ * le regole di Firestore lo trovano con una sola lettura.
+ */
+export function workspaceGrantId(workspaceId: string, uid: string): string {
+  return `${workspaceId}_${uid}`;
 }
 
-function ownerGrant(orgId: string, uid: string) {
+export function workspaceGrant(workspaceId: string, uid: string, role: 'admin' | 'member') {
   return {
-    workspaceId: orgId,
+    workspaceId,
     subjectType: 'user',
     subjectId: uid,
     resourceType: 'workspace',
-    resourceId: orgId,
-    role: 'admin',
+    resourceId: workspaceId,
+    role,
     createdAt: serverTimestamp(),
   };
 }
@@ -72,9 +75,23 @@ export async function createOrganization(user: User, name: string): Promise<stri
     createdAt: serverTimestamp(),
   });
   batch.set(doc(db, 'workspaces', orgRef.id), newWorkspace(name, user.uid));
-  batch.set(doc(db, 'access_grants', ownerGrantId(orgRef.id, user.uid)), ownerGrant(orgRef.id, user.uid));
+  batch.set(doc(db, 'access_grants', workspaceGrantId(orgRef.id, user.uid)), workspaceGrant(orgRef.id, user.uid, 'admin'));
   await batch.commit();
   return orgRef.id;
+}
+
+/**
+ * Workspace senza organizzazione, con l'accesso di amministratore di chi lo
+ * crea, in un'unica scrittura. Prima l'accesso aveva un ID casuale e si
+ * scriveva dopo il workspace: se falliva, il workspace restava invisibile.
+ */
+export async function createPersonalWorkspace(uid: string, name: string): Promise<string> {
+  const workspaceRef = doc(collection(db, 'workspaces'));
+  const batch = writeBatch(db);
+  batch.set(workspaceRef, newWorkspace(name, uid));
+  batch.set(doc(db, 'access_grants', workspaceGrantId(workspaceRef.id, uid)), workspaceGrant(workspaceRef.id, uid, 'admin'));
+  await batch.commit();
+  return workspaceRef.id;
 }
 
 /**
@@ -103,6 +120,6 @@ export async function ensureOwnedOrgWorkspace(org: { id: string; name?: string; 
   }
 
   if (!hasGrant) {
-    await setDoc(doc(db, 'access_grants', ownerGrantId(org.id, uid)), ownerGrant(org.id, uid));
+    await setDoc(doc(db, 'access_grants', workspaceGrantId(org.id, uid)), workspaceGrant(org.id, uid, 'admin'));
   }
 }

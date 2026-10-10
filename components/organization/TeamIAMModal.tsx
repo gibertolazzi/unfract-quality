@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Search, PlusCircle, Trash2, Shield } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, setDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { WorkspaceGroup, AccessGrant } from '@/types/workspace';
 import { OrgMember } from '@/types/organization';
 import { useToast } from '@/contexts/ToastContext';
@@ -23,8 +23,11 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
 
   useEffect(() => {
     // Fetch who is in this team (who has a grant for resourceType = 'workspace_group', resourceId = team.id)
+    // Filtrate anche per workspace: le regole di Firestore lasciano leggere
+    // gli accessi solo dentro un workspace di cui si fa parte.
     const q = query(
       collection(db, 'access_grants'),
+      where('workspaceId', '==', team.workspaceId),
       where('resourceType', '==', 'workspace_group'),
       where('resourceId', '==', team.id)
     );
@@ -39,7 +42,7 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
     });
 
     return () => unsubscribe();
-  }, [team.id]);
+  }, [team.id, team.workspaceId]);
 
   const handleAddMember = async (member: OrgMember) => {
     // Prevent duplicate
@@ -49,7 +52,8 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
     }
 
     try {
-      await addDoc(collection(db, 'access_grants'), {
+      // ID fisso (`<squadra>_<utente>`), come gli accessi ai workspace.
+      await setDoc(doc(db, 'access_grants', `${team.id}_${member.uid}`), {
         workspaceId: team.workspaceId,
         subjectType: 'user',
         subjectId: member.uid,
