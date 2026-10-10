@@ -4,17 +4,23 @@ rules_version = '2';
 // da queste regole.
 //
 // Prima c'era una sola regola: «chi ha fatto il login può leggere e scrivere
-// tutto» (segnalazione S02). Questo è il primo passo: chiude ciò che si può
-// chiudere senza cambiare la forma dei dati.
-// - le collezioni del server non sono più accessibili dal browser;
+// tutto» (segnalazione S02).
+//
+// Primo passo:
+// - le collezioni del server non sono accessibili dal browser;
 // - profilo, calendario, notifiche e chat AI sono visibili solo al proprietario;
 // - i token dei calendari collegati li legge solo il server;
 // - piano, abbonamento e limiti del workspace non si cambiano dal browser.
 //
-// Resta aperto a chi ha fatto il login il resto dei dati condivisi
-// (organizzazioni, workspace, progetti, task, documenti, chat, CRM...).
-// Separarli per organizzazione richiede appartenenze leggibili dalle regole,
-// che oggi i dati non hanno: è il secondo passo.
+// Secondo passo (questo): ogni azienda vede solo i propri dati.
+// - Un workspace è di un'organizzazione (stesso ID, membri in `memberUids`)
+//   oppure personale (`ownerId`).
+// - Un progetto lo vede chi fa parte del suo workspace, o chi l'ha creato.
+// - Task, colonne, documenti, meeting, CRM e il resto seguono il loro
+//   progetto (`projectId`).
+// - Le chat le vedono i partecipanti (`members`).
+// Le appartenenze si leggono dai dati che esistono già: nessuna migrazione.
+// Le collezioni non elencate qui sono chiuse.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -30,6 +36,58 @@ service cloud.firestore {
     // Campi che scrive solo il server (webhook di Stripe).
     function billingFields() {
       return ['plan', 'stripeCustomerId', 'stripeSubscriptionId', 'subscriptionStatus', 'role', 'isAdmin', 'admin'];
+    }
+
+    // ------------------------------------------------------------ Appartenenze
+    function orgPath(id) {
+      return /databases/$(database)/documents/organizations/$(id);
+    }
+
+    function workspacePath(id) {
+      return /databases/$(database)/documents/workspaces/$(id);
+    }
+
+    function projectPath(id) {
+      return /databases/$(database)/documents/projects/$(id);
+    }
+
+    function chatPath(id) {
+      return /databases/$(database)/documents/chats/$(id);
+    }
+
+    // Membro dell'organizzazione che ha lo stesso ID del workspace.
+    function isOrgMember(ws) {
+      return ws is string && exists(orgPath(ws))
+        && request.auth.uid in get(orgPath(ws)).data.get('memberUids', []);
+    }
+
+    // Proprietario del workspace (personale o dell'organizzazione).
+    function ownsWorkspace(ws) {
+      return ws is string && exists(workspacePath(ws))
+        && get(workspacePath(ws)).data.get('ownerId', null) == request.auth.uid;
+    }
+
+    function inWorkspace(ws) {
+      return signedIn() && (isOrgMember(ws) || ownsWorkspace(ws));
+    }
+
+    // `p` sono i dati di un progetto.
+    function projectAllows(p) {
+      return p.get('userId', null) == request.auth.uid
+        || p.get('creatorId', null) == request.auth.uid
+        || inWorkspace(p.get('workspaceId', null));
+    }
+
+    function inProject(projectId) {
+      return signedIn() && projectId is string && exists(projectPath(projectId))
+        && projectAllows(get(projectPath(projectId)).data);
+    }
+
+    // Per le scritture: vale anche per un progetto creato nella stessa
+    // scrittura (progetto e colonne nascono insieme, lib/projects.ts).
+    function inProjectAfter(projectId) {
+      return signedIn() && projectId is string && existsAfter(projectPath(projectId))
+        && projectAllows(getAfter(projectPath(projectId)).data);
     }
 
     // ------------------------------------------------------------ Profili
@@ -55,9 +113,22 @@ service cloud.firestore {
       }
     }
 
+    // ------------------------------------------------------------ Organizzazioni
+    // I membri cambiano solo dal server (inviti, lib/server/orgInvites.ts);
+    // nome, immagini e struttura li cambia chi ne fa parte.
+    match /organizations/{orgId} {
+      allow get: if signedIn() && (resource == null || request.auth.uid in resource.data.get('memberUids', []));
+      allow list: if signedIn() && request.auth.uid in resource.data.get('memberUids', []);
+      allow create: if signedIn()
+        && request.resource.data.get('ownerId', null) == request.auth.uid
+        && request.resource.data.get('memberUids', []) == [request.auth.uid];
+      allow update: if signedIn() && request.auth.uid in resource.data.get('memberUids', [])
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'memberUids', 'members', 'memberCount']);
+      allow delete: if false;
+    }
+
     // ------------------------------------------------------------ Workspace
-    // Lettura e modifica restano a chi ha fatto il login (secondo passo), ma
-    // proprietario, limiti del piano, contatori di consumo e abbonamento
+    // Proprietario, limiti del piano, contatori di consumo e abbonamento
     // (`billing`) non si cambiano dal browser: li aggiorna il server
     // (lib/server/usage.ts e il webhook di Stripe).
     function quotaOf(data, field) {
@@ -93,9 +164,16 @@ service cloud.firestore {
     }
 
     match /workspaces/{workspaceId} {
-      allow read: if signedIn();
+      // Si leggono per ID (WorkspaceContext); uno che non esiste non dice nulla.
+      allow get: if signedIn() && (resource == null
+        || resource.data.get('ownerId', null) == request.auth.uid
+        || isOrgMember(workspaceId));
+      allow list: if false;
+      // Proprio, oppure (senza proprietario) il workspace della propria
+      // organizzazione, creato al primo cambio di struttura.
       allow create: if signedIn()
-        && (!('ownerId' in request.resource.data) || request.resource.data.ownerId == request.auth.uid)
+        && (request.resource.data.get('ownerId', null) == request.auth.uid
+          || (!('ownerId' in request.resource.data) && isOrgMember(workspaceId)))
         && !('billing' in request.resource.data)
         && quotaLimitDefault('planTier')
         && quotaLimitDefault('storageLimit')
@@ -103,6 +181,7 @@ service cloud.firestore {
         && counterZero('storageUsed')
         && counterZero('aiCreditsUsed');
       allow update: if signedIn()
+        && (resource.data.get('ownerId', null) == request.auth.uid || isOrgMember(workspaceId))
         && request.resource.data.get('ownerId', null) == resource.data.get('ownerId', null)
         && request.resource.data.get('billing', null) == resource.data.get('billing', null)
         && quotaLimitKept('planTier')
@@ -112,6 +191,135 @@ service cloud.firestore {
         && counterKept('aiCreditsUsed')
         && counterKept('aiCreditsPeriod');
       allow delete: if signedIn() && resource.data.get('ownerId', null) == request.auth.uid;
+    }
+
+    // ------------------------------------------------------------ Accessi
+    // Con queste regole gli accessi non aprono più i dati (decidono
+    // organizzazioni e workspace): l'app li usa per i ruoli e le squadre.
+    // Si leggono i propri e quelli dei workspace di cui si fa parte.
+    function grantCreateAllowed(grantId, g) {
+      return g.get('subjectType', null) == 'user' && g.get('subjectId', null) is string && (
+        // Il proprio accesso a un workspace: amministratore se è suo,
+        // membro se fa parte dell'organizzazione.
+        (g.get('resourceType', null) == 'workspace'
+          && g.subjectId == request.auth.uid
+          && g.get('resourceId', null) == g.get('workspaceId', null)
+          && grantId == g.workspaceId + '_' + request.auth.uid
+          && ((g.get('role', null) == 'admin' && existsAfter(workspacePath(g.workspaceId))
+                && getAfter(workspacePath(g.workspaceId)).data.get('ownerId', null) == request.auth.uid)
+            || (g.get('role', null) == 'member' && isOrgMember(g.workspaceId))))
+        // Il proprio accesso al progetto appena creato (lib/projects.ts).
+        || (g.get('resourceType', null) == 'project'
+          && g.subjectId == request.auth.uid
+          && g.get('resourceId', null) is string
+          && grantId == g.resourceId + '_' + request.auth.uid
+          && existsAfter(projectPath(g.resourceId))
+          && getAfter(projectPath(g.resourceId)).data.get('userId', null) == request.auth.uid
+          && getAfter(projectPath(g.resourceId)).data.get('workspaceId', null) == g.get('workspaceId', null))
+        // Un membro in una squadra del proprio workspace.
+        || (g.get('resourceType', null) == 'workspace_group'
+          && g.get('role', null) == 'member'
+          && g.get('resourceId', null) is string
+          && grantId == g.resourceId + '_' + g.subjectId
+          && inWorkspace(g.get('workspaceId', null))
+          && exists(/databases/$(database)/documents/workspace_groups/$(g.resourceId))
+          && get(/databases/$(database)/documents/workspace_groups/$(g.resourceId)).data.get('workspaceId', null) == g.workspaceId)
+      );
+    }
+
+    match /access_grants/{grantId} {
+      allow get: if signedIn() && (resource == null
+        || resource.data.get('subjectId', null) == request.auth.uid
+        || inWorkspace(resource.data.get('workspaceId', null)));
+      allow list: if signedIn() && (resource.data.get('subjectId', null) == request.auth.uid
+        || inWorkspace(resource.data.get('workspaceId', null)));
+      allow create: if signedIn() && grantCreateAllowed(grantId, request.resource.data);
+      allow update: if false;
+      // Squadre: chi fa parte del workspace; il resto: il proprietario.
+      allow delete: if signedIn() && (
+        (resource.data.get('resourceType', null) == 'workspace_group' && inWorkspace(resource.data.get('workspaceId', null)))
+        || ownsWorkspace(resource.data.get('workspaceId', null)));
+    }
+
+    // ------------------------------------------------------------ Squadre
+    match /workspace_groups/{groupId} {
+      allow read: if signedIn() && inWorkspace(resource.data.get('workspaceId', null));
+      allow create: if signedIn() && inWorkspace(request.resource.data.get('workspaceId', null));
+      allow update: if signedIn() && inWorkspace(resource.data.get('workspaceId', null))
+        && request.resource.data.get('workspaceId', null) == resource.data.get('workspaceId', null);
+      allow delete: if signedIn() && inWorkspace(resource.data.get('workspaceId', null));
+    }
+
+    // ------------------------------------------------------------ Progetti
+    // Si creano nel proprio workspace; si cancellano dal server
+    // (/api/projects/delete), che cancella anche i dati collegati.
+    match /projects/{projectId} {
+      allow get: if signedIn() && (resource == null || projectAllows(resource.data));
+      allow list: if signedIn() && projectAllows(resource.data);
+      allow create: if signedIn()
+        && request.resource.data.get('userId', null) == request.auth.uid
+        && inWorkspace(request.resource.data.get('workspaceId', null));
+      allow update: if signedIn() && projectAllows(resource.data)
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['userId', 'creatorId', 'workspaceId']);
+      allow delete: if false;
+    }
+
+    // Dati di un progetto: li usa chi può usare il progetto, e non si
+    // spostano in un altro progetto.
+    function projectCollections() {
+      return [
+        'tasks', 'columns', 'epics', 'documentation', 'documents', 'meetings',
+        'project_roles', 'project_members', 'access_requests', 'email_campaigns',
+        'crm_accounts', 'crm_audit', 'crm_communications', 'crm_company_profiles',
+        'crm_contacts', 'crm_custom_lists', 'crm_customers', 'crm_documents',
+        'crm_followups', 'crm_interactions', 'crm_leads', 'crm_opportunities',
+        'crm_prospect_exclusions', 'crm_prospect_reports', 'crm_prospect_searches',
+        'crm_prospect_sources', 'crm_saved_views'
+      ];
+    }
+
+    match /{collection}/{documentId} {
+      // `resource == null`: lettura per ID di un documento che non esiste
+      // (es. l'accesso di un membro a un progetto, project_members).
+      allow get: if collection in projectCollections() && signedIn()
+        && (resource == null || inProject(resource.data.get('projectId', null)));
+      allow list: if collection in projectCollections()
+        && inProject(resource.data.get('projectId', null));
+      allow create: if collection in projectCollections()
+        && inProjectAfter(request.resource.data.get('projectId', null));
+      allow update: if collection in projectCollections()
+        && inProject(resource.data.get('projectId', null))
+        && request.resource.data.get('projectId', null) == resource.data.get('projectId', null);
+      allow delete: if collection in projectCollections()
+        && inProject(resource.data.get('projectId', null));
+    }
+
+    // ------------------------------------------------------------ Chat
+    // Le vedono i partecipanti. Nuove chat solo dentro un progetto a cui si
+    // ha accesso.
+    match /chats/{chatId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.get('members', []);
+      allow create: if signedIn() && request.auth.uid in request.resource.data.get('members', [])
+        && inProjectAfter(request.resource.data.get('projectId', null));
+      allow update: if signedIn() && request.auth.uid in resource.data.get('members', [])
+        && request.resource.data.get('projectId', null) == resource.data.get('projectId', null);
+      allow delete: if signedIn() && request.auth.uid in resource.data.get('members', []);
+    }
+
+    function inChat(chatId) {
+      return signedIn() && chatId is string && exists(chatPath(chatId))
+        && request.auth.uid in get(chatPath(chatId)).data.get('members', []);
+    }
+
+    match /messages/{messageId} {
+      allow read: if inChat(resource.data.get('chatId', null));
+      allow create: if inChat(request.resource.data.get('chatId', null))
+        && request.resource.data.get('senderId', null) == request.auth.uid;
+      // Letture, cancellazioni "per me" e "per tutti" (ChatWindow, ChatContext).
+      allow update: if inChat(resource.data.get('chatId', null))
+        && request.resource.data.get('chatId', null) == resource.data.get('chatId', null)
+        && request.resource.data.get('senderId', null) == resource.data.get('senderId', null);
+      allow delete: if inChat(resource.data.get('chatId', null));
     }
 
     // ------------------------------------------------------------ Notifiche
@@ -137,7 +345,8 @@ service cloud.firestore {
     // Inviti con codice, stati OAuth, canali dei calendari, blocchi delle
     // prenotazioni, coda delle email, registro dello spazio dei file e
     // contatori dei limiti di richieste: li legge e scrive solo il server.
-    // Un contatore aperto si potrebbe azzerare da sé.
+    // Con il secondo passo non serve più elencarli (quello che non è
+    // permesso qui sopra è chiuso), ma restano scritti per chiarezza.
     match /org_invites/{document=**} { allow read, write: if false; }
     match /oauth_states/{document=**} { allow read, write: if false; }
     match /calendar_channels/{document=**} { allow read, write: if false; }
@@ -145,17 +354,5 @@ service cloud.firestore {
     match /notifications_queue/{document=**} { allow read, write: if false; }
     match /storage_usage/{document=**} { allow read, write: if false; }
     match /rate_limits/{document=**} { allow read, write: if false; }
-
-    // ------------------------------------------------------------ Il resto
-    // Dati condivisi, ancora aperti a chi ha fatto il login (secondo passo).
-    // Le collezioni con regole proprie qui sopra sono escluse: le regole di
-    // Firestore si sommano, e questa le riaprirebbe.
-    match /{collection}/{document=**} {
-      allow read, write: if signedIn() && !(collection in [
-        'users', 'workspaces', 'notifications', 'ai_chats',
-        'org_invites', 'oauth_states', 'calendar_channels', 'booking_locks', 'notifications_queue',
-        'storage_usage', 'rate_limits'
-      ]);
-    }
   }
 }

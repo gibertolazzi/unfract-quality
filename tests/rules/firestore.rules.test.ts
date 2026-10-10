@@ -47,11 +47,30 @@ beforeEach(async () => {
     await setDoc(doc(db, 'ai_chats/c1'), { userId: 'anna', projectId: 'p1', title: 'Chat', messages: [] });
     await setDoc(doc(db, 'org_invites/hash'), { orgId: 'o1', kind: 'link' });
     await setDoc(doc(db, 'projects/p1'), { name: 'Progetto', workspaceId: 'w1', userId: 'anna' });
+
+    // Fase 2: organizzazione o1 (anna e carla) con il suo workspace e progetto.
+    await setDoc(doc(db, 'organizations/o1'), {
+      name: 'Acme', ownerId: 'anna', memberUids: ['anna', 'carla'],
+      members: [{ uid: 'anna', role: 'admin' }, { uid: 'carla', role: 'member' }],
+    });
+    await setDoc(doc(db, 'organizations/o-nuova'), { name: 'Nuova', ownerId: 'anna', memberUids: ['anna'], members: [{ uid: 'anna', role: 'admin' }] });
+    await setDoc(doc(db, 'workspaces/o1'), { name: 'Acme', ownerId: 'anna', quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 } });
+    await setDoc(doc(db, 'projects/po'), { name: 'Sito Acme', workspaceId: 'o1', userId: 'anna', creatorId: 'anna', organizationIds: ['o1'] });
+    await setDoc(doc(db, 'tasks/t1'), { title: 'Task Acme', projectId: 'po' });
+    await setDoc(doc(db, 'tasks/tp'), { title: 'Task personale', projectId: 'p1' });
+    await setDoc(doc(db, 'crm_accounts/a1'), { name: 'Cliente', projectId: 'po', organizationId: 'o1' });
+    await setDoc(doc(db, 'project_members/po_carla'), { projectId: 'po', userId: 'carla', roleId: 'r1' });
+    await setDoc(doc(db, 'chats/ch1'), { projectId: 'po', type: 'group', members: ['anna', 'carla'] });
+    await setDoc(doc(db, 'messages/m1'), { chatId: 'ch1', senderId: 'anna', text: 'Ciao', readBy: ['anna'] });
+    await setDoc(doc(db, 'access_grants/o1_anna'), { workspaceId: 'o1', subjectType: 'user', subjectId: 'anna', resourceType: 'workspace', resourceId: 'o1', role: 'admin' });
+    await setDoc(doc(db, 'access_grants/o1_carla'), { workspaceId: 'o1', subjectType: 'user', subjectId: 'carla', resourceType: 'workspace', resourceId: 'o1', role: 'member' });
+    await setDoc(doc(db, 'workspace_groups/g1'), { name: 'Vendite', workspaceId: 'o1' });
   });
 });
 
 const anna = () => env.authenticatedContext('anna', { email: 'anna@example.com' }).firestore();
 const bruno = () => env.authenticatedContext('bruno', { email: 'bruno@example.com' }).firestore();
+const carla = () => env.authenticatedContext('carla', { email: 'carla@example.com' }).firestore();
 const guest = () => env.unauthenticatedContext().firestore();
 
 describe('profili utente', () => {
@@ -176,6 +195,7 @@ describe('organizzazioni con il loro workspace (lib/orgWorkspace.ts)', () => {
   it('un workspace rimasto senza nome si completa senza cambiarne il proprietario', async () => {
     await env.withSecurityRulesDisabled(async context => {
       await setDoc(doc(context.firestore(), 'workspaces/senza-nome'), { structureMode: 'flat' });
+      await setDoc(doc(context.firestore(), 'organizations/senza-nome'), { name: 'Acme', ownerId: 'anna', memberUids: ['anna'] });
     });
     await assertSucceeds(setDoc(doc(anna(), 'workspaces/senza-nome'), { name: 'Acme' }, { merge: true }));
   });
@@ -262,14 +282,138 @@ describe('collezioni del server', () => {
   });
 });
 
-describe('dati condivisi (secondo passo)', () => {
-  it('restano accessibili a chi ha fatto il login', async () => {
-    await assertSucceeds(getDoc(doc(bruno(), 'projects/p1')));
-    await assertSucceeds(addDoc(collection(bruno(), 'tasks'), { title: 'Task', projectId: 'p1' }));
+describe('fase 2: ogni azienda vede solo i propri dati', () => {
+  it('i membri dell’organizzazione usano progetto, task e CRM', async () => {
+    await assertSucceeds(getDoc(doc(carla(), 'projects/po')));
+    await assertSucceeds(getDocs(query(collection(carla(), 'projects'), where('workspaceId', 'in', ['o1']))));
+    await assertSucceeds(getDocs(query(collection(carla(), 'tasks'), where('projectId', '==', 'po'))));
+    await assertSucceeds(addDoc(collection(carla(), 'tasks'), { title: 'Nuovo', projectId: 'po' }));
+    await assertSucceeds(updateDoc(doc(carla(), 'tasks/t1'), { title: 'Rinominato' }));
+    await assertSucceeds(getDocs(query(collection(carla(), 'crm_accounts'), where('projectId', '==', 'po'))));
+    await assertSucceeds(deleteDoc(doc(carla(), 'tasks/t1')));
   });
 
-  it('chiusi a chi non ha fatto il login', async () => {
+  it('chi è fuori dall’organizzazione non vede e non scrive niente', async () => {
+    await assertFails(getDoc(doc(bruno(), 'projects/po')));
+    await assertFails(getDocs(query(collection(bruno(), 'projects'), where('workspaceId', 'in', ['o1']))));
+    await assertFails(getDocs(query(collection(bruno(), 'tasks'), where('projectId', '==', 'po'))));
+    await assertFails(getDoc(doc(bruno(), 'tasks/t1')));
+    await assertFails(addDoc(collection(bruno(), 'tasks'), { title: 'Intruso', projectId: 'po' }));
+    await assertFails(updateDoc(doc(bruno(), 'tasks/t1'), { title: 'x' }));
+    await assertFails(deleteDoc(doc(bruno(), 'tasks/t1')));
+    await assertFails(getDocs(query(collection(bruno(), 'crm_accounts'), where('projectId', '==', 'po'))));
+    await assertFails(addDoc(collection(bruno(), 'crm_accounts'), { name: 'x', projectId: 'po' }));
+  });
+
+  it('il workspace personale lo vede solo il proprietario', async () => {
+    await assertSucceeds(getDocs(query(collection(anna(), 'tasks'), where('projectId', '==', 'p1'))));
+    await assertFails(getDocs(query(collection(carla(), 'tasks'), where('projectId', '==', 'p1'))));
+    await assertFails(getDoc(doc(carla(), 'projects/p1')));
+    await assertFails(getDoc(doc(carla(), 'workspaces/w1')));
+  });
+
+  it('le ricerche senza filtro per progetto o workspace sono rifiutate', async () => {
+    await assertFails(getDocs(collection(anna(), 'tasks')));
+    await assertFails(getDocs(collection(anna(), 'projects')));
+    await assertFails(getDocs(collection(anna(), 'organizations')));
+    await assertFails(getDocs(collection(anna(), 'workspaces')));
+  });
+
+  it('un task non si sposta in un progetto di altri', async () => {
+    await assertFails(updateDoc(doc(carla(), 'tasks/t1'), { projectId: 'p1' }));
+  });
+
+  it('i progetti si creano solo nel proprio workspace e non cambiano proprietario', async () => {
+    await assertSucceeds(createProjectWithBoard(carla(), { uid: 'carla', workspaceId: 'o1', name: 'Di Carla' }));
+    await expect(createProjectWithBoard(bruno(), { uid: 'bruno', workspaceId: 'o1', name: 'Intruso' }))
+      .rejects.toMatchObject({ code: 'write-failed' });
+    await assertSucceeds(updateDoc(doc(carla(), 'projects/po'), { name: 'Sito nuovo' }));
+    await assertFails(updateDoc(doc(carla(), 'projects/po'), { workspaceId: 'w1' }));
+    await assertFails(updateDoc(doc(carla(), 'projects/po'), { userId: 'carla' }));
+    await assertFails(deleteDoc(doc(anna(), 'projects/po')));
+  });
+
+  it('organizzazioni: le vede e le modifica solo chi ne fa parte, i membri li cambia il server', async () => {
+    await assertSucceeds(getDocs(query(collection(carla(), 'organizations'), where('memberUids', 'array-contains', 'carla'))));
+    await assertSucceeds(getDocs(query(collection(bruno(), 'organizations'), where('memberUids', 'array-contains', 'bruno'))));
+    await assertSucceeds(updateDoc(doc(carla(), 'organizations/o1'), { name: 'Acme srl' }));
+    await assertFails(updateDoc(doc(carla(), 'organizations/o1'), { memberUids: ['anna', 'carla', 'bruno'] }));
+    await assertFails(updateDoc(doc(carla(), 'organizations/o1'), { ownerId: 'carla' }));
+    await assertFails(getDoc(doc(bruno(), 'organizations/o1')));
+    await assertFails(updateDoc(doc(bruno(), 'organizations/o1'), { name: 'x' }));
+    await assertFails(setDoc(doc(bruno(), 'organizations/finta'), { ownerId: 'bruno', memberUids: ['bruno', 'anna'] }));
+    await assertFails(deleteDoc(doc(anna(), 'organizations/o1')));
+  });
+
+  it('il workspace dell’organizzazione lo usano i membri', async () => {
+    await assertSucceeds(getDoc(doc(carla(), 'workspaces/o1')));
+    await assertSucceeds(updateDoc(doc(carla(), 'workspaces/o1'), { structureMode: 'flat' }));
+    await assertFails(getDoc(doc(bruno(), 'workspaces/o1')));
+    await assertFails(updateDoc(doc(bruno(), 'workspaces/o1'), { name: 'x' }));
+    await assertSucceeds(getDoc(doc(bruno(), 'workspaces/non-esiste')));
+  });
+
+  it('ruoli dei membri: si leggono per ID dentro i propri progetti', async () => {
+    await assertSucceeds(getDoc(doc(carla(), 'project_members/po_carla')));
+    await assertSucceeds(getDoc(doc(carla(), 'project_members/po_nessuno')));
+    await assertFails(getDoc(doc(bruno(), 'project_members/po_carla')));
+    await assertFails(getDocs(query(collection(anna(), 'project_members'), where('userId', '==', 'carla'))));
+  });
+
+  it('chat e messaggi: solo i partecipanti', async () => {
+    await assertSucceeds(getDocs(query(collection(carla(), 'chats'), where('members', 'array-contains', 'carla'))));
+    await assertSucceeds(getDocs(query(collection(carla(), 'messages'), where('chatId', '==', 'ch1'))));
+    await assertSucceeds(addDoc(collection(carla(), 'messages'), { chatId: 'ch1', senderId: 'carla', text: 'Ok', readBy: ['carla'] }));
+    await assertSucceeds(updateDoc(doc(carla(), 'messages/m1'), { readBy: ['anna', 'carla'] }));
+    await assertSucceeds(addDoc(collection(carla(), 'chats'), { projectId: 'po', type: 'direct', members: ['carla', 'anna'] }));
+    await assertFails(getDoc(doc(bruno(), 'chats/ch1')));
+    await assertFails(getDocs(query(collection(bruno(), 'messages'), where('chatId', '==', 'ch1'))));
+    await assertFails(addDoc(collection(bruno(), 'messages'), { chatId: 'ch1', senderId: 'bruno', text: 'x' }));
+    await assertFails(addDoc(collection(carla(), 'messages'), { chatId: 'ch1', senderId: 'anna', text: 'a nome di anna' }));
+    await assertFails(addDoc(collection(bruno(), 'chats'), { projectId: 'po', type: 'direct', members: ['bruno', 'anna'] }));
+  });
+
+  it('accessi: i propri e quelli del proprio workspace; non ci si dà accesso da soli', async () => {
+    await assertSucceeds(getDocs(query(collection(carla(), 'access_grants'), where('subjectId', '==', 'carla'))));
+    await assertSucceeds(getDocs(query(collection(carla(), 'access_grants'), where('workspaceId', '==', 'o1'), where('resourceType', '==', 'workspace_group'))));
+    await assertSucceeds(getDoc(doc(carla(), 'access_grants/o1_nessuno')));
+    await assertFails(getDocs(query(collection(bruno(), 'access_grants'), where('workspaceId', '==', 'o1'))));
+    await assertFails(getDocs(collection(anna(), 'access_grants')));
+    const grant = (id: string, role: string) => ({ workspaceId: 'o1', subjectType: 'user', subjectId: id, resourceType: 'workspace', resourceId: 'o1', role });
+    await assertFails(setDoc(doc(bruno(), 'access_grants/o1_bruno'), grant('bruno', 'member')));
+    await assertFails(setDoc(doc(carla(), 'access_grants/o1_carla'), grant('carla', 'admin')));
+    await assertFails(setDoc(doc(carla(), 'access_grants/casuale'), grant('carla', 'member')));
+    await assertFails(updateDoc(doc(carla(), 'access_grants/o1_carla'), { role: 'admin' }));
+  });
+
+  it('auto-riparazione: un membro senza accesso se lo crea con ID fisso', async () => {
+    await env.withSecurityRulesDisabled(async context => {
+      await updateDoc(doc(context.firestore(), 'organizations/o1'), { memberUids: ['anna', 'carla', 'dora'] });
+    });
+    const dora = env.authenticatedContext('dora').firestore();
+    await assertSucceeds(setDoc(doc(dora, 'access_grants/o1_dora'), {
+      workspaceId: 'o1', subjectType: 'user', subjectId: 'dora', resourceType: 'workspace', resourceId: 'o1', role: 'member', createdAt: serverTimestamp(),
+    }));
+  });
+
+  it('squadre: i membri del workspace aggiungono e tolgono persone', async () => {
+    const teamGrant = { workspaceId: 'o1', subjectType: 'user', subjectId: 'anna', resourceType: 'workspace_group', resourceId: 'g1', role: 'member' };
+    await assertSucceeds(getDocs(query(collection(carla(), 'workspace_groups'), where('workspaceId', '==', 'o1'))));
+    await assertSucceeds(setDoc(doc(carla(), 'access_grants/g1_anna'), teamGrant));
+    await assertSucceeds(deleteDoc(doc(carla(), 'access_grants/g1_anna')));
+    await assertFails(setDoc(doc(bruno(), 'access_grants/g1_anna'), teamGrant));
+    await assertFails(getDocs(query(collection(bruno(), 'workspace_groups'), where('workspaceId', '==', 'o1'))));
+    await assertFails(addDoc(collection(bruno(), 'workspace_groups'), { name: 'x', workspaceId: 'o1' }));
+  });
+
+  it('le collezioni non previste sono chiuse', async () => {
+    await assertFails(getDoc(doc(anna(), 'qualcosa/x')));
+    await assertFails(setDoc(doc(anna(), 'qualcosa/x'), { a: 1 }));
+  });
+
+  it('chi non ha fatto il login non vede niente', async () => {
     await assertFails(getDoc(doc(guest(), 'projects/p1')));
-    await assertFails(addDoc(collection(guest(), 'tasks'), { title: 'Task' }));
+    await assertFails(addDoc(collection(guest(), 'tasks'), { title: 'Task', projectId: 'p1' }));
+    await assertFails(getDoc(doc(guest(), 'organizations/o1')));
   });
 });
