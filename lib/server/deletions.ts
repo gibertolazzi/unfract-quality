@@ -1,6 +1,7 @@
 import { FieldValue } from 'firebase-admin/firestore';
+import { getStorage } from 'firebase-admin/storage';
 import { adminDb } from '@/lib/firebase-admin';
-import { canManageWorkspace } from '@/lib/server/usage';
+import { canManageWorkspace, releaseRemovedFiles } from '@/lib/server/usage';
 
 /**
  * Cancellazione di progetti e organizzazioni, dal server.
@@ -10,12 +11,30 @@ import { canManageWorkspace } from '@/lib/server/usage';
  * organizzazioni non si potevano cancellare affatto. Qui si cancella anche ciò
  * che dipende da loro, dopo aver controllato chi lo chiede.
  *
- * Restano, di proposito, i contenuti: documentazione, meeting, chat, chat AI,
- * CRM e file caricati.
+ * Di un progetto si cancella tutto: i dati di ogni collezione con il suo
+ * `projectId` (le stesse delle regole di Firestore), le chat con i loro
+ * messaggi, le chat AI e i file su Storage, che si tolgono anche dallo spazio
+ * usato del workspace. Prima restavano documentazione, meeting, chat, chat AI,
+ * CRM e file: dati orfani che nessuno poteva più aprire.
  */
 
 export const ID = /^[A-Za-z0-9_-]{1,128}$/;
 const CHUNK = 400; // sotto il limite di 500 scritture per batch
+
+/** Le collezioni con `projectId` (vedi `projectCollections()` in firestore.rules), più le chat AI. */
+export const PROJECT_COLLECTIONS = [
+  'tasks', 'columns', 'epics', 'documentation', 'documents', 'meetings',
+  'project_roles', 'project_members', 'access_requests', 'email_campaigns',
+  'crm_accounts', 'crm_audit', 'crm_communications', 'crm_company_profiles',
+  'crm_contacts', 'crm_custom_lists', 'crm_customers', 'crm_documents',
+  'crm_followups', 'crm_interactions', 'crm_leads', 'crm_opportunities',
+  'crm_prospect_exclusions', 'crm_prospect_reports', 'crm_prospect_searches',
+  'crm_prospect_sources', 'crm_saved_views',
+  'ai_chats',
+] as const;
+
+/** Cartelle di Storage con il progetto nel percorso (vedi storage.rules). */
+const PROJECT_FOLDERS = ['meetings', 'documentation', 'tasks', 'ai-hub', 'crm'];
 
 export type DeleteResult =
   | { ok: true; deleted: number }
@@ -26,6 +45,22 @@ type Ref = FirebaseFirestore.DocumentReference;
 async function refsWhere(collection: string, field: string, value: string): Promise<Ref[]> {
   const snap = await adminDb.collection(collection).where(field, '==', value).get();
   return snap.docs.map(d => d.ref);
+}
+
+function bucket() {
+  return getStorage().bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || undefined);
+}
+
+/** File sotto le cartelle indicate, più quelli indicati per nome. */
+async function filesToDelete(prefixes: string[], extra: string[]): Promise<string[]> {
+  const listed = await Promise.all(prefixes.map(prefix => bucket().getFiles({ prefix }).then(([files]) => files.map(f => f.name))));
+  return Array.from(new Set([...listed.flat(), ...extra]));
+}
+
+async function deleteFiles(paths: string[]): Promise<void> {
+  for (let i = 0; i < paths.length; i += 50) {
+    await Promise.all(paths.slice(i, i + 50).map(path => bucket().file(path).delete({ ignoreNotFound: true })));
+  }
 }
 
 async function deleteAll(refs: Ref[]): Promise<number> {
@@ -52,15 +87,29 @@ export async function deleteProject(uid: string, projectId: string): Promise<Del
     return { ok: false, status: 403, error: 'Solo chi ha creato il progetto o un amministratore del workspace può cancellarlo.' };
   }
 
-  const linked = await Promise.all(
-    ['columns', 'tasks', 'epics', 'project_members', 'project_roles', 'access_requests']
-      .map(collection => refsWhere(collection, 'projectId', projectId)),
-  );
+  const linked = await Promise.all(PROJECT_COLLECTIONS.map(collection => adminDb.collection(collection).where('projectId', '==', projectId).get()));
+  const chats = await adminDb.collection('chats').where('projectId', '==', projectId).get();
+  const messages = await Promise.all(chats.docs.map(chat => refsWhere('messages', 'chatId', chat.id)));
   const grants = (await adminDb.collection('access_grants').where('resourceId', '==', projectId).get())
     .docs.filter(d => d.data().resourceType === 'project').map(d => d.ref);
 
-  // Il progetto per ultimo: se qualcosa si interrompe, si può riprovare.
-  const deleted = await deleteAll([...linked.flat(), ...grants]);
+  // Allegati dei task caricati prima del 10 ottobre, senza il progetto nel percorso.
+  const tasks = linked[PROJECT_COLLECTIONS.indexOf('tasks')].docs;
+  const legacyAttachments = tasks.flatMap(task => (task.data().attachments || []) as { refPath?: unknown }[])
+    .map(attachment => attachment.refPath)
+    .filter((path): path is string => typeof path === 'string' && path.startsWith('tasks/attachments/'));
+  const files = await filesToDelete(
+    [...PROJECT_FOLDERS.map(folder => `${folder}/${projectId}/`), ...chats.docs.map(chat => `chats/${chat.id}/`)],
+    legacyAttachments,
+  );
+
+  // Prima i file (e il loro spazio), poi i documenti, il progetto per ultimo:
+  // se qualcosa si interrompe, si può riprovare.
+  await deleteFiles(files);
+  await releaseRemovedFiles(files);
+  const deleted = await deleteAll([
+    ...linked.flatMap(snap => snap.docs.map(d => d.ref)), ...messages.flat(), ...chats.docs.map(d => d.ref), ...grants,
+  ]);
   await projectRef.delete();
   return { ok: true, deleted: deleted + 1 };
 }
@@ -94,6 +143,11 @@ export async function deleteOrganization(uid: string, orgId: string): Promise<De
     linkedProjects.docs.slice(i, i + CHUNK).forEach(d => batch.update(d.ref, { organizationIds: FieldValue.arrayRemove(orgId) }));
     await batch.commit();
   }
+
+  // Banner e logo.
+  const files = await filesToDelete([`organizations/${orgId}/`], []);
+  await deleteFiles(files);
+  await releaseRemovedFiles(files);
 
   const linked = await Promise.all([
     refsWhere('access_grants', 'workspaceId', orgId),

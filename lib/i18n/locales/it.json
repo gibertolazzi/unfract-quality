@@ -146,6 +146,7 @@
     "deleteWarning1": "Questa azione è ",
     "irreversible": "irreversibile",
     "deleteWarning2": ". Eliminerà permanentemente il progetto ",
+    "deleteWarning3": "Con il progetto si cancellano task, documenti, meeting, chat, chat AI, dati del CRM e file caricati.",
     "typeToConfirm": "Per confermare, digita il nome del progetto di seguito:",
     "deleteProjectBtn": "Elimina progetto",
     "unknown": "Sconosciuto",
