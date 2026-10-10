@@ -34,14 +34,20 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   useEffect(() => {
     const fetchProjects = async () => {
       try {
+        // Progetti del workspace dell'organizzazione assegnati a lei. Le regole
+        // di Firestore lasciano cercare i progetti solo per workspace: per
+        // `organizationIds` da solo la ricerca verrebbe rifiutata.
         const q = query(
           collection(db, 'projects'),
-          where('organizationIds', 'array-contains', org.id)
+          where('workspaceId', '==', org.id)
         );
         const unsubscribe = onSnapshot(q, (snapshot: any) => {
           const projs: Project[] = [];
           snapshot.forEach((doc: any) => {
-            projs.push({ id: doc.id, ...doc.data() } as Project);
+            const data = doc.data();
+            if (Array.isArray(data.organizationIds) && data.organizationIds.includes(org.id)) {
+              projs.push({ id: doc.id, ...data } as Project);
+            }
           });
           setAssignedProjects(projs);
         });
