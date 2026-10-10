@@ -103,6 +103,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    if (!activeProjectId) {
+      toast.error('Apri un progetto per allegare file.');
+      return;
+    }
 
     setIsUploading(true);
     setUploadProgress(0);
@@ -114,7 +118,8 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const storageRef = ref(storage, `tasks/attachments/${Date.now()}_${file.name}`);
+        // Il progetto nel percorso: le regole di Storage lo usano per decidere chi può usare il file.
+        const storageRef = ref(storage, `tasks/${activeProjectId}/${Date.now()}_${file.name}`);
         const uploadTask = uploadBytesResumable(storageRef, file);
 
         await new Promise<void>((resolve, reject) => {

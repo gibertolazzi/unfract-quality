@@ -11,7 +11,8 @@ import { createHash } from 'node:crypto';
  * - `organizations/{orgId}/…`               → il workspace con lo stesso id
  * - `ai-hub|meetings|documentation|crm/{projectId}/…` → il workspace del progetto
  * - `chats/{chatId}/…`                      → il workspace del progetto della chat
- * - `tasks/attachments/…`                   → il workspace del progetto del task che lo allega
+ * - `tasks/{projectId}/…`                   → il workspace del progetto
+ * - `tasks/attachments/…` (prima del 10/10)  → il workspace del progetto del task che lo allega
  *
  * Poi si ricalcola `storageUsed` di ogni workspace come somma dei suoi record.
  * Nessuna dipendenza da `lib/firebase-admin`: il database si passa come
@@ -84,6 +85,9 @@ export async function planStorageBackfill(db: Db, objects: StoredObject[]): Prom
     if (folder === 'organizations') {
       workspaceId = id && (await db.collection('workspaces').doc(id).get()).exists ? id : null;
       reason = 'organizzazione senza workspace';
+    } else if (folder === 'tasks' && id && id !== 'attachments') {
+      workspaceId = await workspaceOf(id);
+      reason = 'progetto inesistente o senza workspace';
     } else if (PROJECT_FOLDERS.has(folder)) {
       workspaceId = await workspaceOf(id);
       reason = 'progetto inesistente o senza workspace';
