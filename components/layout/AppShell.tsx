@@ -99,28 +99,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     onClick={async () => {
                       const name = prompt(t.appShell.createWorkspacePrompt);
                       if (name && name.trim()) {
-                        const { collection, addDoc, serverTimestamp, doc, setDoc } = await import('firebase/firestore');
-                        const { db } = await import('@/lib/firebase');
-                        
+                        const { createPersonalWorkspace } = await import('@/lib/orgWorkspace');
+
                         try {
-                          const wsRef = await addDoc(collection(db, 'workspaces'), {
-                            name: name.trim(),
-                            ownerId: user.uid,
-                            structureMode: 'teams',
-                            quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 },
-                            createdAt: serverTimestamp()
-                          });
-                          
-                          await setDoc(doc(collection(db, 'access_grants')), {
-                            workspaceId: wsRef.id,
-                            subjectType: 'user',
-                            subjectId: user.uid,
-                            resourceType: 'workspace',
-                            resourceId: wsRef.id,
-                            role: 'admin',
-                            createdAt: serverTimestamp()
-                          });
-                          
+                          await createPersonalWorkspace(user.uid, name.trim());
+
                           // The onSnapshot in WorkspaceContext will automatically pick it up!
                         } catch (e) {
                           console.error(e);

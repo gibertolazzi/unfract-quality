@@ -1,5 +1,5 @@
 import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { CustomRole, ProjectMemberAccess, AccessRequest, AppModule, PermissionLevel } from '@/types/iam';
 
 const ROLES_COLLECTION = 'project_roles';
@@ -49,6 +49,42 @@ export async function getUserProjectAccess(projectId: string, userId: string): P
   const memberSnap = await getDoc(doc(db, MEMBERS_COLLECTION, memberId));
   if (!memberSnap.exists()) return null;
   return { id: memberSnap.id, ...memberSnap.data() } as ProjectMemberAccess;
+}
+
+/**
+ * Ruoli di un utente nei progetti indicati, aggiornati in tempo reale.
+ *
+ * Gli accessi hanno ID fisso (`<progetto>_<utente>`), quindi si leggono per
+ * ID. Prima si cercavano per utente in tutta la collezione, cioè anche nei
+ * progetti di altre aziende: con le regole per azienda quella ricerca non è
+ * permessa.
+ */
+export function subscribeUserProjectAccess(
+  projectIds: string[],
+  userId: string,
+  onChange: (accesses: ProjectMemberAccess[]) => void,
+): () => void {
+  if (projectIds.length === 0) {
+    onChange([]);
+    return () => {};
+  }
+  const found = new Map<string, ProjectMemberAccess | null>();
+  const unsubscribes = projectIds.map(projectId =>
+    onSnapshot(doc(db, MEMBERS_COLLECTION, `${projectId}_${userId}`), snapshot => {
+      found.set(projectId, snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } as ProjectMemberAccess : null);
+      // Risponde quando ogni progetto ha dato la sua prima risposta.
+      if (found.size === projectIds.length) {
+        onChange(Array.from(found.values()).filter((access): access is ProjectMemberAccess => access !== null));
+      }
+    }, error => {
+      console.error('Unable to read project access:', error);
+      found.set(projectId, null);
+      if (found.size === projectIds.length) {
+        onChange(Array.from(found.values()).filter((access): access is ProjectMemberAccess => access !== null));
+      }
+    }),
+  );
+  return () => unsubscribes.forEach(unsubscribe => unsubscribe());
 }
 
 export async function requestModuleAccess(projectId: string, userId: string, module: AppModule, requestedLevel: 'read' | 'write'): Promise<void> {

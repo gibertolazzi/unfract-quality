@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { PlusCircle, UserPlus, Link2, MoreHorizontal, Loader2, X } from 'lucide-react';
 import { OrgCard } from '@/components/organization/OrgCard';
 import { Organization } from '@/components/organization/types';
-import { collection, query, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { createOrganization, ensureOwnedOrgWorkspace } from '@/lib/orgWorkspace';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,22 +26,11 @@ export default function OrganizationPage() {
     if (!user) return;
     const fetchOrgs = async () => {
       try {
-        const orgsRef = collection(db, 'organizations');
-        // Fetch orgs where the user is a member
-        // In Firestore, checking array of objects is tricky with where("members", "array-contains").
-        // Usually, we keep an array of memberUids for querying.
-        // Let's fetch all and filter client side for now, or use a memberUids array.
-        // For MVP, since we don't have many, let's just fetch all and filter, or better, we can add a memberUids field.
-        const q = query(orgsRef);
+        // Solo le organizzazioni di cui l'utente fa parte (`memberUids`).
+        // Prima le scaricava tutte e filtrava qui.
+        const q = query(collection(db, 'organizations'), where('memberUids', 'array-contains', user.uid));
         const snapshot = await getDocs(q);
-        const fetchedOrgs: Organization[] = [];
-        snapshot.forEach(doc => {
-          const data = doc.data() as any;
-          const isMember = data.members?.some((m: any) => m.uid === user.uid);
-          if (isMember) {
-            fetchedOrgs.push({ id: doc.id, ...data } as Organization);
-          }
-        });
+        const fetchedOrgs: Organization[] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Organization));
         setOrgs(fetchedOrgs);
         // Organizzazioni create senza workspace: lo aggiunge per chi le possiede.
         fetchedOrgs.forEach(org => {

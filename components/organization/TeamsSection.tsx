@@ -79,8 +79,14 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
     try {
       await deleteDoc(doc(db, 'workspace_groups', teamId));
       
-      // We should also delete all access_grants where subjectId == teamId
-      const grantsQ = query(collection(db, 'access_grants'), where('subjectId', '==', teamId));
+      // We should also delete all access_grants where subjectId == teamId.
+      // Filtrate anche per workspace: le regole di Firestore lasciano leggere
+      // gli accessi solo dentro un workspace di cui si fa parte.
+      const grantsQ = query(
+        collection(db, 'access_grants'),
+        where('workspaceId', '==', workspaceId),
+        where('subjectId', '==', teamId),
+      );
       const grantsSnap = await getDocs(grantsQ);
       grantsSnap.forEach(g => {
         deleteDoc(g.ref); // Fire and forget for now
