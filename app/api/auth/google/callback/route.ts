@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { consumeOAuthState } from '@/lib/server/oauthState';
 import { newChannelId, newChannelSecret, saveChannel } from '@/lib/server/calendarChannels';
 
+import { appUrl } from '@/lib/appUrl';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${encodeURIComponent(error)}`);
+    return NextResponse.redirect(`${appUrl()}/calendar?error=${encodeURIComponent(error)}`);
   }
 
   if (!code || !state) {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+    const redirectUri = `${appUrl()}/api/auth/google/callback`;
 
     if (!clientId || !clientSecret) {
       throw new Error('Google OAuth credentials not configured');
@@ -63,8 +64,8 @@ export async function GET(request: Request) {
 
 
     // Register Google Calendar Webhook (Hardcore Sync)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    if (appUrl.startsWith('https://')) { // Google requires HTTPS for webhooks
+    const baseUrl = appUrl();
+    if (baseUrl.startsWith('https://')) { // Google requires HTTPS for webhooks
       try {
         // Ogni canale ha un id e un segreto casuali: Google li rimanda in ogni avviso
         // e il webhook accetta solo avvisi con il segreto giusto.
@@ -80,7 +81,7 @@ export async function GET(request: Request) {
             id: channelId,
             token: secret,
             type: 'web_hook',
-            address: `${appUrl}/api/calendar/webhooks/google`
+            address: `${baseUrl}/api/calendar/webhooks/google`
           })
         });
         if (watch.ok) {
@@ -101,10 +102,10 @@ export async function GET(request: Request) {
 
     // Redirect to the calendar with a success message
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?sync=success`);
+    return NextResponse.redirect(`${appUrl()}/calendar?sync=success`);
 
   } catch (err) {
     console.error('Google OAuth callback error:', err);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=oauth_failed`);
+    return NextResponse.redirect(`${appUrl()}/calendar?error=oauth_failed`);
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { createOAuthState } from '@/lib/server/oauthState';
 
+import { appUrl } from '@/lib/appUrl';
 /** Avvio del collegamento a Outlook. Vedi la route Google per il perché della POST autenticata. */
 export async function POST(request: Request) {
   const auth = await requireUser(request);
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Microsoft Client ID not configured' }, { status: 500 });
   }
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/microsoft/callback`;
+  const redirectUri = `${appUrl()}/api/auth/microsoft/callback`;
   const state = await createOAuthState(auth.user.uid, 'microsoft');
 
   const url = new URL('https://login.microsoftonline.com/common/oauth2/v2.0/authorize');

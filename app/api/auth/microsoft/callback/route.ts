@@ -3,6 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { consumeOAuthState } from '@/lib/server/oauthState';
 import { newChannelSecret, saveChannel } from '@/lib/server/calendarChannels';
 
+import { appUrl } from '@/lib/appUrl';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
@@ -10,7 +11,7 @@ export async function GET(request: Request) {
   const error = searchParams.get('error');
 
   if (error) {
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=${encodeURIComponent(error)}`);
+    return NextResponse.redirect(`${appUrl()}/calendar?error=${encodeURIComponent(error)}`);
   }
 
   if (!code || !state) {
@@ -24,7 +25,7 @@ export async function GET(request: Request) {
 
     const clientId = process.env.MICROSOFT_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CLIENT_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/microsoft/callback`;
+    const redirectUri = `${appUrl()}/api/auth/microsoft/callback`;
 
     if (!clientId || !clientSecret) {
       throw new Error('Microsoft OAuth credentials not configured');
@@ -63,8 +64,8 @@ export async function GET(request: Request) {
 
 
     // Register Microsoft Graph Webhook (Hardcore Sync)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    if (appUrl.startsWith('https://')) { // MS requires HTTPS
+    const baseUrl = appUrl();
+    if (baseUrl.startsWith('https://')) { // MS requires HTTPS
       try {
         const expirationDateTime = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(); // MS webhooks expire in 3 days max
         // clientState è un segreto casuale: Microsoft lo rimanda in ogni avviso
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
           },
           body: JSON.stringify({
             changeType: 'updated,deleted',
-            notificationUrl: `${appUrl}/api/calendar/webhooks/microsoft`,
+            notificationUrl: `${baseUrl}/api/calendar/webhooks/microsoft`,
             resource: 'me/events',
             expirationDateTime,
             clientState: secret
@@ -100,11 +101,11 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?sync=success`);
+    return NextResponse.redirect(`${appUrl()}/calendar?sync=success`);
 
 
   } catch (err) {
     console.error('Microsoft OAuth callback error:', err);
-    return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/calendar?error=oauth_failed`);
+    return NextResponse.redirect(`${appUrl()}/calendar?error=oauth_failed`);
   }
 }

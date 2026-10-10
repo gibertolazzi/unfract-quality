@@ -1,6 +1,7 @@
 import { db } from './firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, where, orderBy, getDocs, onSnapshot, arrayUnion, arrayRemove } from 'firebase/firestore';
 
+import { appUrl } from '@/lib/appUrl';
 export interface ChatPermissions {
   canWrite: boolean;
   canAddMembers: boolean;
@@ -115,7 +116,7 @@ export const sendMessage = async (chatId: string, senderId: string, senderName: 
               taskTitle: chatData.type === 'direct' ? 'Messaggio diretto' : `Chat: ${chatData.name || 'Team'}`,
               authorName: senderName,
               messageHtml: isMentioned ? `${senderName} ti ha menzionato: ${messagePreview}` : messagePreview,
-              actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com'}/chat`,
+              actionUrl: `${appUrl()}/chat`,
               chatId,
               messageId: msgRef.id,
             });

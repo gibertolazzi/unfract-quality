@@ -6,6 +6,7 @@ import { requireUser } from '@/lib/server/auth';
 import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { createOrgInvite, INVITE_TTL_MS, isOrgMember } from '@/lib/server/orgInvites';
 
+import { appUrl } from '@/lib/appUrl';
 export const runtime = 'nodejs';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
@@ -51,7 +52,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Non fai parte di questa organizzazione.' }, { status: 403 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+    const baseUrl = appUrl();
     const { token } = await createOrgInvite({ orgId, invitedBy: user.uid, kind: 'email', email });
     const resend = new Resend(resendKey);
     const result = await resend.emails.send({
