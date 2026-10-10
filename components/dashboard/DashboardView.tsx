@@ -12,6 +12,7 @@ import { CheckCircle2, Circle, CircleDot, ArrowRight, Video, ExternalLink } from
 import { useTranslation } from "@/contexts/TranslationContext";
 import { subscribeToEvents } from "@/lib/calendar";
 import { authedFetch } from "@/lib/authedFetch";
+import { myDashboardTasks, taskStatus } from "@/lib/dashboardTasks";
 
 interface DashboardEvent {
   id: string;
@@ -178,7 +179,9 @@ export function DashboardView() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const userTasks = tasks.filter(t => t.assignee === user?.displayName || !t.assignee).slice(0, 6);
+  const { visible: userTasks, pendingCount } = user
+    ? myDashboardTasks(tasks, columns, user)
+    : { visible: [], pendingCount: 0 };
   
   const completedCount = tasks.filter(t => getTaskStatus(t) === "done").length;
   const inProgressCount = tasks.filter(t => getTaskStatus(t) === "progress").length;
@@ -220,12 +223,8 @@ export function DashboardView() {
   };
 
   function getTaskStatus(task: any) {
-    const col = columns.find(c => c.id === task.columnId);
-    const title = col?.title?.toLowerCase() || "";
-    if (title.includes("done") || title.includes("fatto") || title.includes("completato")) return "done";
-    if (title.includes("progress") || title.includes("lavorazione") || title.includes("doing")) return "progress";
-    return "todo";
-  };
+    return taskStatus(task, columns);
+  }
 
   const handleToggleTaskStatus = async (e: React.MouseEvent, task: any) => {
     e.preventDefault();
@@ -272,7 +271,12 @@ export function DashboardView() {
           {/* My Tasks */}
           <div className="bg-[#0B0B0B] rounded-[32px] border border-white/5 p-6 flex flex-col shadow-xl">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-[16px] font-medium text-white/90">{t.dashboard.myTasks}</h3>
+              <h3 className="text-[16px] font-medium text-white/90">
+                {t.dashboard.myTasks}
+                {pendingCount > 0 && (
+                  <span className="ml-2 text-[12px] font-normal text-[#858585]">{pendingCount} {t.dashboard.toDo}</span>
+                )}
+              </h3>
               <Link href="/" className="flex items-center gap-1 text-[12px] text-[#858585] hover:text-white/70 transition-colors">
                 {t.dashboard.seeAll} <ArrowRight size={12} />
               </Link>
