@@ -63,13 +63,12 @@ const quotas = () => mocks.db.store.get('workspaces/w1').quotas;
 afterEach(() => vi.unstubAllGlobals());
 
 describe('chiave di Gemini', () => {
-  it('usa GEMINI_API_KEY e, finché manca, la vecchia chiave solo sul server', () => {
+  it('usa solo GEMINI_API_KEY, mai la vecchia chiave pubblica', () => {
     expect(geminiApiKey()).toBe('server-key');
     delete process.env.GEMINI_API_KEY;
     process.env.NEXT_PUBLIC_GEMINI_API_KEY = 'legacy-key';
-    expect(geminiApiKey()).toBe('legacy-key');
-    delete process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     expect(geminiApiKey()).toBe('');
+    delete process.env.NEXT_PUBLIC_GEMINI_API_KEY;
   });
 });
 
@@ -136,7 +135,6 @@ describe('POST /api/ai/meeting', () => {
 
   it('503 se la chiave non è configurata', async () => {
     delete process.env.GEMINI_API_KEY;
-    delete process.env.NEXT_PUBLIC_GEMINI_API_KEY;
     const { POST } = await import('@/app/api/ai/meeting/route');
     const response = await POST(jsonRequest('http://localhost/api/ai/meeting', { projectId: 'p1', transcript: 'ciao' }, AUTH));
     expect(response.status).toBe(503);

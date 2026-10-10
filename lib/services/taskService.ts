@@ -17,6 +17,7 @@ import { Task, Column, Epic } from '@/types/tasks';
 import { queueNotification, QueuedEmailType } from '@/lib/queueNotification';
 import { deleteStoredFile } from '@/lib/usage';
 
+import { appUrl } from '@/lib/appUrl';
 export async function deleteTaskAttachments(taskData: any) {
   const attachments = Array.isArray(taskData?.attachments) ? taskData.attachments : [];
   const projectId = taskData?.projectId;
@@ -55,7 +56,7 @@ async function enqueueTaskEmail(
       taskTitle: task.title || 'Task',
       authorName,
       messageHtml: message,
-      actionUrl: `${process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com'}/`,
+      actionUrl: `${appUrl()}/`,
       taskId,
     });
   } catch (error) {

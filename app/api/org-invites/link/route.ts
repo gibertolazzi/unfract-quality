@@ -4,6 +4,7 @@ import { requireUser } from '@/lib/server/auth';
 import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { createOrgInvite, isOrgMember } from '@/lib/server/orgInvites';
 
+import { appUrl } from '@/lib/appUrl';
 export const runtime = 'nodejs';
 
 /**
@@ -32,6 +33,6 @@ export async function POST(request: Request) {
   }
 
   const { token, expiresAt } = await createOrgInvite({ orgId, invitedBy: user.uid, kind: 'link' });
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+  const baseUrl = appUrl();
   return NextResponse.json({ url: `${baseUrl}/invite/${token}`, expiresAt });
 }

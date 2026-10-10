@@ -5,6 +5,7 @@ import { isPlanId, PLANS } from '@/lib/stripe/plans';
 import { adminDb } from '@/lib/firebase-admin';
 import { canManageWorkspace } from '@/lib/server/usage';
 
+import { appUrl } from '@/lib/appUrl';
 export const runtime = 'nodejs';
 
 /**
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Questo workspace ha già un abbonamento attivo.' }, { status: 409 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || new URL(request.url).origin;
+  const baseUrl = appUrl();
 
   try {
     const stripe = new Stripe(secretKey);
@@ -57,8 +58,8 @@ export async function POST(request: Request) {
       tax_id_collection: { enabled: true },
       customer_email: user.email || undefined,
       line_items: [{ price: PLANS[plan].priceId, quantity }],
-      success_url: `${appUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/dashboard`,
+      success_url: `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${baseUrl}/dashboard`,
       metadata: { userId: user.uid, plan, workspaceId },
       subscription_data: { metadata: { userId: user.uid, plan, workspaceId } },
     });

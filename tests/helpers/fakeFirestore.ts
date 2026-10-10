@@ -22,12 +22,10 @@ export function createFakeDb() {
       const current = store.get(path)!;
       const next = { ...current };
       for (const [key, value] of Object.entries(data)) {
-        // FieldValue.arrayRemove e arrayUnion finti (vedi i test che li usano).
+        // FieldValue.arrayRemove finto (vedi i test che lo usano).
         next[key] = value && typeof value === 'object' && '__arrayRemove' in value
           ? (current[key] || []).filter((item: unknown) => !(value.__arrayRemove as unknown[]).includes(item))
-          : value && typeof value === 'object' && '__arrayUnion' in value
-            ? [...(current[key] || []), ...(value.__arrayUnion as unknown[]).filter(item => !(current[key] || []).includes(item))]
-            : value;
+          : value;
       }
       store.set(path, next);
     },

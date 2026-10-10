@@ -1,3 +1,5 @@
+import { appUrl } from '@/lib/appUrl';
+
 export interface NotificationEmailProps {
   recipientName: string;
   actionTitle: string; // e.g. "Giacomo ti ha menzionato in una task"
@@ -27,8 +29,8 @@ function safeEmailUrl(value: string, baseUrl: string): string {
 }
 
 export function getNotificationEmailHtml(props: NotificationEmailProps): string {
-  // Use the application URL for images. In production, ensure NEXT_PUBLIC_APP_URL is set in .env
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com';
+  // Immagini dal sito dell'app (vedi lib/appUrl.ts).
+  const baseUrl = appUrl();
   const bannerUrl = `${baseUrl}/email-banner.png`;
   
   // I client email spesso bloccano immagini remote o URL temporanei di Google:
@@ -149,7 +151,7 @@ export interface OrgInviteEmailProps {
 }
 
 export function getOrgInviteEmailHtml(props: OrgInviteEmailProps): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://unfract.com';
+  const baseUrl = appUrl();
   const bannerUrl = `${baseUrl}/email-banner.png`;
   // Nome dell'organizzazione e di chi invita li scrivono gli utenti: vanno
   // ripuliti come nel template delle notifiche, e il link deve essere http(s).
@@ -254,7 +256,7 @@ export interface RecapEmailProps {
 }
 
 export function getRecapEmailHtml(props: RecapEmailProps): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://tuodominio.com';
+  const baseUrl = appUrl();
   const bannerUrl = `${baseUrl}/email-banner.png`;
 
   const notificationsListHtml = props.notifications.map(n => {
@@ -346,7 +348,7 @@ export interface CalendarEmailProps {
 }
 
 export function getCalendarEventEmailHtml(props: CalendarEmailProps): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.unfract.com';
+  const baseUrl = appUrl();
   const bannerUrl = `${baseUrl}/email-banner.png`;
   // Il titolo dell'evento lo scrive l'utente: va ripulito prima di finire nell'HTML.
   const eventName = escapeHtml(props.eventName);

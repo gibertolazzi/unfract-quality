@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireUser } from '@/lib/server/auth';
 import { createOAuthState } from '@/lib/server/oauthState';
 
+import { appUrl } from '@/lib/appUrl';
 /**
  * Avvio del collegamento a Google Calendar.
  *
@@ -18,7 +19,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Google Client ID not configured' }, { status: 500 });
   }
 
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/auth/google/callback`;
+  const redirectUri = `${appUrl()}/api/auth/google/callback`;
   const state = await createOAuthState(auth.user.uid, 'google');
 
   const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');

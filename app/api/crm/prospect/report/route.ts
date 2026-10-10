@@ -6,12 +6,9 @@ import { readJsonObject } from '@/lib/server/requestBody';
 /**
  * Le due sezioni discorsive del report, scritte dal modello.
  *
- * Sta sul server per il motivo che vale più di tutti: **la chiave**. Il
- * prodotto oggi ne tiene una in `NEXT_PUBLIC_GEMINI_API_KEY`, che finisce nel
- * JavaScript servito al browser ed è leggibile da chiunque apra gli strumenti
- * di sviluppo (segnalazione 8 al team). Questa route legge `GEMINI_API_KEY`, e
- * **non ripiega** su quella pubblica: ripiegare vorrebbe dire spostare il
- * problema e chiamarlo risolto.
+ * Sta sul server per il motivo che vale più di tutti: **la chiave**, che non
+ * deve mai finire nel JavaScript servito al browser. Questa route legge
+ * `GEMINI_API_KEY`.
  *
  * Se la chiave non c'è, la route risponde `200` con `ok: false` e il codice
  * `NOT_CONFIGURED`: non è un errore, è una configurazione che manca, e il
