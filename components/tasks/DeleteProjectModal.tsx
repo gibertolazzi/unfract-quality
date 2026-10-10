@@ -45,7 +45,7 @@ export function DeleteProjectModal({
         
         <div className="p-6 flex flex-col gap-4">
           <p className="text-sm text-white/70 leading-relaxed">
-            {t.tasks.deleteWarning1} <strong className="text-white">{t.tasks.irreversible}</strong>{t.tasks.deleteWarning2} <strong className="text-white">{project.name}</strong>.
+            {t.tasks.deleteWarning1} <strong className="text-white">{t.tasks.irreversible}</strong>{t.tasks.deleteWarning2} <strong className="text-white">{project.name}</strong>. {t.tasks.deleteWarning3}
           </p>
           <p className="text-xs text-[#858585]">
             {t.tasks.typeToConfirm}

@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { jsonRequest } from '../helpers/fakeFirestore';
+import { storageRecordId } from '@/lib/server/storageBackfill';
 
 const mocks = vi.hoisted(() => ({
   verifyIdToken: vi.fn(),
   db: undefined as any,
+  /** File su Storage, per nome. */
+  files: new Set<string>(),
+  storageDown: false,
 }));
 
 vi.mock('@/lib/firebase-admin', async () => {
@@ -15,6 +19,19 @@ vi.mock('firebase-admin/firestore', () => ({
   FieldValue: { arrayRemove: (...values: unknown[]) => ({ __arrayRemove: values }) },
 }));
 vi.mock('@/lib/server/rateLimit', () => ({ tooManyRequests: () => false }));
+vi.mock('firebase-admin/storage', () => ({
+  getStorage: () => ({
+    bucket: () => ({
+      getFiles: async ({ prefix }: { prefix: string }) => [Array.from(mocks.files).filter(name => name.startsWith(prefix)).map(name => ({ name }))],
+      file: (name: string) => ({
+        delete: async () => {
+          if (mocks.storageDown) throw new Error('Storage non raggiungibile');
+          mocks.files.delete(name);
+        },
+      }),
+    }),
+  }),
+}));
 
 const AUTH = { Authorization: 'Bearer good' };
 const as = (uid: string) => mocks.verifyIdToken.mockResolvedValue({ uid, email: `${uid}@example.com` });
@@ -34,7 +51,9 @@ beforeEach(async () => {
   const s = mocks.db.store;
   s.clear();
   mocks.verifyIdToken.mockReset();
-  s.set('workspaces/w1', { name: 'Acme', ownerId: 'anna' });
+  mocks.files.clear();
+  mocks.storageDown = false;
+  s.set('workspaces/w1', { name: 'Acme', ownerId: 'anna', quotas: { storageUsed: 1500, storageLimit: 1e9 } });
   s.set('access_grants/w1_anna', { subjectType: 'user', subjectId: 'anna', resourceType: 'workspace', workspaceId: 'w1', role: 'admin' });
   s.set('access_grants/w1_bruno', { subjectType: 'user', subjectId: 'bruno', resourceType: 'workspace', workspaceId: 'w1', role: 'member' });
   s.set('access_grants/w1_carla', { subjectType: 'user', subjectId: 'carla', resourceType: 'workspace', workspaceId: 'w1', role: 'admin' });
@@ -48,21 +67,57 @@ beforeEach(async () => {
   s.set('access_requests/q1', { projectId: 'p1', status: 'pending' });
   s.set('access_grants/p1_anna', { subjectType: 'user', subjectId: 'anna', resourceType: 'project', resourceId: 'p1', workspaceId: 'w1' });
   s.set('documentation/d1', { projectId: 'p1', title: 'Doc' });
+  s.set('meetings/m1', { projectId: 'p1' });
+  s.set('crm_accounts/a1', { projectId: 'p1', name: 'Cliente' });
+  s.set('crm_audit/x1', { projectId: 'p1' });
+  s.set('ai_chats/ai1', { projectId: 'p1', userId: 'bruno' });
+  s.set('chats/ch1', { projectId: 'p1', members: ['anna', 'bruno'] });
+  s.set('messages/msg1', { chatId: 'ch1', senderId: 'anna' });
+  s.set('messages/msg2', { chatId: 'ch1', senderId: 'bruno' });
   s.set('columns/altro', { projectId: 'p2', title: 'To Do' });
+  s.set('chats/ch2', { projectId: 'p2', members: ['anna'] });
+  s.set('messages/msg3', { chatId: 'ch2', senderId: 'anna' });
+  s.set('tasks/t1', { projectId: 'p1', title: 'Task', attachments: [{ refPath: 'tasks/attachments/1_vecchio.pdf' }] });
+  for (const name of ['meetings/p1/1.webm', 'documentation/p1/d1/foto.png', 'tasks/p1/1_a.pdf', 'tasks/attachments/1_vecchio.pdf',
+    'ai-hub/p1/1_dati.csv', 'crm/p1/2026/1-offerta.pdf', 'chats/ch1/1_0_foto.png',
+    'meetings/p2/1.webm', 'chats/ch2/x.png', 'tasks/attachments/2_altro.pdf', 'organizations/o1/banner_1']) {
+    mocks.files.add(name);
+  }
+  // Due file del progetto già contati nello spazio del workspace (1000 + 300 byte).
+  s.set(`storage_usage/${storageRecordId('meetings/p1/1.webm')}`, { path: 'meetings/p1/1.webm', workspaceId: 'w1', bytes: 1000 });
+  s.set(`storage_usage/${storageRecordId('chats/ch1/1_0_foto.png')}`, { path: 'chats/ch1/1_0_foto.png', workspaceId: 'w1', bytes: 300 });
 });
 
 describe('cancellazione di un progetto', () => {
-  it('chi l’ha creato lo cancella insieme a colonne, task, ruoli e accessi', async () => {
+  it('chi l’ha creato lo cancella con tutto quello che contiene', async () => {
     const res = await call('projects', { projectId: 'p1' }, 'anna');
     expect(res.status).toBe(200);
     for (const path of ['projects/p1', 'columns/c1', 'columns/c2', 'tasks/t1', 'epics/e1', 'project_members/p1_bruno',
-      'project_roles/r1', 'access_requests/q1', 'access_grants/p1_anna']) {
+      'project_roles/r1', 'access_requests/q1', 'access_grants/p1_anna', 'documentation/d1', 'meetings/m1',
+      'crm_accounts/a1', 'crm_audit/x1', 'ai_chats/ai1', 'chats/ch1', 'messages/msg1', 'messages/msg2']) {
       expect(has(path), path).toBe(false);
     }
-    // Restano i contenuti, gli altri progetti e l'accesso al workspace.
+    // Restano gli altri progetti, le loro chat e l'accesso al workspace.
+    for (const path of ['columns/altro', 'chats/ch2', 'messages/msg3', 'access_grants/w1_anna', 'workspaces/w1']) {
+      expect(has(path), path).toBe(true);
+    }
+  });
+
+  it('cancella i file del progetto e li toglie dallo spazio usato', async () => {
+    expect((await call('projects', { projectId: 'p1' }, 'anna')).status).toBe(200);
+    expect(Array.from(mocks.files).sort()).toEqual(['chats/ch2/x.png', 'meetings/p2/1.webm', 'organizations/o1/banner_1', 'tasks/attachments/2_altro.pdf']);
+    expect(mocks.db.store.get('workspaces/w1').quotas.storageUsed).toBe(200);
+    expect(has(`storage_usage/${storageRecordId('meetings/p1/1.webm')}`)).toBe(false);
+  });
+
+  it('se Storage non risponde non cancella il progetto, e si può riprovare', async () => {
+    mocks.storageDown = true;
+    expect((await call('projects', { projectId: 'p1' }, 'anna')).status).toBe(500);
+    expect(has('projects/p1')).toBe(true);
     expect(has('documentation/d1')).toBe(true);
-    expect(has('columns/altro')).toBe(true);
-    expect(has('access_grants/w1_anna')).toBe(true);
+    mocks.storageDown = false;
+    expect((await call('projects', { projectId: 'p1' }, 'anna')).status).toBe(200);
+    expect(has('projects/p1')).toBe(false);
   });
 
   it('un amministratore del workspace può cancellarlo', async () => {
@@ -114,6 +169,7 @@ describe('cancellazione di un’organizzazione', () => {
     }
     expect(has('org_invites/h2')).toBe(true);
     expect(has('workspaces/w1')).toBe(true);
+    expect(mocks.files.has('organizations/o1/banner_1')).toBe(false);
     expect(mocks.db.store.get('projects/collegato').organizationIds).toEqual(['o2']);
   });
 

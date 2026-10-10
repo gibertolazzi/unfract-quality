@@ -230,6 +230,31 @@ export async function trackStoredFile(input: {
   return { ok: true, bytes };
 }
 
+/**
+ * Toglie dal conteggio file che il server ha appena cancellato (progetti e
+ * organizzazioni cancellati, lib/server/deletions.ts). Restituisce i byte tolti.
+ */
+export async function releaseRemovedFiles(paths: string[]): Promise<number> {
+  let released = 0;
+  for (const path of paths) {
+    const recordRef = adminDb.collection('storage_usage').doc(recordId(path));
+    await adminDb.runTransaction(async tx => {
+      const record = await tx.get(recordRef);
+      if (!record.exists) return;
+      const bytes = Number(record.data()?.bytes) || 0;
+      const workspaceRef = adminDb.collection('workspaces').doc(String(record.data()?.workspaceId));
+      const workspace = await tx.get(workspaceRef);
+      if (workspace.exists) {
+        const quotas = withDefaults(workspace.data()?.quotas);
+        tx.set(workspaceRef, { quotas: { ...quotas, storageUsed: Math.max(0, (Number(quotas.storageUsed) || 0) - bytes) } }, { merge: true });
+      }
+      tx.delete(recordRef);
+      released += bytes;
+    });
+  }
+  return released;
+}
+
 /** Toglie dal conteggio un file che non c'è più. Se esiste ancora, non tocca nulla. */
 export async function releaseStoredFile(input: {
   uid: string; path: string; idToken: string; bucket: string;

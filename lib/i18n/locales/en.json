@@ -146,6 +146,7 @@
     "deleteWarning1": "This action is ",
     "irreversible": "irreversible",
     "deleteWarning2": ". It will permanently delete the project ",
+    "deleteWarning3": "Tasks, documents, meetings, chats, AI chats, CRM data and uploaded files are deleted with the project.",
     "typeToConfirm": "To confirm, type the project name below:",
     "deleteProjectBtn": "Delete project",
     "unknown": "Unknown",

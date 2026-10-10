@@ -6,8 +6,8 @@ import { deleteProject } from '@/lib/server/deletions';
 export const runtime = 'nodejs';
 
 /**
- * Cancella un progetto con colonne, task, epic, ruoli, membri, richieste e
- * accessi. Body: `{ projectId }`.
+ * Cancella un progetto con tutto quello che contiene: dati, chat, chat AI e
+ * file (vedi lib/server/deletions.ts). Body: `{ projectId }`.
  */
 export async function POST(request: Request) {
   const auth = await requireUser(request);
