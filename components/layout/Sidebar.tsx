@@ -431,8 +431,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                     ? "bg-[#006AFF]/40 text-white shadow-sm"
                     : "text-[#808080] hover:text-white hover:bg-white/5"
                 }`}
+                onClick={() => {
+                  if (!item.disabled) {
+                    if (isDocMenu && !isDocsExpanded) setIsDocsExpanded(true);
+                    router.push(item.href);
+                  }
+                }}
               >
-                                <Link
+                <Link
                   href={item.disabled ? "#" : item.href}
                   className={`flex items-center gap-3 flex-1 overflow-hidden ${item.disabled ? 'cursor-not-allowed' : ''}`}
                   onClick={(e) => {
