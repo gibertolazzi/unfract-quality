@@ -31,6 +31,16 @@ export const TranslationProvider = ({
     const normalizedLocale = locale === 'en' ? 'en' : 'it';
     setActiveLocale(normalizedLocale);
     setActiveDictionary(dictionary);
+
+    // Respect the browser language for first-time visitors while keeping the
+    // server-rendered Italian default stable until hydration completes.
+    if (!document.cookie.includes('NEXT_LOCALE=') && normalizedLocale === 'it') {
+      const browserLocale = navigator.language.toLowerCase().split(/[-_]/)[0];
+      if (browserLocale === 'en') {
+        setActiveLocale('en');
+        setActiveDictionary(enDict);
+      }
+    }
   }, [dictionary, locale]);
 
   const setLocale = useCallback((nextLocale: 'it' | 'en') => {

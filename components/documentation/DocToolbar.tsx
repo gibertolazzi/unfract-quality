@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bold, Italic, Underline, Strikethrough, List, ListOrdered, Link, Image as ImageIcon, Type, Code, Quote, CheckSquare, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { Editor } from '@tiptap/react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 const FONTS = [
   { name: 'Inter', value: 'Inter, sans-serif' },
@@ -23,6 +24,7 @@ export function DocToolbar({
   onPromptRequest: (type: 'link' | 'image') => void
 }) {
   const preventFocus = (e: React.MouseEvent) => e.preventDefault();
+  const { t } = useTranslation();
 
   if (!editor) return null;
 
@@ -42,9 +44,9 @@ export function DocToolbar({
           }}
           className="bg-transparent text-white/80 text-sm font-medium outline-none cursor-pointer border-none pl-2"
         >
-          <option value="p">Paragrafo</option>
-          <option value="h2">Titolo 1</option>
-          <option value="h3">Titolo 2</option>
+          <option value="p">{t.documentationUi.paragraph}</option>
+          <option value="h2">{t.documentationUi.heading1}</option>
+          <option value="h3">{t.documentationUi.heading2}</option>
         </select>
       </div>
 
@@ -63,7 +65,7 @@ export function DocToolbar({
         value={editor.getAttributes('textStyle').fontFamily || ''}
         className="bg-transparent text-white/80 text-sm outline-none cursor-pointer border border-white/10 rounded px-2 py-1 mr-1"
       >
-        <option value="">Font (Predefinito)</option>
+        <option value="">{t.documentationUi.fontDefault}</option>
         {FONTS.map(f => <option key={f.value} value={f.value}>{f.name}</option>)}
       </select>
 
@@ -80,41 +82,41 @@ export function DocToolbar({
         value={editor.getAttributes('textStyle').fontSize || ''}
         className="bg-transparent text-white/80 text-sm outline-none cursor-pointer border border-white/10 rounded px-2 py-1 mr-1"
       >
-        <option value="">Dimensione (Auto)</option>
+        <option value="">{t.documentationUi.sizeAuto}</option>
         {SIZES.map(s => <option key={s} value={s}>{s}</option>)}
       </select>
 
       <div className="h-6 w-px bg-white/10 mx-1" />
 
       {/* Formatting */}
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('bold') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Grassetto">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleBold().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('bold') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.bold}>
         <Bold size={16} />
       </button>
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('italic') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Corsivo">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('italic') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.italic}>
         <Italic size={16} />
       </button>
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('underline') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Sottolineato">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleUnderline().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('underline') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.underline}>
         <Underline size={16} />
       </button>
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('strike') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Barrato">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleStrike().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('strike') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.strike}>
         <Strikethrough size={16} />
       </button>
 
       <div className="h-6 w-px bg-white/10 mx-1" />
 
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('bulletList') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Elenco puntato">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('bulletList') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.bulletList}>
         <List size={16} />
       </button>
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('orderedList') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Elenco numerato">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('orderedList') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.orderedList}>
         <ListOrdered size={16} />
       </button>
 
       <div className="h-6 w-px bg-white/10 mx-1" />
 
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('blockquote') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Citazione">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleBlockquote().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('blockquote') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.quote}>
         <Quote size={16} />
       </button>
-      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('codeBlock') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title="Codice">
+      <button onMouseDown={preventFocus} onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-1.5 rounded-md transition-colors ${editor.isActive('codeBlock') ? 'bg-white/20 text-white' : 'hover:bg-white/10 text-white/70'}`} title={t.documentationUi.code}>
         <Code size={16} />
       </button>
     </div>

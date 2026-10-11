@@ -6,9 +6,11 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ChatSidebar } from '@/components/chat/ChatSidebar';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { MessageSquarePlus, Menu } from "lucide-react";
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export default function ChatPage() {
   const { activeChatId, isLoadingChats } = useChat();
+  const { t } = useTranslation();
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
@@ -45,8 +47,8 @@ export default function ChatPage() {
             </div>
             <div className="flex-1 flex flex-col items-center justify-center">
               <MessageSquarePlus size={48} className="mb-4" />
-              <h2 className="text-xl font-semibold mb-2 text-white/60">Seleziona una chat</h2>
-              <p className="text-sm">Inizia a collaborare col tuo team</p>
+              <h2 className="text-xl font-semibold mb-2 text-white/60">{t.chatUi.selectChat}</h2>
+              <p className="text-sm">{t.chatUi.startCollaborating}</p>
             </div>
           </div>
         )}
