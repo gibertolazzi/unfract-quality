@@ -11,12 +11,15 @@ import { db } from '@/lib/firebase';
 import { collection, doc, deleteDoc, getDocs, query, where } from 'firebase/firestore';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { deleteStoredFile } from '@/lib/usage';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { formatMessage } from '@/lib/i18n/formatMessage';
 
 export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const { chats, activeChatId, setActiveChatId, isLoadingChats, unreadCounts } = useChat();
   const { user } = useAuth();
   const { activeProject, activeProjectId } = useProject();
   const { organizations } = useOrganization();
+  const { t } = useTranslation();
 
   // Get project members
   const orgIds = activeProject?.organizationIds || [];
@@ -37,7 +40,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
 
   const handleDeleteChat = async (e: React.MouseEvent, chatId: string, chatName: string) => {
     e.stopPropagation();
-    if (window.confirm(`Sei sicuro di voler eliminare la chat "${chatName}"? Questa operazione è irreversibile.`)) {
+    if (window.confirm(formatMessage(t.chatUi.deleteConfirm, { name: chatName }))) {
       try {
         const messagesQuery = query(collection(db, 'messages'), where('chatId', '==', chatId));
         const messagesSnapshot = await getDocs(messagesQuery);
@@ -58,7 +61,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
           setActiveChatId(null);
         }
       } catch (error) {
-        console.error("Errore nell'eliminazione della chat", error);
+        console.error(t.chatUi.deleteError, error);
       }
     }
   };
@@ -97,7 +100,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   return (
     <div className="w-[320px] shrink-0 my-4 ml-4 p-5 flex flex-col relative z-10 rounded-[32px] border border-white/[0.08] bg-[#0a0a0a] md:bg-black/40 backdrop-blur-[40px] h-[calc(100%-2rem)]">
       <div className="pb-4 border-b border-white/5 mb-2 flex items-center justify-between">
-        <h2 className="font-medium text-white/90 text-[14px] tracking-wide">Team Chat</h2>
+        <h2 className="font-medium text-white/90 text-[14px] tracking-wide">{t.chatUi.teamChat}</h2>
         {onCloseMobile && (
           <button 
             onClick={onCloseMobile}
@@ -111,7 +114,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
       <div className="flex-1 overflow-y-auto space-y-6 pt-2 pr-2">
         <div>
           <div className="flex items-center justify-between px-2 mb-2">
-            <span className="text-xs font-semibold text-[#858585] uppercase tracking-wider">Canali</span>
+            <span className="text-xs font-semibold text-[#858585] uppercase tracking-wider">{t.chatUi.channels}</span>
             <button onClick={() => setIsCreatingChannel(true)} className="text-[#858585] hover:text-white transition-colors">
               <Plus size={14} />
             </button>
@@ -121,7 +124,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
               <input
                 autoFocus
                 type="text"
-                placeholder="nome-canale"
+                placeholder={t.chatUi.channelName}
                 value={newChannelName}
                 onChange={(e) => setNewChannelName(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
                 className="w-full bg-white/5 border border-white/10 rounded-md py-1 px-2 text-sm text-white outline-none focus:border-[#00FF88]"
@@ -134,7 +137,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
           {isLoadingChats ? (
             <div className="animate-pulse px-2 py-1 bg-white/5 rounded-md w-3/4 mx-2"></div>
           ) : channels.length === 0 ? (
-            <p className="text-xs text-[#858585] px-2 italic">Nessun canale</p>
+            <p className="text-xs text-[#858585] px-2 italic">{t.chatUi.noChannels}</p>
           ) : (
             <div className="space-y-1">
               {channels.map(chat => {
@@ -152,14 +155,14 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
                         <span className="truncate">{chat.name}</span>
                       </span>
                       {unread > 0 && (
-                        <span aria-label={`${unread} messaggi non letti`} className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white">
+                        <span aria-label={formatMessage(t.chatUi.unreadMessages, { count: unread })} className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white">
                           {unread > 99 ? '99+' : unread}
                         </span>
                       )}
                     </button>
                     <button
                       type="button"
-                      aria-label={`Elimina canale ${chat.name || ''}`}
+                      aria-label={formatMessage(t.chatUi.deleteChannel, { name: chat.name || '' })}
                       onClick={e => handleDeleteChat(e, chat.id, chat.name || 'Chat')}
                       className="shrink-0 rounded p-1 text-[#858585] opacity-0 transition-all hover:bg-[#FF0004]/20 hover:text-[#FF0004] group-hover:opacity-100 focus:opacity-100"
                     >
@@ -174,7 +177,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
 
         <div>
           <div className="flex items-center justify-between px-2 mb-2">
-            <span className="text-xs font-semibold text-[#858585] uppercase tracking-wider">Messaggi Diretti</span>
+            <span className="text-xs font-semibold text-[#858585] uppercase tracking-wider">{t.chatUi.directMessages}</span>
             <button onClick={() => setIsCreatingDM(true)} className="text-[#858585] hover:text-white transition-colors">
               <Plus size={14} />
             </button>
@@ -184,7 +187,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
               <input
                 autoFocus
                 type="text"
-                placeholder="Cerca membro..."
+                placeholder={t.chatUi.searchMember}
                 value={newDMUser}
                 onChange={(e) => setNewDMUser(e.target.value)}
                 className="w-full bg-white/5 border border-white/10 rounded-md py-1 px-2 text-sm text-white outline-none focus:border-blue-500 mb-1"
@@ -197,7 +200,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
                 {members.filter(m => m.uid !== user?.uid && (m.displayName?.toLowerCase().includes(newDMUser.toLowerCase()) || m.email?.toLowerCase().includes(newDMUser.toLowerCase()))).map(m => (
                   <button
                     key={m.uid}
-                    onClick={() => handleCreateDM(m.uid, m.displayName || 'Utente')}
+                    onClick={() => handleCreateDM(m.uid, m.displayName || t.chatUi.user)}
                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-white/5 text-left transition-colors"
                   >
                     <UserAvatar
@@ -216,7 +219,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
           {isLoadingChats ? (
             <div className="animate-pulse px-2 py-1 bg-white/5 rounded-md w-3/4 mx-2"></div>
           ) : dms.length === 0 ? (
-            <p className="text-xs text-[#858585] px-2 italic">Nessun DM</p>
+            <p className="text-xs text-[#858585] px-2 italic">{t.chatUi.noDirectMessages}</p>
           ) : (
             <div className="space-y-1">
               {dms.map(chat => {
@@ -233,18 +236,18 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
                         <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500/20">
                           <Users size={10} className="text-blue-500" />
                         </span>
-                        <span className="truncate">{chat.name || 'Nome Utente (Mock)'}</span>
+                        <span className="truncate">{chat.name || t.chatUi.user}</span>
                       </span>
                       {unread > 0 && (
-                        <span aria-label={`${unread} messaggi non letti`} className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white">
+                        <span aria-label={formatMessage(t.chatUi.unreadMessages, { count: unread })} className="inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white">
                           {unread > 99 ? '99+' : unread}
                         </span>
                       )}
                     </button>
                     <button
                       type="button"
-                      aria-label={`Elimina chat ${chat.name || ''}`}
-                      onClick={e => handleDeleteChat(e, chat.id, chat.name || 'Utente')}
+                      aria-label={formatMessage(t.chatUi.deleteChat, { name: chat.name || '' })}
+                      onClick={e => handleDeleteChat(e, chat.id, chat.name || t.chatUi.user)}
                       className="shrink-0 rounded p-1 text-[#858585] opacity-0 transition-all hover:bg-[#FF0004]/20 hover:text-[#FF0004] group-hover:opacity-100 focus:opacity-100"
                     >
                       <Trash2 size={12} />

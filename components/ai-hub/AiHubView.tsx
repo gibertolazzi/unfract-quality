@@ -13,11 +13,13 @@ import { useToast } from "@/contexts/ToastContext";
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { useTranslation } from "@/contexts/TranslationContext";
 
 export function AiHubView() {
   const { user } = useAuth();
   const router = useRouter();
   const { activeProject, activeProjectId } = useProject();
+  const { t } = useTranslation();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
   const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
   const toast = useToast();
@@ -287,7 +289,7 @@ export function AiHubView() {
       `}>
         {/* Mobile Sidebar Header */}
         <div className="md:hidden flex items-center justify-between -mb-2">
-          <span className="text-[12px] font-semibold text-[#858585] tracking-wider uppercase">Menu</span>
+          <span className="text-[12px] font-semibold text-[#858585] tracking-wider uppercase">{t.aiHub.menu}</span>
           <button 
             onClick={() => setIsMobileSidebarOpen(false)}
             className="text-[#858585] hover:text-white bg-white/5 p-1.5 rounded-full transition-colors"
@@ -307,19 +309,19 @@ export function AiHubView() {
             <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#858585]" />
             <input 
               type="text" 
-              placeholder="Search chat" 
+              placeholder={t.aiHub.searchChat}
               className="w-full bg-white/5 border border-white/5 rounded-xl pl-9 pr-4 py-2 text-[13px] text-white placeholder:text-[#555555] outline-none focus:border-white/20 transition-all"
             />
           </div>
           <button onClick={() => { createNewChat(); setIsMobileSidebarOpen(false); }} className="flex items-center justify-center gap-2 bg-white/5 border border-white/5 rounded-xl px-4 py-2 text-[13px] text-white hover:bg-white/10 transition-all">
             <Edit3 size={14} />
-            <span>New chat</span>
+            <span>{t.aiHub.newChat}</span>
           </button>
         </div>
 
         {/* Recenti */}
         <div className="flex flex-col flex-1 overflow-hidden mt-2">
-          <span className="text-[11px] font-semibold text-[#555555] uppercase tracking-wider mb-2 px-2">Recenti</span>
+          <span className="text-[11px] font-semibold text-[#555555] uppercase tracking-wider mb-2 px-2">{t.aiHub.recent}</span>
           <div className="flex flex-col gap-0.5 overflow-y-auto">
             {chats.map(chat => (
               <div 
@@ -360,7 +362,7 @@ export function AiHubView() {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <span className="text-[14px] font-medium text-white">{activeChat?.title || "New chat"}</span>
+            <span className="text-[14px] font-medium text-white">{activeChat?.title || t.aiHub.newChat}</span>
           </div>
           <div className="w-10" /> {/* Spacer */}
         </div>
@@ -368,7 +370,7 @@ export function AiHubView() {
         {/* Chat Messages Area */}
         <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col gap-6 relative z-10 items-center">
           {/* Title from the target design */}
-          <h2 className="text-[14px] font-medium text-[#858585] mb-6 tracking-wide hidden md:block">{activeChat?.title || "New chat"}</h2>
+          <h2 className="text-[14px] font-medium text-[#858585] mb-6 tracking-wide hidden md:block">{activeChat?.title || t.aiHub.newChat}</h2>
 
           {messages.length === 0 ? (
             <div className="flex flex-col items-center mt-auto mb-4">
@@ -501,7 +503,7 @@ export function AiHubView() {
               value={inputMessage}
               onChange={e => setInputMessage(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSend()}
-              placeholder="Ask anything" 
+              placeholder={t.aiHub.askAnything}
               className="w-full bg-white/5 rounded-full pl-6 pr-6 py-3.5 text-[15px] text-white placeholder:text-[#555555] outline-none focus:bg-white/10 transition-all shadow-[inset_0_1px_4px_rgba(255,255,255,0.15)] border border-white/5 backdrop-blur-md"
               disabled={isLoading || isUploadingMedia || !context}
             />
@@ -551,7 +553,7 @@ export function AiHubView() {
             >
               <X size={20} />
             </button>
-            <h3 className="text-xl font-medium text-white mb-6">Manage MCP Integrations</h3>
+            <h3 className="text-xl font-medium text-white mb-6">{t.aiHub.manageMcp}</h3>
 
             {/* Custom Tabs */}
             <div className="flex w-full mb-6 bg-white/5 rounded-xl p-1 border border-white/10">
@@ -561,7 +563,7 @@ export function AiHubView() {
                 }`}
                 onClick={() => setActiveMcpTab("host")}
               >
-                External Tools
+                {t.aiHub.externalTools}
               </button>
               <button
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
@@ -569,13 +571,13 @@ export function AiHubView() {
                 }`}
                 onClick={() => setActiveMcpTab("server")}
               >
-                Use Unfract Altrove
+                {t.aiHub.useUnfractElsewhere}
               </button>
             </div>
 
             {activeMcpTab === "host" && (
               <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[#858585] text-sm mb-4">Enter the URL of your Model Context Protocol (MCP) server to sync external tools directly with this chat.</p>
+                <p className="text-[#858585] text-sm mb-4">{t.aiHub.mcpDescription}</p>
                 <input 
                   type="text" 
                   value={mcpUrl}
@@ -589,11 +591,11 @@ export function AiHubView() {
                   className="w-full flex justify-center items-center gap-2 bg-[#006AFF] hover:bg-[#0055CC] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors"
                 >
                   {isConnectingMcp ? (
-                    <><Loader2 className="animate-spin" size={18} /> Connecting...</>
+                    <><Loader2 className="animate-spin" size={18} /> {t.aiHub.connecting}</>
                   ) : isMcpConnected ? (
-                    <><Check size={18} /> Connected</>
+                    <><Check size={18} /> {t.aiHub.connected}</>
                   ) : (
-                    "Connect"
+                    t.aiHub.connect
                   )}
                 </button>
               </div>
@@ -601,7 +603,7 @@ export function AiHubView() {
 
             {activeMcpTab === "server" && (
               <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[#858585] text-sm mb-4">Connect Unfract's data (Tasks, Calendar, Docs) to external agents like Claude Desktop or Cursor.</p>
+                <p className="text-[#858585] text-sm mb-4">{t.aiHub.mcpServerDescription}</p>
                 
                 <div className="bg-black border border-white/10 rounded-xl p-4 mb-4 flex items-center justify-between">
                   <code className="text-[#006AFF] text-sm truncate mr-4">
@@ -615,7 +617,7 @@ export function AiHubView() {
                   </button>
                 </div>
                 
-                <p className="text-[#858585] text-xs">Copy this command into your external agent's configuration file (e.g. <code>claude_desktop_config.json</code>) to authorize access.</p>
+                <p className="text-[#858585] text-xs">{t.aiHub.copyCommand} (e.g. <code>claude_desktop_config.json</code>)</p>
               </div>
             )}
           </div>

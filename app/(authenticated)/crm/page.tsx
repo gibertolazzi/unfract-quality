@@ -20,12 +20,14 @@ import {
 } from '@/components/crm/pages';
 
 import { LeadState } from '@/components/crm/constants';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 const PRIVACY_POLICY_VERSION = '2026-09';
 const OPT_OUT_ADDRESS = 'privacy@unfract.com';
 
 export default function CrmPage() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const { organizations } = useOrganization();
   const { activeProject, activeProjectId } = useProject();
   const { canRead, canWrite, loading: iamLoading } = useIAM();
@@ -64,7 +66,7 @@ export default function CrmPage() {
         });
       });
     if (user && !map.has(user.uid)) {
-      map.set(user.uid, { uid: user.uid, name: user.displayName || user.email || 'Io' });
+      map.set(user.uid, { uid: user.uid, name: user.displayName || user.email || t.crmPage.me });
     }
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name, 'it'));
   }, [organizations, activeProject, user]);
@@ -81,11 +83,11 @@ export default function CrmPage() {
   };
 
   if (!activeProjectId) {
-    return <p className="text-sm text-[#858585]">Seleziona un progetto per usare il CRM.</p>;
+    return <p className="text-sm text-[#858585]">{t.crmPage.selectProject}</p>;
   }
 
   if (iamLoading) {
-    return <div className="flex h-full items-center justify-center text-[#858585] text-sm">Verifica permessi in corso...</div>;
+    return <div className="flex h-full items-center justify-center text-[#858585] text-sm">{t.crmPage.checkingPermissions}</div>;
   }
 
   if (!hasCrmRead) {
@@ -94,9 +96,9 @@ export default function CrmPage() {
         <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-6">
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">Accesso Negato</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">{t.crmPage.accessDenied}</h2>
         <p className="text-[#858585] text-sm mb-6">
-          Non hai i permessi necessari per accedere al CRM di questo progetto. Chiedi all'amministratore del progetto o del tuo team di assegnarti un ruolo che includa l'accesso al CRM.
+          {t.crmPage.accessDeniedDescription}
         </p>
       </div>
     );
@@ -127,7 +129,7 @@ export default function CrmPage() {
                 className="flex items-center gap-2 rounded-xl px-4 py-2 text-[13px] font-medium text-white transition-colors hover:bg-white/10"
               >
                 <Upload size={16} />
-                Import
+                {t.crmPage.import}
               </button>
             )}
             
@@ -139,16 +141,16 @@ export default function CrmPage() {
                   className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
                 >
                   <PlusCircle size={16} />
-                  New Contact
+                  {t.crmPage.newContact}
                 </button>
                 {addMenuOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setAddMenuOpen(false)}></div>
                     <div className="absolute right-0 top-12 z-50 w-48 rounded-xl border border-[#1A1A1A] bg-[#0B0B0B] p-1.5 shadow-xl animate-in fade-in zoom-in-95 duration-200">
-                      <button onClick={() => { setCreateModal('account'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Azienda</button>
-                      <button onClick={() => { setCreateModal('contact'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Contatto</button>
-                      <button onClick={() => { setCreateModal('lead'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Lead</button>
-                      <button onClick={() => { setCreateModal('customer'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">Cliente</button>
+                      <button onClick={() => { setCreateModal('account'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">{t.crmPage.account}</button>
+                      <button onClick={() => { setCreateModal('contact'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">{t.crmPage.contact}</button>
+                      <button onClick={() => { setCreateModal('lead'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">{t.crmPage.lead}</button>
+                      <button onClick={() => { setCreateModal('customer'); setAddMenuOpen(false); }} className="flex w-full items-center px-3 py-2 text-[13px] text-[#E5E5E5] hover:bg-white/5 rounded-lg transition-colors">{t.crmPage.customer}</button>
                     </div>
                   </>
                 )}
@@ -161,7 +163,7 @@ export default function CrmPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
               >
                 <PlusCircle size={16} />
-                New Opportunity
+                {t.crmPage.newOpportunity}
               </button>
             )}
             {tab === 'followup' && (
@@ -171,7 +173,7 @@ export default function CrmPage() {
                 className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
               >
                 <PlusCircle size={16} />
-                New Follow up
+                {t.crmPage.newFollowup}
               </button>
             )}
           </div>

@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface ChatSettingsModalProps {
   chat: Chat;
@@ -17,6 +18,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
   const { user } = useAuth();
   const { activeProject } = useProject();
   const { organizations } = useOrganization();
+  const { t } = useTranslation();
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(chat.name || '');
 
@@ -94,7 +96,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
       <div className="w-full max-w-md bg-[#121212] border border-white/10 rounded-2xl flex flex-col max-h-[85vh]">
         <div className="flex items-center justify-between p-4 border-b border-white/5 shrink-0">
-          <h2 className="text-white font-medium">Impostazioni Canale</h2>
+          <h2 className="text-white font-medium">{t.chatUi.settings}</h2>
           <button onClick={onClose} className="text-[#858585] hover:text-white">
             <X size={20} />
           </button>
@@ -103,7 +105,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
         <div className="p-4 overflow-y-auto flex-1 space-y-6">
           {/* Channel Name */}
           <div>
-            <h3 className="text-xs font-semibold text-[#858585] uppercase tracking-wider mb-2">Nome Canale</h3>
+            <h3 className="text-xs font-semibold text-[#858585] uppercase tracking-wider mb-2">{t.chatUi.channelNameLabel}</h3>
             <div className="flex items-center gap-2">
               {editingName ? (
                 <>
@@ -131,7 +133,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
 
           {/* Members */}
           <div>
-            <h3 className="text-xs font-semibold text-[#858585] uppercase tracking-wider mb-2">Membri e Permessi</h3>
+            <h3 className="text-xs font-semibold text-[#858585] uppercase tracking-wider mb-2">{t.chatUi.membersPermissions}</h3>
             <div className="space-y-2">
               {currentMembers.map(m => {
                 const isCreator = m.uid === chat.creatorId;
@@ -147,7 +149,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
                           className="w-6 h-6 rounded-full bg-[#006AFF] flex items-center justify-center text-[10px] font-bold text-white overflow-hidden"
                           imageClassName="w-full h-full object-cover"
                         />
-                        <span className="text-sm text-white/90">{m.displayName} {isCreator && <span className="text-xs text-[#00FF88] ml-1">(Creatore)</span>}</span>
+                        <span className="text-sm text-white/90">{m.displayName} {isCreator && <span className="text-xs text-[#00FF88] ml-1">({t.chatUi.creator})</span>}</span>
                       </div>
                       {canEditChannel && !isCreator && m.uid !== user?.uid && (
                         <button onClick={() => handleRemoveMember(m.uid)} className="text-[#858585] hover:text-[#FF0004]">
@@ -166,7 +168,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
                           disabled={!canEditChannel || isCreator}
                           className="appearance-none h-4 w-4 rounded-[4px] border border-[#2A2A2A] bg-[#0B0B0B] checked:bg-[#1A1A1A] checked:border-[#3F3F3F] cursor-pointer transition-all bg-no-repeat bg-center checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox=%220%200%2014%2014%22%20fill=%22none%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M3%207.5L6%2010.5L11%204%22%20stroke=%22white%22%20stroke-width=%221.5%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')] disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        Può scrivere
+                        {t.chatUi.canWrite}
                       </label>
                       <label className="flex items-center gap-2 text-xs text-[#858585]">
                         <input 
@@ -176,7 +178,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
                           disabled={!canEditChannel || isCreator}
                           className="appearance-none h-4 w-4 rounded-[4px] border border-[#2A2A2A] bg-[#0B0B0B] checked:bg-[#1A1A1A] checked:border-[#3F3F3F] cursor-pointer transition-all bg-no-repeat bg-center checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox=%220%200%2014%2014%22%20fill=%22none%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M3%207.5L6%2010.5L11%204%22%20stroke=%22white%22%20stroke-width=%221.5%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')] disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        Può aggiungere membri
+                        {t.chatUi.canAddMembers}
                       </label>
                       <label className="flex items-center gap-2 text-xs text-[#858585]">
                         <input 
@@ -186,7 +188,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
                           disabled={!canEditChannel || isCreator}
                           className="appearance-none h-4 w-4 rounded-[4px] border border-[#2A2A2A] bg-[#0B0B0B] checked:bg-[#1A1A1A] checked:border-[#3F3F3F] cursor-pointer transition-all bg-no-repeat bg-center checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox=%220%200%2014%2014%22%20fill=%22none%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M3%207.5L6%2010.5L11%204%22%20stroke=%22white%22%20stroke-width=%221.5%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')] disabled:opacity-50 disabled:cursor-not-allowed"
                         />
-                        Può modificare il canale
+                        {t.chatUi.canEditChannel}
                       </label>
                     </div>
                   </div>
@@ -198,7 +200,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
           {/* Add Member */}
           {canAddMembers && nonMembers.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-[#858585] uppercase tracking-wider mb-2">Aggiungi Membri</h3>
+              <h3 className="text-xs font-semibold text-[#858585] uppercase tracking-wider mb-2">{t.chatUi.addMembers}</h3>
               <div className="space-y-1">
                 {nonMembers.map(m => (
                   <div key={m.uid} className="flex items-center justify-between px-2 py-1.5 hover:bg-white/5 rounded-lg">

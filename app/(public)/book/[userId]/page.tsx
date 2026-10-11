@@ -2,15 +2,19 @@
 
 import React, { useState, useEffect, use } from "react";
 import { format, addDays, startOfToday, isSameDay } from "date-fns";
-import { it } from "date-fns/locale";
+import { enUS, it } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock, Video } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/dist/style.css";
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { useTranslation } from '@/contexts/TranslationContext';
+import { formatMessage } from '@/lib/i18n/formatMessage';
 
 export default function BookingPage({ params: paramsPromise }: { params: Promise<{ userId: string }> }) {
   // Da Next 15 i parametri della pagina arrivano come Promise.
   const params = use(paramsPromise);
+  const { t, locale } = useTranslation();
+  const dateLocale = locale === 'en' ? enUS : it;
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(startOfToday());
   const [slots, setSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,12 +59,12 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
         setProvider(data.provider ?? null);
       } else {
         setSlots([]);
-        setSlotsError(data.error || 'Orari non disponibili. Riprova più tardi.');
+        setSlotsError(data.error || t.booking.noTimes);
       }
     } catch (err) {
       console.error(err);
       setSlots([]);
-      setSlotsError('Orari non disponibili. Riprova più tardi.');
+      setSlotsError(t.booking.noTimes);
     }
     setLoading(false);
   };
@@ -100,13 +104,12 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
         <div className="w-20 h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mb-6">
           <CalendarIcon size={40} />
         </div>
-        <h1 className="text-4xl font-halfre mb-4">Meeting Confermato!</h1>
+        <h1 className="text-4xl font-halfre mb-4">{t.booking.confirmed}</h1>
         <p className="text-white/70 max-w-md mx-auto mb-8">
-          Ti abbiamo inviato un invito sul calendario all'indirizzo {guestEmail}. 
-          All'interno troverai anche il link per {meetingName}.
+          {formatMessage(t.booking.inviteSent, { email: guestEmail, meeting: meetingName })}
         </p>
         <button onClick={() => window.location.reload()} className="px-6 py-3 bg-white/10 hover:bg-white/20 rounded-full transition-colors font-medium">
-          Prenota un altro meeting
+          {t.booking.bookAnother}
         </button>
       </div>
     );
@@ -125,7 +128,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
               imageClassName="w-full h-full rounded-full object-cover"
             />
             <div>
-              <div className="text-sm text-[#858585] mb-1">Incontra</div>
+              <div className="text-sm text-[#858585] mb-1">{t.booking.hostLabel}</div>
               <h2 className="text-xl font-bold">{host.displayName}</h2>
             </div>
           </div>
@@ -142,18 +145,18 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
         <div className="flex flex-col gap-4 text-white/70">
           <div className="flex items-center gap-3">
             <Clock size={20} className="text-[#858585]" />
-            <span>{bookingDuration} minuti</span>
+            <span>{formatMessage(t.booking.durationMinutes, { count: bookingDuration })}</span>
           </div>
           <div className="flex items-center gap-3">
             <Video size={20} className="text-[#858585]" />
             <span>{meetingName}</span>
           </div>
           <div className="mt-4 text-sm leading-relaxed text-[#858585]">
-            Seleziona un giorno e un orario per prenotare una call. I dettagli e il link di {meetingName} verranno inviati via email.
+            {formatMessage(t.booking.description, { meeting: meetingName })}
           </div>
           {guestTimeZone && (
             <div className="text-xs text-[#858585]">
-              Orari nel tuo fuso orario ({guestTimeZone}).
+              {formatMessage(t.booking.timezone, { timezone: guestTimeZone })}
             </div>
           )}
         </div>
@@ -164,7 +167,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
         {!selectedSlot ? (
           <>
             <div className="flex-1 max-w-[320px]">
-              <h3 className="text-xl font-bold mb-6">Seleziona data</h3>
+              <h3 className="text-xl font-bold mb-6">{t.booking.selectDate}</h3>
               <div className="bg-black/20 rounded-2xl p-4 border border-white/5">
                 <style>{`
                   .rdp { --rdp-cell-size: 40px; margin: 0; }
@@ -175,7 +178,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
                   mode="single"
                   selected={selectedDate}
                   onSelect={setSelectedDate}
-                  locale={it}
+                  locale={dateLocale}
                   disabled={[{ before: startOfToday() }]}
                   className="text-white mx-auto"
                 />
@@ -184,7 +187,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
 
             <div className="flex-1">
               <h3 className="text-xl font-bold mb-6">
-                {selectedDate ? format(selectedDate, 'EEEE d MMMM', { locale: it }) : 'Orari'}
+                {selectedDate ? format(selectedDate, 'EEEE d MMMM', { locale: dateLocale }) : t.booking.times}
               </h3>
               
               <div className="flex flex-col gap-3 h-[380px] overflow-y-auto custom-scrollbar pr-2">
@@ -209,8 +212,8 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
                   <div className="text-center text-[#858585] py-10">
                     {slotsError
                       || (provider === null
-                        ? 'Questo utente non ha ancora collegato un calendario: le prenotazioni non sono disponibili.'
-                        : 'Nessun orario disponibile in questa data.')}
+                        ? t.booking.calendarNotConnected
+                        : t.booking.noTimes)}
                   </div>
                 )}
               </div>
@@ -222,18 +225,18 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
               onClick={() => setSelectedSlot(null)}
               className="text-[#006AFF] hover:underline mb-8 text-sm flex items-center gap-1"
             >
-              ← Torna agli orari
+              ← {t.booking.backToTimes}
             </button>
 
-            <h3 className="text-2xl font-bold mb-2">Conferma dettagli</h3>
+            <h3 className="text-2xl font-bold mb-2">{t.booking.confirmDetails}</h3>
             <p className="text-[#858585] mb-8 flex items-center gap-2">
               <CalendarIcon size={16} />
-              {format(new Date(selectedSlot), "EEEE d MMMM yyyy, 'alle' HH:mm", { locale: it })}
+              {format(new Date(selectedSlot), "EEEE d MMMM yyyy HH:mm", { locale: dateLocale })}
             </p>
 
             <div className="flex flex-col gap-6">
               <div>
-                <label className="block text-sm text-[#858585] mb-2">Nome e Cognome *</label>
+                <label className="block text-sm text-[#858585] mb-2">{t.booking.fullNameRequired}</label>
                 <input 
                   type="text" 
                   value={guestName}
@@ -244,7 +247,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
               </div>
               
               <div>
-                <label className="block text-sm text-[#858585] mb-2">Email *</label>
+                <label className="block text-sm text-[#858585] mb-2">{t.booking.emailRequired}</label>
                 <input 
                   type="email" 
                   value={guestEmail}
@@ -256,7 +259,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
 
               {bookingStatus === 'error' && (
                 <div className="p-4 bg-red-500/20 text-red-400 rounded-xl text-sm border border-red-500/30">
-                  {bookingError || 'Si è verificato un errore durante la prenotazione. Riprova più tardi.'}
+                  {bookingError || t.booking.bookingError}
                 </div>
               )}
 
@@ -265,7 +268,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
                 disabled={!guestName || !guestEmail || bookingStatus === 'booking'}
                 className="w-full py-4 bg-[#006AFF] text-white font-bold rounded-xl hover:bg-[#0055CC] transition-colors disabled:opacity-50 mt-4"
               >
-                {bookingStatus === 'booking' ? 'Conferma in corso...' : 'Prenota Meeting'}
+                {bookingStatus === 'booking' ? t.booking.confirming : t.booking.bookMeeting}
               </button>
             </div>
           </div>
