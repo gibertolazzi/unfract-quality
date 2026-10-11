@@ -353,6 +353,39 @@ describe('fase 2: ogni azienda vede solo i propri dati', () => {
     await assertSucceeds(getDoc(doc(bruno(), 'workspaces/non-esiste')));
   });
 
+  it('rinominare l’organizzazione rinomina anche il suo workspace (OrgDetail)', async () => {
+    await assertSucceeds(updateDoc(doc(carla(), 'organizations/o1'), { name: 'Acme srl' }));
+    await assertSucceeds(updateDoc(doc(carla(), 'workspaces/o1'), { name: 'Acme srl' }));
+  });
+
+  it('progetto senza organizzazione: nel workspace personale, lo vede solo chi lo crea', async () => {
+    // Come createPersonalWorkspace (lib/orgWorkspace.ts), se l'utente non ne ha uno.
+    const db = carla();
+    const workspaceRef = doc(collection(db, 'workspaces'));
+    const workspaceId = workspaceRef.id;
+    const batch = writeBatch(db);
+    batch.set(workspaceRef, {
+      name: 'Personal Workspace', ownerId: 'carla', structureMode: 'teams',
+      quotas: { planTier: 'free', storageUsed: 0, storageLimit: 1_000_000_000, aiCreditsUsed: 0, aiCreditsLimit: 120 },
+      createdAt: serverTimestamp(),
+    });
+    batch.set(doc(db, 'access_grants', `${workspaceId}_carla`), {
+      workspaceId, subjectType: 'user', subjectId: 'carla', resourceType: 'workspace', resourceId: workspaceId, role: 'admin', createdAt: serverTimestamp(),
+    });
+    await assertSucceeds(batch.commit());
+    const projectId = await assertSucceeds(createProjectWithBoard(carla(), { uid: 'carla', workspaceId, name: 'Mio' }));
+    await assertSucceeds(getDoc(doc(carla(), 'projects', projectId)));
+    await assertFails(getDoc(doc(anna(), 'projects', projectId)));
+  });
+
+  it('progetto in un’organizzazione di cui manca il workspace: lo creano e lo cercano i membri', async () => {
+    const projectId = await assertSucceeds(createProjectWithBoard(anna(), {
+      uid: 'anna', workspaceId: 'o-nuova', name: 'Nuovo', organizationIds: ['o-nuova'],
+    }));
+    const found = await assertSucceeds(getDocs(query(collection(anna(), 'projects'), where('workspaceId', 'in', ['o1', 'o-nuova']))));
+    expect(found.docs.map(d => d.id)).toContain(projectId);
+  });
+
   it('ruoli dei membri: si leggono per ID dentro i propri progetti', async () => {
     await assertSucceeds(getDoc(doc(carla(), 'project_members/po_carla')));
     await assertSucceeds(getDoc(doc(carla(), 'project_members/po_nessuno')));

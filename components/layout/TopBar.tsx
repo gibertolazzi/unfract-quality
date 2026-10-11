@@ -13,6 +13,8 @@ import { formatDistanceToNow } from 'date-fns';
 import { it } from 'date-fns/locale';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { projectOrgName } from '@/lib/projectWorkspace';
 import { resolveAccessRequest } from '@/lib/services/iamService';
 import { Check, X, Key, MessageSquare, HardDrive, Zap } from 'lucide-react';
 import { UserSettingsModal } from '@/components/auth/UserSettingsModal';
@@ -59,6 +61,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const { user, accessToken, settings } = useAuth();
   const { activeProjectId, activeProjectWorkspaceId } = useProject();
   const { activeWorkspace } = useWorkspace();
+  const { organizations } = useOrganization();
   const { t, locale } = useTranslation();
   const { 
     chronoTime, chronoRunning, toggleChrono, resetChrono,
@@ -85,6 +88,8 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     );
   }, [activeProjectWorkspaceId]);
   const shownWorkspace = usageWorkspace || activeWorkspace;
+  // Per un'organizzazione il nome attuale: quello del workspace può essere vecchio.
+  const shownWorkspaceName = projectOrgName(shownWorkspace?.id, organizations) || shownWorkspace?.name;
 
   const quotas = {
     planTier: 'free',
@@ -661,7 +666,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-semibold text-white">{t.topbar.quotasTitle}</span>
-                    {shownWorkspace?.name && <span className="text-[11px] text-white/50 truncate">{shownWorkspace.name}</span>}
+                    {shownWorkspaceName && <span className="text-[11px] text-white/50 truncate">{shownWorkspaceName}</span>}
                   </div>
                   {quotas.planTier && (
                     <span className="text-[10px] px-2 py-0.5 bg-blue-500/20 text-blue-400 rounded-md font-medium uppercase tracking-wider">

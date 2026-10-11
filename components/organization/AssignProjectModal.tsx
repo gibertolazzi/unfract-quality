@@ -59,8 +59,8 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
 
     setIsCreating(true);
     try {
-      // Nasce già assegnato all'organizzazione.
-      await createProject(name, [organization.id]);
+      // Nasce già nell'organizzazione: nel suo workspace, visibile ai membri.
+      await createProject(name, organization.id);
       toast.success("Progetto creato e assegnato!");
       onClose();
     } catch (error) {

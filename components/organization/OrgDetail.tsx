@@ -89,13 +89,19 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
   const handleSaveName = async () => {
     setIsEditingName(false);
-    if (editedName.trim() === '' || editedName === org.name) {
+    const name = editedName.trim();
+    if (name === '' || name === org.name) {
       setEditedName(org.name);
       return;
     }
     try {
-      await updateDoc(doc(db, 'organizations', org.id), { name: editedName });
-      setOrg({ ...org, name: editedName });
+      await updateDoc(doc(db, 'organizations', org.id), { name });
+      // Anche il workspace dell'organizzazione (stesso ID), che prima restava
+      // col nome vecchio. L'app mostra comunque quello dell'organizzazione:
+      // se il workspace manca o non si aggiorna, il cambio di nome resta.
+      await updateDoc(doc(db, 'workspaces', org.id), { name }).catch(err => console.warn('Nome del workspace non aggiornato:', err));
+      setOrg({ ...org, name });
+      setEditedName(name);
       toast.success("Nome aggiornato.");
     } catch (err) {
       console.error(err);

@@ -5,6 +5,9 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, updateDoc, doc, onSnapshot, orderBy, or } from 'firebase/firestore';
 import { useAuth } from './AuthContext';
 import { useWorkspace } from './WorkspaceContext';
+import { useOrganization } from './OrganizationContext';
+import { createPersonalWorkspace } from '@/lib/orgWorkspace';
+import { personalWorkspaceId, projectWorkspaceIds } from '@/lib/projectWorkspace';
 import { createProjectWithBoard, ProjectCreateError } from '@/lib/projects';
 import { authedFetch } from '@/lib/authedFetch';
 
@@ -28,7 +31,11 @@ interface ProjectContextType {
    */
   activeProjectWorkspaceId: string | null;
   setActiveProjectId: (id: string) => void;
-  createProject: (name: string, organizationIds?: string[]) => Promise<string>;
+  /**
+   * Con un'organizzazione il progetto va nel suo workspace e lo vedono i
+   * membri; senza, va nel workspace personale e lo vede solo chi lo crea.
+   */
+  createProject: (name: string, organizationId?: string | null) => Promise<string>;
   renameProject: (id: string, newName: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
   loading: boolean;
@@ -51,6 +58,7 @@ export const useProject = () => useContext(ProjectContext);
 export function ProjectProvider({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { activeWorkspaceId, workspaces, loading: workspaceLoading } = useWorkspace();
+  const { organizations, loading: organizationsLoading } = useOrganization();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectIdState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,7 +77,7 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (authLoading || workspaceLoading) return;
+    if (authLoading || workspaceLoading || organizationsLoading) return;
     
     if (!user || !activeWorkspaceId) {
       setProjects([]);
@@ -78,8 +86,9 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Fetch projects for ALL workspaces the user has access to
-    const workspaceIds = workspaces.map(w => w.id);
+    // I progetti di tutti i workspace dell'utente, compresi quelli delle sue
+    // organizzazioni di cui manca il documento o l'accesso al workspace.
+    const workspaceIds = projectWorkspaceIds(workspaces, organizations);
     if (workspaceIds.length === 0) {
       setProjects([]);
       setActiveProjectIdState(null);
@@ -147,16 +156,18 @@ export function ProjectProvider({ children }: { children: React.ReactNode }) {
     return () => {
       unsubscribes.forEach(unsub => unsub());
     };
-  }, [user, authLoading, workspaceLoading, activeWorkspaceId, workspaces]);
+  }, [user, authLoading, workspaceLoading, organizationsLoading, activeWorkspaceId, workspaces, organizations]);
 
   // Lancia ProjectCreateError: chi chiama mostra il motivo all'utente.
-  const createProject = async (name: string, organizationIds?: string[]) => {
+  const createProject = async (name: string, organizationId?: string | null) => {
     try {
+      let workspaceId = organizationId || personalWorkspaceId(workspaces, organizations, user?.uid);
+      if (!workspaceId && user) workspaceId = await createPersonalWorkspace(user.uid, 'Personal Workspace');
       const projectId = await createProjectWithBoard(db, {
         uid: user?.uid,
-        workspaceId: activeWorkspaceId,
+        workspaceId,
         name,
-        organizationIds,
+        organizationIds: organizationId ? [organizationId] : undefined,
       });
       setActiveProjectId(projectId);
       return projectId;
