@@ -10,8 +10,11 @@ import { useTranslation } from '@/contexts/TranslationContext';
 
 interface CreateProjectModalProps {
   onClose: () => void;
-  /** Se lancia, la finestra resta aperta: il messaggio lo mostra chi chiama. */
-  onCreate: (name: string, organizationIds?: string[]) => Promise<void>;
+  /**
+   * Senza organizzazione il progetto è personale. Se lancia, la finestra
+   * resta aperta: il messaggio lo mostra chi chiama.
+   */
+  onCreate: (name: string, organizationId: string | null) => Promise<void>;
 }
 
 export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProps) {
@@ -20,7 +23,8 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
   const { user } = useAuth();
   const { t } = useTranslation();
   const toast = useToast();
-  const [selectedOrgIds, setSelectedOrgIds] = useState<string[]>([]);
+  // Un progetto sta in una sola organizzazione: quella che decide chi lo vede.
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
 
   // Organization creation state
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
@@ -35,7 +39,7 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
     if (!name.trim() || isSubmitting) return;
     setIsSubmitting(true);
     try {
-      await onCreate(name.trim(), selectedOrgIds.length > 0 ? selectedOrgIds : undefined);
+      await onCreate(name.trim(), selectedOrgId);
     } catch {
       // Errore già mostrato da chi chiama; la finestra resta aperta per riprovare.
     } finally {
@@ -61,7 +65,7 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
         ));
       }
 
-      setSelectedOrgIds([...selectedOrgIds, orgId]);
+      setSelectedOrgId(orgId);
       setIsCreatingOrg(false);
       setNewOrgName('');
       setInviteEmails('');
@@ -157,29 +161,31 @@ export function CreateProjectModal({ onClose, onCreate }: CreateProjectModalProp
               </div>
             ) : (
               <div className="flex flex-col gap-2 max-h-40 overflow-y-auto custom-scrollbar p-2 bg-white/5 border border-white/10 rounded-xl">
-                {organizations.length === 0 ? (
-                  <div className="flex items-center justify-center py-4 px-2 text-center">
-                    <span className="text-[#858585] text-xs">{t.tasks.noOrgLinked}</span>
-                  </div>
-                ) : (
-                  organizations.map(org => (
-                    <label key={org.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
-                      <input 
-                        type="checkbox" 
-                        className="appearance-none shrink-0 h-4 w-4 rounded-[4px] border border-[#2A2A2A] bg-[#0B0B0B] checked:bg-[#1A1A1A] checked:border-[#3F3F3F] cursor-pointer transition-all bg-no-repeat bg-center checked:bg-[url('data:image/svg+xml,%3Csvg%20viewBox=%220%200%2014%2014%22%20fill=%22none%22%20xmlns=%22http://www.w3.org/2000/svg%22%3E%3Cpath%20d=%22M3%207.5L6%2010.5L11%204%22%20stroke=%22white%22%20stroke-width=%221.5%22%20stroke-linecap=%22round%22%20stroke-linejoin=%22round%22/%3E%3C/svg%3E')]"
-                        checked={selectedOrgIds.includes(org.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedOrgIds([...selectedOrgIds, org.id]);
-                          } else {
-                            setSelectedOrgIds(selectedOrgIds.filter(id => id !== org.id));
-                          }
-                        }}
-                      />
-                      <span className="text-sm text-white/90">{org.name}</span>
-                    </label>
-                  ))
-                )}
+                <label className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                  <input
+                    type="radio"
+                    name="project-organization"
+                    className="appearance-none shrink-0 h-4 w-4 rounded-full border border-[#2A2A2A] bg-[#0B0B0B] checked:border-[5px] checked:border-[#006AFF] cursor-pointer transition-all"
+                    checked={selectedOrgId === null}
+                    onChange={() => setSelectedOrgId(null)}
+                  />
+                  <span className="flex flex-col">
+                    <span className="text-sm text-white/90">{t.tasks.noOrganization}</span>
+                    <span className="text-[11px] text-[#858585]">{t.tasks.noOrganizationHint}</span>
+                  </span>
+                </label>
+                {organizations.map(org => (
+                  <label key={org.id} className="flex items-center gap-3 p-2 hover:bg-white/5 rounded-lg cursor-pointer transition-colors">
+                    <input
+                      type="radio"
+                      name="project-organization"
+                      className="appearance-none shrink-0 h-4 w-4 rounded-full border border-[#2A2A2A] bg-[#0B0B0B] checked:border-[5px] checked:border-[#006AFF] cursor-pointer transition-all"
+                      checked={selectedOrgId === org.id}
+                      onChange={() => setSelectedOrgId(org.id)}
+                    />
+                    <span className="text-sm text-white/90">{org.name}</span>
+                  </label>
+                ))}
               </div>
             )}
           </div>

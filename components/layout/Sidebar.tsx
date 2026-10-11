@@ -7,6 +7,8 @@ import { MegaphoneIcon } from "@/components/icons/MegaphoneIcon";
 import { ChevronDown, ChevronUp, Home, CheckCircle2, Calendar, Hash, FileVideo, Users, LogOut, Check, Plus, Trash2, MessageCircle, Sparkles, Handshake, Settings, Lock } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { projectOrgName } from "@/lib/projectWorkspace";
 import { useProject, Project } from "@/contexts/ProjectContext";
 import { DeleteProjectModal } from "@/components/tasks/DeleteProjectModal";
 import { CreateProjectModal } from "@/components/tasks/CreateProjectModal";
@@ -105,7 +107,8 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
   const { user, loginWithGoogle, logout, loading } = useAuth();
   const { unreadCount } = useChat();
   const { t } = useTranslation();
-  const { activeWorkspace, workspaces } = useWorkspace();
+  const { activeWorkspace } = useWorkspace();
+  const { organizations } = useOrganization();
   const toast = useToast();
   
   const NAV_ITEMS = useMemo(() => [
@@ -358,7 +361,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 >
                   <div className="flex flex-col overflow-hidden pr-4">
                     <span className="truncate">{p.name}</span>
-                    <span className="text-[10px] text-white/40 truncate">{workspaces.find(w => w.id === p.workspaceId)?.name || t.sidebar.unknownWorkspace}</span>
+                    <span className="text-[10px] text-white/40 truncate">{projectOrgName(p.workspaceId, organizations) || t.sidebar.noOrganization}</span>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {activeProjectId === p.id && <Check size={14} className="text-[#006AFF] shrink-0" />}
@@ -381,7 +384,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
                 className="flex items-center gap-2 w-full px-4 py-2 text-sm text-white/70 hover:text-white hover:bg-white/5 rounded-lg transition-colors"
               >
                 <Plus size={14} />
-                <span className="truncate">{t.sidebar.newProjectIn} {activeWorkspace?.name || t.sidebar.unknownWorkspace}</span>
+                <span className="truncate">{t.sidebar.newProject}</span>
               </button>
             </div>
           </div>
@@ -536,9 +539,9 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
       {isCreateModalOpen && (
         <CreateProjectModal 
           onClose={() => setIsCreateModalOpen(false)}
-          onCreate={async (name, organizationIds) => {
+          onCreate={async (name, organizationId) => {
             try {
-              await createProject(name, organizationIds);
+              await createProject(name, organizationId);
             } catch (error) {
               toast.error(projectCreateMessage(error, t.tasks));
               throw error;

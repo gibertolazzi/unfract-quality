@@ -5,6 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { authedFetch } from '@/lib/authedFetch';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { projectOrgName } from '@/lib/projectWorkspace';
 
 interface UpgradeModalProps {
   onClose: () => void;
@@ -15,7 +17,9 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
   // Il piano vale per il workspace del progetto aperto (lo stesso del riquadro consumi).
   const { activeProjectWorkspaceId } = useProject();
   const { workspaces } = useWorkspace();
-  const workspaceName = workspaces.find(w => w.id === activeProjectWorkspaceId)?.name;
+  const { organizations } = useOrganization();
+  const workspaceName = projectOrgName(activeProjectWorkspaceId, organizations)
+    || workspaces.find(w => w.id === activeProjectWorkspaceId)?.name;
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
 
