@@ -7,6 +7,7 @@ import { Mic, Square, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { requestMeetingAnalysis } from '@/lib/aiClient';
 import { saveMeeting } from '@/lib/meetings';
 import { storage } from '@/lib/firebase';
@@ -39,6 +40,7 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
   const { activeProjectId } = useProject();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
   const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
+  const { locale } = useTranslation();
   const toast = useToast();
   
   const [isRecording, setIsRecording] = useState(false);
@@ -68,7 +70,7 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
     const recognition = new SpeechRecognition();
     recognition.continuous = true;
     recognition.interimResults = true;
-    recognition.lang = 'it-IT';
+    recognition.lang = locale === 'en' ? 'en-US' : 'it-IT';
 
     recognition.onresult = (event: any) => {
       let finalTranscript = '';
@@ -210,11 +212,11 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // L'audio è già su Storage: il server lo prende da lì.
-      const result = await requestMeetingAnalysis({ projectId: activeProjectId, audioUrl, transcript });
+      const result = await requestMeetingAnalysis({ projectId: activeProjectId, audioUrl, transcript, locale });
       
       await saveMeeting(activeProjectId, {
-        title: "Nuovo Meeting",
-        date: new Date().toLocaleDateString('it-IT'),
+        title: locale === 'en' ? "New Meeting" : "Nuovo Meeting",
+        date: new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'it-IT'),
         duration,
         manager: managerName,
         summary: result.summary,
@@ -229,18 +231,20 @@ export function RecordingProvider({ children }: { children: React.ReactNode }) {
       });
     } catch (error: any) {
       console.error("Gemini failed:", error);
-      toast.error(`Errore AI durante la trascrizione, salvo la registrazione di backup.`);
+      toast.error(locale === 'en' ? "AI transcription error, saving backup recording." : "Errore AI durante la trascrizione, salvo la registrazione di backup.");
       
       // Fallback: save raw meeting
       await saveMeeting(activeProjectId, {
-        title: "Meeting (Trascrizione Fallita)",
-        date: new Date().toLocaleDateString('it-IT'),
+        title: locale === 'en' ? "Meeting (Transcription Failed)" : "Meeting (Trascrizione Fallita)",
+        date: new Date().toLocaleDateString(locale === 'en' ? 'en-US' : 'it-IT'),
         duration,
         manager: managerName,
-        summary: "L'IA non è riuscita a elaborare la trascrizione. Potrebbe essere necessario elaborarla manualmente.",
+        summary: locale === 'en'
+          ? "AI could not process transcription. Manual processing may be required."
+          : "L'IA non è riuscita a elaborare la trascrizione. Potrebbe essere necessario elaborarla manualmente.",
         decisions: [],
         tasks: [],
-        transcript: transcript || "Nessun testo trascritto.",
+        transcript: transcript || (locale === 'en' ? "No transcribed text." : "Nessun testo trascritto."),
         audioUrl: audioUrl || undefined,
         audioStoragePath: audioStoragePath || undefined,
         audioSizeBytes: audioStoragePath ? audioBlob.size : undefined,

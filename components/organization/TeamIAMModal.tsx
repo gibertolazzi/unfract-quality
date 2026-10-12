@@ -3,10 +3,11 @@
 import React, { useState, useEffect } from 'react';
 import { X, Users, Search, PlusCircle, Trash2, Shield } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, onSnapshot, setDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { WorkspaceGroup, AccessGrant } from '@/types/workspace';
 import { OrgMember } from '@/types/organization';
 import { useToast } from '@/contexts/ToastContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 
 interface TeamIAMModalProps {
@@ -16,6 +17,7 @@ interface TeamIAMModalProps {
 }
 
 export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalProps) {
+  const { t } = useTranslation();
   const [grants, setGrants] = useState<AccessGrant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -23,11 +25,8 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
 
   useEffect(() => {
     // Fetch who is in this team (who has a grant for resourceType = 'workspace_group', resourceId = team.id)
-    // Filtrate anche per workspace: le regole di Firestore lasciano leggere
-    // gli accessi solo dentro un workspace di cui si fa parte.
     const q = query(
       collection(db, 'access_grants'),
-      where('workspaceId', '==', team.workspaceId),
       where('resourceType', '==', 'workspace_group'),
       where('resourceId', '==', team.id)
     );
@@ -42,18 +41,17 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
     });
 
     return () => unsubscribe();
-  }, [team.id, team.workspaceId]);
+  }, [team.id]);
 
   const handleAddMember = async (member: OrgMember) => {
     // Prevent duplicate
     if (grants.some(g => g.subjectId === member.uid)) {
-      toast.error("Utente già presente nella squadra.");
+      toast.error(t.organization.userAlreadyInTeam);
       return;
     }
 
     try {
-      // ID fisso (`<squadra>_<utente>`), come gli accessi ai workspace.
-      await setDoc(doc(db, 'access_grants', `${team.id}_${member.uid}`), {
+      await addDoc(collection(db, 'access_grants'), {
         workspaceId: team.workspaceId,
         subjectType: 'user',
         subjectId: member.uid,
@@ -62,20 +60,20 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
         role: 'member',
         createdAt: serverTimestamp()
       });
-      toast.success("Membro aggiunto alla squadra!");
+      toast.success(t.organization.memberAddedToTeam);
     } catch (e) {
       console.error(e);
-      toast.error("Errore durante l'aggiunta.");
+      toast.error(t.organization.addMemberError);
     }
   };
 
   const handleRemoveMember = async (grantId: string) => {
     try {
       await deleteDoc(doc(db, 'access_grants', grantId));
-      toast.success("Membro rimosso dalla squadra.");
+      toast.success(t.organization.memberRemovedFromTeam);
     } catch (e) {
       console.error(e);
-      toast.error("Errore durante la rimozione.");
+      toast.error(t.organization.removeMemberError);
     }
   };
 
@@ -95,7 +93,7 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
             </div>
             <div>
               <h2 className="text-xl font-bold text-white tracking-tight">{team.name}</h2>
-              <p className="text-sm text-[#858585]">Gestisci i membri di questa squadra</p>
+              <p className="text-sm text-[#858585]">{t.organization.manageTeamMembers}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 text-[#858585] hover:text-white rounded-full transition-colors hover:bg-white/5">
@@ -108,18 +106,18 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
           {/* Left: Membri Attuali */}
           <div className="flex-1 flex flex-col border-r border-white/5 bg-[#080808]">
             <div className="p-4 border-b border-white/5 shrink-0">
-              <h3 className="text-sm font-semibold text-white mb-1">Membri della Squadra</h3>
-              <p className="text-xs text-[#858585]">{grants.length} persone assegnate</p>
+              <h3 className="text-sm font-semibold text-white mb-1">{t.organization.teamMembers}</h3>
+              <p className="text-xs text-[#858585]">{grants.length} {t.organization.assignedPeople}</p>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {loading ? (
-                <p className="text-center text-[#858585] text-sm mt-8">Caricamento...</p>
+                <p className="text-center text-[#858585] text-sm mt-8">{t.common.loading}</p>
               ) : grants.length === 0 ? (
                 <div className="text-center mt-12">
                   <div className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-white/20 mx-auto mb-3">
                     <Shield size={20} />
                   </div>
-                  <p className="text-sm text-[#858585]">La squadra è vuota</p>
+                  <p className="text-sm text-[#858585]">{t.organization.teamIsEmpty}</p>
                 </div>
               ) : (
                 grants.map(grant => {
@@ -135,7 +133,7 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
                         />
                         <div className="flex flex-col truncate">
                           <span className="text-sm text-white font-medium truncate">{userObj?.email || grant.subjectId}</span>
-                          <span className="text-xs text-[#858585]">Membro</span>
+                          <span className="text-xs text-[#858585]">{t.organization.member}</span>
                         </div>
                       </div>
                       <button 
@@ -154,14 +152,14 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
           {/* Right: Aggiungi dal Workspace */}
           <div className="w-[300px] flex flex-col shrink-0 bg-[#0E0E0E]">
             <div className="p-4 border-b border-white/5 shrink-0">
-              <h3 className="text-sm font-semibold text-white mb-3">Aggiungi Persone</h3>
+              <h3 className="text-sm font-semibold text-white mb-3">{t.organization.addPeople}</h3>
               <div className="relative">
                 <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#858585]" />
                 <input 
                   type="text" 
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder="Cerca nel workspace..."
+                  placeholder={t.organization.searchWorkspace}
                   className="w-full bg-[#1A1A1A] border border-white/10 rounded-lg py-2 pl-9 pr-3 text-sm text-white outline-none focus:border-[#006AFF] transition-colors"
                 />
               </div>
@@ -169,7 +167,7 @@ export function TeamIAMModal({ team, workspaceMembers, onClose }: TeamIAMModalPr
             
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
               {filteredWorkspaceMembers.length === 0 ? (
-                <p className="text-center text-[#858585] text-xs mt-4">Nessun utente trovato da aggiungere.</p>
+                <p className="text-center text-[#858585] text-xs mt-4">{t.organization.noUsersFound}</p>
               ) : (
                 filteredWorkspaceMembers.map(member => (
                   <div 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useChat } from '@/contexts/ChatContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { db } from '@/lib/firebase';
 import { deleteStoredFile } from '@/lib/usage';
 import { collection, query, where, onSnapshot, doc, deleteDoc, updateDoc, arrayUnion } from 'firebase/firestore';
@@ -95,6 +96,7 @@ import { useRouter } from 'next/navigation';
 import { Menu } from "lucide-react";
 
 export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSidebar?: () => void }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { chats, markChatAsRead } = useChat();
   const router = useRouter();
@@ -110,7 +112,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
     .filter(message => !message.deletedFor?.includes(userId || '') && !message.deletedForEveryone)
     .flatMap(message => (message.attachments || [])
       .filter(attachment => attachment.type === 'image')
-      .map(attachment => ({ url: attachment.payload.url, name: attachment.payload.name || 'Immagine' })));
+      .map(attachment => ({ url: attachment.payload.url, name: attachment.payload.name || t.chat.image })));
   const selectedImage = selectedImageIndex === null ? null : imageGallery[selectedImageIndex] || null;
 
   const showPreviousImage = () => {
@@ -199,7 +201,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
         }
         await updateDoc(doc(db, 'messages', messageToDelete.id), {
           deletedForEveryone: true,
-          text: 'Questo messaggio è stato eliminato',
+          text: t.chat.messageDeleted,
           attachments: [],
           mentions: []
         });
@@ -277,7 +279,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
             </button>
           )}
           <h3 className="font-semibold text-white/90">
-            {chat?.type === 'channel' ? `# ${chat?.name}` : chat?.name || 'Messaggio Diretto'}
+            {chat?.type === 'channel' ? `# ${chat?.name}` : chat?.name || t.chat.directMessage}
           </h3>
         </div>
         {chat?.type === 'channel' && (
@@ -290,9 +292,9 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
       {/* Messages */}
       <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 md:p-6 space-y-4 relative z-0">
         {isLoading ? (
-          <div className="text-center text-[#858585] text-sm">Caricamento messaggi...</div>
+          <div className="text-center text-[#858585] text-sm">{t.chat.loadingMessages}</div>
         ) : messages.length === 0 ? (
-          <div className="text-center text-[#858585] text-sm mt-10">Nessun messaggio in questa chat. Scrivi qualcosa!</div>
+          <div className="text-center text-[#858585] text-sm mt-10">{t.chat.noMessages}</div>
         ) : (
           messages.filter(msg => !msg.deletedFor?.includes(user?.uid || '')).map((msg) => (
             <div key={msg.id} className={`flex flex-col group w-full ${msg.senderId === user?.uid ? 'items-end' : 'items-start'}`}>
@@ -301,12 +303,12 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
                   <button 
                     onClick={() => setMessageToDelete(msg)}
                     className="opacity-0 group-hover:opacity-100 text-[#858585] hover:text-[#FF0004] transition-all p-1"
-                    title="Elimina messaggio"
+                    title={t.chat.deleteMessage}
                   >
                     <Trash2 size={14} />
                   </button>
                 )}
-                <span className="text-[10px] text-[#858585]">{msg.senderName || 'Tu'}</span>
+                <span className="text-[10px] text-[#858585]">{msg.senderName || t.chat.you}</span>
               </div>
               
               <div className={`rounded-[20px] px-5 py-3 w-max max-w-[80%] text-[14px] leading-relaxed shadow-sm ${
@@ -317,7 +319,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
                 {msg.deletedForEveryone ? (
                    <div className="flex items-center gap-2">
                      <Ban size={14} className="opacity-50" />
-                     Questo messaggio è stato eliminato
+                     {t.chat.messageDeleted}
                    </div>
                 ) : (
                    msg.text && renderTextWithMentions(msg.text, msg.mentions || [])
@@ -337,9 +339,9 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
                             type="button"
                             onClick={() => setSelectedImageIndex(galleryIndex)}
                             className="group relative aspect-square min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#111] transition hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-[#006AFF]"
-                            aria-label={`Apri ${att.payload.name || 'immagine'}`}
+                            aria-label={`${t.chat.openImage} ${att.payload.name || t.chat.image.toLowerCase()}`}
                           >
-                            <img src={att.payload.url} alt={att.payload.name || 'Immagine allegata'} className="h-full w-full object-contain p-1 transition duration-200 group-hover:scale-[1.03]" />
+                            <img src={att.payload.url} alt={att.payload.name || t.chat.image} className="h-full w-full object-contain p-1 transition duration-200 group-hover:scale-[1.03]" />
                           </button>
                         );
                       })}
@@ -357,7 +359,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
                             preload="metadata"
                             className="block max-h-[420px] w-full object-contain"
                           >
-                            Il browser non supporta la riproduzione di questo video.
+                            {t.chat.videoNotSupported}
                           </video>
                         </div>
                       );
@@ -450,7 +452,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
             </a>
             <button 
               onClick={() => setSelectedImageIndex(null)}
-              aria-label="Chiudi galleria"
+              aria-label={t.chat.closeGallery}
               className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white hover:bg-[#FF0004]/80 transition-all"
             >
               <X size={20} />
@@ -458,7 +460,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
             </div>
           </div>
           {imageGallery.length > 1 && (
-            <button type="button" onClick={event => { event.stopPropagation(); showPreviousImage(); }} aria-label="Immagine precedente" className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 md:left-8">
+            <button type="button" onClick={event => { event.stopPropagation(); showPreviousImage(); }} aria-label={t.chat.prevImage} className="absolute left-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 md:left-8">
               <ChevronLeft size={24} />
             </button>
           )}
@@ -466,7 +468,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
             <img src={selectedImage.url} className="block h-auto w-auto max-h-full max-w-full rounded-xl object-contain" alt={selectedImage.name} />
           </div>
           {imageGallery.length > 1 && (
-            <button type="button" onClick={event => { event.stopPropagation(); showNextImage(); }} aria-label="Immagine successiva" className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 md:right-8">
+            <button type="button" onClick={event => { event.stopPropagation(); showNextImage(); }} aria-label={t.chat.nextImage} className="absolute right-3 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 md:right-8">
               <ChevronRight size={24} />
             </button>
           )}
@@ -477,28 +479,28 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
       {messageToDelete && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#121212] border border-white/10 rounded-2xl p-6 w-full max-w-sm flex flex-col items-center shadow-xl">
-            <h3 className="text-white font-medium mb-1 text-lg">Elimina Messaggio</h3>
-            <p className="text-sm text-[#858585] mb-6 text-center">Vuoi eliminare questo messaggio solo per te o per tutti i partecipanti?</p>
+            <h3 className="text-white font-medium mb-1 text-lg">{t.chat.deleteMessage}</h3>
+            <p className="text-sm text-[#858585] mb-6 text-center">{t.chat.deleteMessageConfirm}</p>
             <div className="flex flex-col gap-3 w-full">
               {messageToDelete.senderId === user?.uid && (
                 <button 
                   onClick={() => confirmDelete('everyone')}
                   className="w-full py-2.5 rounded-xl bg-[#FF0004]/10 text-[#FF0004] hover:bg-[#FF0004]/20 font-medium transition-colors"
                 >
-                  Elimina per tutti
+                  {t.chat.deleteForEveryone}
                 </button>
               )}
               <button 
                 onClick={() => confirmDelete('me')}
                 className="w-full py-2.5 rounded-xl bg-white/5 text-white hover:bg-white/10 font-medium transition-colors"
               >
-                Elimina per me
+                {t.chat.deleteForMe}
               </button>
               <button 
                 onClick={() => setMessageToDelete(null)}
                 className="w-full py-2.5 rounded-xl bg-transparent text-[#858585] hover:text-white font-medium transition-colors mt-2"
               >
-                Annulla
+                {t.common.cancel}
               </button>
             </div>
           </div>

@@ -19,7 +19,7 @@ export function AiHubView() {
   const { user } = useAuth();
   const router = useRouter();
   const { activeProject, activeProjectId } = useProject();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
   const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
   const toast = useToast();
@@ -86,7 +86,12 @@ export function AiHubView() {
       ['done', 'completed', 'fatto', 'completato'].includes(columnTitle || '');
   };
   const actionableTasks = tasks.filter(task => !isTaskCompleted(task));
-  const context = activeProject ? `Progetto: ${activeProject.name}\n\nAttività ancora da completare:\n${actionableTasks.map(task => `- [TASK:${task.id}] ${task.title} (stato: ${columns.find(column => column.id === task.columnId)?.title || task.status || 'To Do'}, priorità: ${task.priority || 'medium'})`).join('\n') || 'Nessuna attività aperta.'}\n\nNon consigliare né riproporre attività completate.` : "";
+  const isEn = locale === 'en';
+  const context = activeProject ? (
+    isEn
+      ? `Project: ${activeProject.name}\n\nTasks remaining to complete:\n${actionableTasks.map(task => `- [TASK:${task.id}] ${task.title} (status: ${columns.find(column => column.id === task.columnId)?.title || task.status || 'To Do'}, priority: ${task.priority || 'medium'})`).join('\n') || 'No open tasks.'}\n\nDo not suggest or re-propose completed tasks.`
+      : `Progetto: ${activeProject.name}\n\nAttività ancora da completare:\n${actionableTasks.map(task => `- [TASK:${task.id}] ${task.title} (stato: ${columns.find(column => column.id === task.columnId)?.title || task.status || 'To Do'}, priorità: ${task.priority || 'medium'})`).join('\n') || 'Nessuna attività aperta.'}\n\nNon consigliare né riproporre attività completate.`
+  ) : "";
 
   const { 
     messages, 
@@ -97,7 +102,7 @@ export function AiHubView() {
     setActiveChatId, 
     createNewChat,
     deleteChat
-  } = useAiHubChat(context, activeProject?.id, user?.uid);
+  } = useAiHubChat(context, activeProject?.id, user?.uid, (locale as 'it' | 'en'));
 
   const searchParams = useSearchParams();
   const urlChatId = searchParams?.get('chatId');
@@ -386,7 +391,7 @@ export function AiHubView() {
                   </defs>
                 </svg>
                 <h2 className="text-[#FFF] font-sans text-[24px] font-medium leading-[20px] tracking-[-0.96px] mt-1">
-                  Hello {user?.displayName ? user.displayName.split(' ')[0] : 'Giacomo'}!
+                  {t.aiHub.hello} {user?.displayName ? user.displayName.split(' ')[0] : 'User'}!
                 </h2>
               </div>
             </div>
@@ -442,7 +447,7 @@ export function AiHubView() {
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="max-w-[70%] rounded-2xl px-5 py-3.5 text-[15px] text-[#858585] flex items-center gap-2">
-                    <Loader2 size={16} className="animate-spin" /> Unfract AI sta pensando...
+                    <Loader2 size={16} className="animate-spin" /> {t.aiHub.thinking}
                   </div>
                 </div>
               )}
@@ -628,16 +633,16 @@ export function AiHubView() {
       {chatToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-[#111] border border-white/10 rounded-3xl p-6 max-w-sm w-full shadow-2xl relative animate-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-semibold text-white mb-2">Elimina chat</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">{t.aiHub.deleteChatTitle}</h3>
             <p className="text-[#858585] text-sm mb-6">
-              Sei sicuro di voler eliminare questa chat? L'operazione è irreversibile.
+              {t.aiHub.deleteChatDesc}
             </p>
             <div className="flex justify-end gap-3">
               <button 
                 onClick={() => setChatToDelete(null)}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-white hover:bg-white/5 transition-colors"
               >
-                Annulla
+                {t.common.cancel}
               </button>
               <button 
                 onClick={() => {
@@ -646,7 +651,7 @@ export function AiHubView() {
                 }}
                 className="px-4 py-2 rounded-xl text-sm font-medium bg-[#FF0004]/10 text-[#FF0004] hover:bg-[#FF0004]/20 transition-colors"
               >
-                Elimina
+                {t.common.delete}
               </button>
             </div>
           </div>

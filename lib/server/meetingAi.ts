@@ -114,20 +114,44 @@ async function uploadToGemini(audio: { data: Buffer; mimeType: string }): Promis
   }
 }
 
-function buildPrompt(hasAudio: boolean, transcript: string): string {
+function buildPrompt(hasAudio: boolean, transcript: string, locale: 'it' | 'en' = 'it'): string {
+  if (locale === 'en') {
+    return `
+You are an AI assistant specialized in analyzing business meetings.
+${hasAudio ? "Listen to the audio attached to this message." : 'Read the following meeting transcript:'}
+${transcript ? `Here is a partial/raw transcript (use it as context for analysis):\n${transcript}\n` : ''}
+
+You must extract the following information and output EXACTLY this JSON format (no other text, strictly valid JSON).
+All output fields (summary, decisions, task titles) must be strictly in English.
+
+{
+  "summary": "A conversational summary of max 3 paragraphs of the meeting in English.",
+  "decisions": ["Decision 1", "Decision 2"],
+  "tasks": [
+    {
+      "title": "Task title in English",
+      "assignee": "Person name (if specified, otherwise empty string)",
+      "priority": "LOW" // Possible values: LOW, MEDIUM, HIGH, CRITICAL. Choose the most appropriate priority.
+    }
+  ]
+}
+`;
+  }
+
   return `
 Sei un assistente AI specializzato nell'analisi dei meeting aziendali.
 ${hasAudio ? "Ascolta l'audio allegato a questo messaggio." : 'Leggi la seguente trascrizione del meeting:'}
 ${transcript ? `Ecco una trascrizione parziale/grezza (usala come base per l'analisi):\n${transcript}\n` : ''}
 
 Devi estrarre le seguenti informazioni ed emettere ESATTAMENTE questo formato JSON (nessun altro testo, solo JSON valido).
+Tutti i campi estratti (summary, decisions, titoli dei task) devono essere rigorosamente in italiano.
 
 {
-  "summary": "Un riassunto discorsivo di max 3 paragrafi del meeting.",
+  "summary": "Un riassunto discorsivo di max 3 paragrafi del meeting in italiano.",
   "decisions": ["Decisione 1", "Decisione 2"],
   "tasks": [
     {
-      "title": "Titolo del task",
+      "title": "Titolo del task in italiano",
       "assignee": "Nome persona (se specificato, altrimenti vuoto)",
       "priority": "LOW" // Valori possibili: LOW, MEDIUM, HIGH, CRITICAL. Scegli la priorità più adatta.
     }
@@ -136,10 +160,10 @@ Devi estrarre le seguenti informazioni ed emettere ESATTAMENTE questo formato JS
 `;
 }
 
-export async function analyzeMeeting(audio: { data: Buffer; mimeType: string } | null, transcript: string): Promise<MeetingAnalysis> {
+export async function analyzeMeeting(audio: { data: Buffer; mimeType: string } | null, transcript: string, locale: 'it' | 'en' = 'it'): Promise<MeetingAnalysis> {
   const genAI = geminiClient();
   const file = audio ? await uploadToGemini(audio) : null;
-  const prompt = buildPrompt(!!file, transcript);
+  const prompt = buildPrompt(!!file, transcript, locale);
 
   // Stessi modelli e stessi tentativi della versione che girava nel browser.
   const modelsToTry = file

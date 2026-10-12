@@ -8,6 +8,7 @@ import { WorkspaceGroup, WorkspaceRole, AccessGrant } from '@/types/workspace';
 import { OrgMember } from '@/types/organization';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { TeamIAMModal } from './TeamIAMModal';
 
 interface TeamsSectionProps {
@@ -16,6 +17,7 @@ interface TeamsSectionProps {
 }
 
 export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProps) {
+  const { t } = useTranslation();
   const [teams, setTeams] = useState<WorkspaceGroup[]>([]);
   const [selectedTeam, setSelectedTeam] = useState<WorkspaceGroup | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,10 +46,10 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
 
   const handleCreateTeam = async () => {
     const name = await dialog.prompt({
-      title: "Nuova Squadra",
-      message: "Inserisci il nome della nuova squadra (es. Marketing, Dev Team):",
-      placeholder: "Nome squadra...",
-      confirmText: "Crea"
+      title: t.organization.newTeamTitle,
+      message: t.organization.enterNewTeamName,
+      placeholder: t.organization.teamNamePlaceholder,
+      confirmText: t.organization.create
     });
     
     if (!name || !name.trim()) return;
@@ -58,20 +60,20 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
         name: name.trim(),
         createdAt: serverTimestamp()
       });
-      toast.success("Squadra creata!");
+      toast.success(t.organization.teamCreated);
     } catch (e) {
       console.error(e);
-      toast.error("Errore durante la creazione della squadra.");
+      toast.error(t.organization.teamCreateError);
     }
   };
 
   const handleDeleteTeam = async (teamId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     const confirmed = await dialog.confirm({
-      title: "Elimina Squadra",
-      message: "Sei sicuro di voler eliminare questa squadra? I membri non verranno rimossi dal workspace, ma perderanno l'accesso ai progetti condivisi con questa squadra.",
+      title: t.organization.deleteTeamTitle,
+      message: t.organization.deleteTeamMessage,
       isDestructive: true,
-      confirmText: "Elimina"
+      confirmText: t.common.delete
     });
 
     if (!confirmed) return;
@@ -79,23 +81,17 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
     try {
       await deleteDoc(doc(db, 'workspace_groups', teamId));
       
-      // We should also delete all access_grants where subjectId == teamId.
-      // Filtrate anche per workspace: le regole di Firestore lasciano leggere
-      // gli accessi solo dentro un workspace di cui si fa parte.
-      const grantsQ = query(
-        collection(db, 'access_grants'),
-        where('workspaceId', '==', workspaceId),
-        where('subjectId', '==', teamId),
-      );
+      // We should also delete all access_grants where subjectId == teamId
+      const grantsQ = query(collection(db, 'access_grants'), where('subjectId', '==', teamId));
       const grantsSnap = await getDocs(grantsQ);
       grantsSnap.forEach(g => {
         deleteDoc(g.ref); // Fire and forget for now
       });
 
-      toast.success("Squadra eliminata.");
+      toast.success(t.organization.teamDeleted);
     } catch (err) {
       console.error(err);
-      toast.error("Errore nell'eliminazione.");
+      toast.error(t.organization.teamDeleteError);
     }
   };
 
@@ -105,7 +101,7 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
     <section className="px-2 mt-8 mb-16">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
-          <h2 className="text-2xl font-bold text-white tracking-tight">Squadre (Teams)</h2>
+          <h2 className="text-2xl font-bold text-white tracking-tight">{t.organization.teams}</h2>
           <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
             {teams.length}
           </div>
@@ -115,13 +111,13 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
           className="h-[40px] px-4 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-xl font-medium flex items-center gap-2 transition-colors hover:bg-[#003B80]/80 text-[13px]"
         >
           <PlusCircle size={16} className="text-[#00A6FF]" />
-          Crea Squadra
+          {t.organization.newTeamTitle}
         </button>
       </div>
       
       {teams.length === 0 ? (
         <div className="text-center p-8 border border-white/5 bg-[#0A0A0A] rounded-2xl">
-          <p className="text-[#858585] text-sm">Nessuna squadra presente in questo workspace.</p>
+          <p className="text-[#858585] text-sm">{t.organization.noTeamsInWorkspace}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -146,7 +142,7 @@ export function TeamsSection({ workspaceId, workspaceMembers }: TeamsSectionProp
               </div>
               
               {/* Fake stats for now, will connect to access_grants later */}
-              <div className="text-sm text-[#858585] mb-4">Gestisci i membri &rarr;</div>
+              <div className="text-sm text-[#858585] mb-4">{t.organization.manageMembersArrow}</div>
             </div>
           ))}
         </div>

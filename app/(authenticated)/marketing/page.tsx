@@ -16,7 +16,7 @@ import { Settings } from 'lucide-react';
 import { useTranslation } from '@/contexts/TranslationContext';
 
 export default function MarketingPage() {
-    const { locale } = useTranslation();
+    const { locale, t } = useTranslation();
   const router = useRouter();
   const [isCreating, setIsCreating] = useState(false);
   const [showChannelModal, setShowChannelModal] = useState(false);
@@ -42,7 +42,7 @@ export default function MarketingPage() {
   }, [activeProjectId]);
 
   if (!activeProjectId) {
-    return <p className="text-sm text-[#858585]">Seleziona un progetto per usare la sezione Marketing.</p>;
+    return <p className="text-sm text-[#858585]">{t.marketing.selectProjectForMarketing}</p>;
   }
 
   return (
@@ -61,28 +61,28 @@ export default function MarketingPage() {
             className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeTab === 'campaigns' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <MegaphoneIcon size={16} />
-            Campaigns
+            {t.marketing.campaigns}
           </button>
           <button 
             onClick={() => setActiveTab('models')}
             className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeTab === 'models' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <Archive size={16} />
-            Models
+            {t.marketing.models}
           </button>
           <button 
             onClick={() => setActiveTab('stats')}
             className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeTab === 'stats' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <TrendingUp size={16} />
-            Stats
+            {t.marketing.stats}
           </button>
           <button 
             onClick={() => setActiveTab('settings')}
             className={`flex items-center gap-2 px-4 py-2 text-[14px] rounded-xl transition-colors font-medium ${activeTab === 'settings' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
             <Settings size={16} />
-            Impostazioni
+            {t.sidebar.settings}
           </button>
         </nav>
 
@@ -95,7 +95,7 @@ export default function MarketingPage() {
           className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm disabled:opacity-50"
         >
           <PlusCircle size={16} className="text-[#00A6FF]" />
-          {isCreating ? 'Creazione...' : 'New Campaign'}
+          {isCreating ? t.common.loading : t.marketing.newCampaign}
         </button>
       </div>
 
@@ -115,10 +115,10 @@ export default function MarketingPage() {
                 className="w-72 h-auto mb-6"
               />
               <h2 className="text-[24px] font-semibold text-white mb-2">
-                Non hai ancora creato nessuna campagna!
+                {t.marketing.noCampaignsTitle}
               </h2>
               <p className="text-[#858585] text-[15px] text-center max-w-sm leading-relaxed">
-                Clicca su "Nuova campagna" e inizia a progettare la tua prima comunicazione marketing.
+                {t.marketing.noCampaignsDesc}
               </p>
             </div>
           ) : (
@@ -126,10 +126,10 @@ export default function MarketingPage() {
               <table className="w-full text-left">
                 <thead>
                   <tr className="border-b border-[#1A1A1A] bg-black/30">
-                    <th className="px-5 py-3 text-[10px] font-medium uppercase tracking-wide text-[#5A5A5A]">Nome campagna</th>
-                    <th className="px-5 py-3 text-[10px] font-medium uppercase tracking-wide text-[#5A5A5A]">Stato</th>
-                    <th className="px-5 py-3 text-[10px] font-medium uppercase tracking-wide text-[#5A5A5A]">Data creazione</th>
-                    <th className="px-5 py-3 text-right">Azioni</th>
+                    <th className="px-5 py-3 text-[10px] font-medium uppercase tracking-wide text-[#5A5A5A]">{t.marketing.campaignName}</th>
+                    <th className="px-5 py-3 text-[10px] font-medium uppercase tracking-wide text-[#5A5A5A]">{t.marketing.campaignStatus}</th>
+                    <th className="px-5 py-3 text-[10px] font-medium uppercase tracking-wide text-[#5A5A5A]">{t.marketing.creationDate}</th>
+                    <th className="px-5 py-3 text-right">{t.marketing.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#1A1A1A]">
@@ -151,7 +151,7 @@ export default function MarketingPage() {
                           camp.status === 'scheduled' ? 'bg-blue-500/10 border-blue-500/20 text-blue-400' :
                           'bg-green-500/10 border-green-500/20 text-green-400'
                         }`}>
-                          {camp.status === 'draft' ? 'Bozza' : camp.status === 'scheduled' ? 'Programmata' : 'Inviata'}
+                          {camp.status === 'draft' ? t.marketing.draft : camp.status === 'scheduled' ? t.marketing.scheduled : t.marketing.sent}
                         </span>
                       </td>
                       <td className="px-5 py-4 text-xs text-[#858585]">
@@ -162,10 +162,10 @@ export default function MarketingPage() {
                       </td>
                       <td className="px-5 py-4 text-right">
                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Link href={`/marketing/campaigns/${camp.id}`} className="p-1.5 rounded-lg text-[#858585] hover:text-white hover:bg-[#1A1A1A] transition-colors" title="Modifica">
+                          <Link href={`/marketing/campaigns/${camp.id}`} className="p-1.5 rounded-lg text-[#858585] hover:text-white hover:bg-[#1A1A1A] transition-colors" title={t.common.edit}>
                             <Edit2 size={16} />
                           </Link>
-                          <button onClick={() => setDeleteConfirm(camp.id)} className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-500/10 transition-colors" title="Elimina">
+                          <button onClick={() => setDeleteConfirm(camp.id)} className="p-1.5 rounded-lg text-[#EF4444] hover:bg-red-500/10 transition-colors" title={t.common.delete}>
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -221,6 +221,7 @@ function DeleteConfirmModal({
   onClose: () => void; 
   onConfirm: () => void;
 }) {
+  const { t } = useTranslation();
   if (!open) return null;
 
   return (
@@ -232,9 +233,9 @@ function DeleteConfirmModal({
           <div className="flex h-[52px] w-[52px] items-center justify-center rounded-full bg-[#521414]">
             <Trash2 size={22} className="text-[#EF4444]" />
           </div>
-          <h2 className="text-[17px] font-medium text-white">Elimina campagna</h2>
+          <h2 className="text-[17px] font-medium text-white">{t.common.delete} {t.marketing.campaignName.toLowerCase()}</h2>
           <p className="text-[13px] text-[#A3A3A3] leading-relaxed">
-            Sei sicuro di voler eliminare definitivamente <strong className="text-white font-medium">questa campagna</strong>? L'operazione non può essere annullata.
+            {t.marketing.deleteCampaignConfirm}
           </p>
         </div>
         
@@ -243,13 +244,13 @@ function DeleteConfirmModal({
             onClick={onClose}
             className="flex h-10 flex-1 items-center justify-center rounded-xl bg-transparent text-[13px] font-medium text-[#A3A3A3] hover:text-white transition-colors"
           >
-            Annulla
+            {t.common.cancel}
           </button>
           <button
             onClick={onConfirm}
             className="flex h-10 flex-1 items-center justify-center rounded-xl bg-[#EF4444] text-[13px] font-medium text-white hover:bg-red-600 transition-colors"
           >
-            Sì, elimina
+            {t.common.delete}
           </button>
         </footer>
       </div>

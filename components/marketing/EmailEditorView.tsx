@@ -12,6 +12,7 @@ import { updateCampaign } from '@/lib/services/marketingService';
 import { generateEmailHtml } from '@/lib/utils/emailCompiler';
 
 import { useToast } from '@/contexts/ToastContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 const BLOCKS = [
@@ -53,6 +54,7 @@ const SECTIONS = [
 
 export function EmailEditorView({ campaignId }: { campaignId: string }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const searchParams = useSearchParams();
   const editorType = searchParams.get('type') || 'dnd';
   const toast = useToast();
@@ -212,9 +214,9 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
           <Link href={`/marketing/campaigns/${campaignId}`} className="p-2 bg-white/5 rounded-full hover:bg-white/10 transition-colors">
             <ArrowLeft size={16} />
           </Link>
-          <span className="font-medium text-[15px]">Modifica design email</span>
+          <span className="font-medium text-[15px]">{t.marketing.editDesign}</span>
           <div className="w-px h-5 bg-white/10 mx-2" />
-          <span className="text-xs text-[#0D6EFD] font-medium ml-4">Tutte le modifiche sono salvate</span>
+          <span className="text-xs text-[#0D6EFD] font-medium ml-4">{t.marketing.allChangesSaved}</span>
         </div>
         
         <div className="flex items-center gap-4">
@@ -222,7 +224,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
             onClick={handleSaveAndExit}
             className="px-4 py-2 text-sm font-medium bg-[#0D6EFD] text-white rounded-xl hover:bg-[#0D6EFD]/90 transition-colors flex items-center gap-2"
           >
-            Salva e esci
+            {t.marketing.saveAndExit}
           </button>
         </div>
       </div>
@@ -238,7 +240,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
                 className={`flex flex-col items-center justify-center w-14 h-14 rounded-xl gap-1 transition-colors ${activeMainTab === 'content' ? 'bg-[#0D6EFD]/10 text-[#0D6EFD]' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
               >
                 <LayoutTemplate size={20} />
-                <span className="text-[10px] font-medium">Contenuto</span>
+                <span className="text-[10px] font-medium">{t.marketing.content}</span>
               </button>
             </div>
 
@@ -250,13 +252,13 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
                       onClick={() => setActiveSubTab('blocks')}
                       className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${activeSubTab === 'blocks' ? 'border-[#0D6EFD] text-white' : 'border-transparent text-[#858585] hover:text-white'}`}
                     >
-                      Blocchi
+                      {t.marketing.blocks}
                     </button>
                     <button 
                       onClick={() => setActiveSubTab('sections')}
                       className={`flex-1 pb-2 text-sm font-medium border-b-2 transition-colors ${activeSubTab === 'sections' ? 'border-[#0D6EFD] text-white' : 'border-transparent text-[#858585] hover:text-white'}`}
                     >
-                      Sezioni
+                      {t.marketing.sections}
                     </button>
                   </div>
 
@@ -283,14 +285,14 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
                                       <div className="text-[#858585] group-hover:text-[#0D6EFD] transition-colors">
                                         <block.icon size={24} strokeWidth={1.5} />
                                       </div>
-                                      <span className="text-[11px] font-medium text-[#858585] group-hover:text-white">{block.label}</span>
+                                      <span className="text-[11px] font-medium text-[#858585] group-hover:text-white">{block.id === "title" ? t.marketing.titleBlock : block.id === "text" ? t.marketing.textBlock : block.id === "image" ? t.marketing.imageBlock : block.id === "button" ? t.marketing.buttonBlock : t.marketing.dividerBlock}</span>
                                     </div>
                                     {snapshot.isDragging && (
                                       <div className="aspect-[3/2] bg-[#141414] border border-white/5 rounded-2xl flex flex-col items-center justify-center gap-2 opacity-50">
                                         <div className="text-[#858585]">
                                           <block.icon size={24} strokeWidth={1.5} />
                                         </div>
-                                        <span className="text-[11px] font-medium text-[#858585]">{block.label}</span>
+                                        <span className="text-[11px] font-medium text-[#858585]">{block.id === "title" ? t.marketing.titleBlock : block.id === "text" ? t.marketing.textBlock : block.id === "image" ? t.marketing.imageBlock : block.id === "button" ? t.marketing.buttonBlock : t.marketing.dividerBlock}</span>
                                       </div>
                                     )}
                                   </React.Fragment>
@@ -356,7 +358,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
                           <>
                             {/* Background */}
                             <div className="flex flex-col gap-2">
-                              <label className="text-xs text-[#858585]">Colore Sfondo</label>
+                              <label className="text-xs text-[#858585]">{t.marketing.backgroundColor}</label>
                               <div className="flex items-center gap-3">
                                 <input 
                                   type="color" 
@@ -370,7 +372,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
 
                             {/* Text Color */}
                             <div className="flex flex-col gap-2">
-                              <label className="text-xs text-[#858585]">Colore Testo</label>
+                              <label className="text-xs text-[#858585]">{t.marketing.textColor}</label>
                               <div className="flex items-center gap-3">
                                 <input 
                                   type="color" 
@@ -384,7 +386,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
 
                             {/* Alignment */}
                             <div className="flex flex-col gap-2">
-                              <label className="text-xs text-[#858585]">Allineamento Testo</label>
+                              <label className="text-xs text-[#858585]">{t.marketing.textAlign}</label>
                               <div className="flex bg-[#141414] rounded-lg p-1 border border-white/10">
                                 {['left', 'center', 'right', 'justify'].map(align => (
                                   <button 
@@ -400,7 +402,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
 
                             {/* Padding */}
                             <div className="flex flex-col gap-2">
-                              <label className="text-xs text-[#858585]">Spaziatura Interna (Padding)</label>
+                              <label className="text-xs text-[#858585]">{t.marketing.padding}</label>
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="flex items-center bg-[#141414] border border-white/10 rounded-lg px-3 py-2">
                                   <span className="text-[10px] text-[#858585] w-6">T/B</span>
@@ -435,7 +437,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
                             
                             {/* Border Radius */}
                             <div className="flex flex-col gap-2">
-                              <label className="text-xs text-[#858585]">Angoli Arrotondati (Radius)</label>
+                              <label className="text-xs text-[#858585]">{t.marketing.borderRadius}</label>
                               <div className="flex items-center bg-[#141414] border border-white/10 rounded-lg px-3 py-2">
                                 <input 
                                   type="number" 
@@ -500,7 +502,7 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
                                 <input 
                                   value={block.content} 
                                   onChange={(e) => updateBlock(block.id, e.target.value)}
-                                  placeholder="URL Immagine"
+                                  placeholder={t.marketing.imageUrl}
                                   className="w-full text-xs p-2 border border-gray-200 rounded text-black opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-2 left-0 bg-white/90 backdrop-blur"
                                 />
                               </div>
@@ -553,12 +555,9 @@ export function EmailEditorView({ campaignId }: { campaignId: string }) {
             </div>
             <div className="flex-1 flex flex-col gap-2">
               <h2 className="text-sm font-medium text-[#858585]">Anteprima dal vivo</h2>
-              {/* sandbox vuoto: niente script, origine separata dall'app */}
-              <iframe
-                title="Anteprima email"
-                sandbox=""
-                srcDoc={customHtml}
-                className="flex-1 bg-white rounded-xl overflow-hidden shadow-inner w-full border-0"
+              <div 
+                className="flex-1 bg-white rounded-xl overflow-hidden shadow-inner p-4 text-black"
+                dangerouslySetInnerHTML={{ __html: customHtml }}
               />
             </div>
           </div>

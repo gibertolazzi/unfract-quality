@@ -6,14 +6,14 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { OrgMember } from '@/types/organization';
 import { ProjectMemberAccess, CustomRole, AppModule, PermissionLevel } from '@/types/iam';
-import { subscribeUserProjectAccess } from '@/lib/services/iamService';
 import { useProject } from '@/contexts/ProjectContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
-const MODULES: { id: AppModule; label: string }[] = [
-  { id: 'crm', label: 'CRM' },
-  { id: 'tasks', label: 'Task' },
-  { id: 'documentation', label: 'Documentazione' },
-  { id: 'settings', label: 'Impostazioni' }
+const MODULES: { id: AppModule; labelKey: 'crm' | 'tasks' | 'documentation' | 'settings' }[] = [
+  { id: 'crm', labelKey: 'crm' },
+  { id: 'tasks', labelKey: 'tasks' },
+  { id: 'documentation', labelKey: 'documentation' },
+  { id: 'settings', labelKey: 'settings' }
 ];
 
 interface MemberProfileModalProps {
@@ -22,6 +22,7 @@ interface MemberProfileModalProps {
 }
 
 export function MemberProfileModal({ member, onClose }: MemberProfileModalProps) {
+  const { t } = useTranslation();
   const { projects } = useProject();
   const [accesses, setAccesses] = useState<(ProjectMemberAccess & { projectName: string; roleName: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,15 +39,16 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
   });
 
   useEffect(() => {
-    // 1. Accessi di questo utente nei progetti visibili (letti per ID).
-    const unsub = subscribeUserProjectAccess(projects.map(p => p.id), member.uid, async (memberAccesses) => {
+    // 1. Fetch all accesses for this user
+    const unsub = onSnapshot(query(collection(db, 'project_members'), where('userId', '==', member.uid)), async (snap) => {
       const accessList: (ProjectMemberAccess & { projectName: string; roleName: string })[] = [];
       
-      for (const access of memberAccesses) {
+      for (const d of snap.docs) {
+        const access = d.data() as ProjectMemberAccess;
         const project = projects.find(p => p.id === access.projectId);
-        if (!project) continue;
+        if (!project) continue; // Skip if project not found or not part of this org (if filtered)
         
-        let roleName = 'Ruolo Sconosciuto';
+        let roleName = t.organization.noRoleDefault;
         try {
           const roleSnap = await getDoc(doc(db, 'project_roles', access.roleId));
           if (roleSnap.exists()) {
@@ -54,7 +56,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
           }
         } catch (e) {}
 
-        accessList.push({ ...access, projectName: project.name, roleName });
+        accessList.push({ ...access, id: d.id, projectName: project.name, roleName });
       }
       
       setAccesses(accessList);
@@ -62,7 +64,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
     });
 
     return () => unsub();
-  }, [member.uid, projects]);
+  }, [member.uid, projects, t]);
 
   useEffect(() => {
     if (!selectedProjectId) {
@@ -127,7 +129,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">{member.displayName}</h2>
-              <p className="text-[#858585] text-sm">{member.email} • {member.role === 'admin' ? 'Amministratore' : 'Membro'}</p>
+              <p className="text-[#858585] text-sm">{member.email} • {member.role === 'admin' ? t.organization.admin : t.organization.member}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-[#858585] hover:text-white transition-colors">
@@ -138,15 +140,15 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
         <div className="p-6 bg-[#050505] overflow-y-auto flex-1">
           <h3 className="text-white font-medium mb-4 flex items-center gap-2">
             <ShieldCheck size={18} className="text-[#0D6EFD]" />
-            Ruoli Assegnati nei Progetti
+            {t.organization.assignedRolesInProjects}
           </h3>
           
           {loading ? (
-            <p className="text-[#858585] text-sm">Caricamento permessi...</p>
+            <p className="text-[#858585] text-sm">{t.organization.loadingPermissions}</p>
           ) : accesses.length === 0 ? (
             <div className="py-8 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-xl">
               <ShieldAlert size={32} className="text-[#858585] mb-2 opacity-50" />
-              <p className="text-[#858585] text-sm">Nessun ruolo custom assegnato.</p>
+              <p className="text-[#858585] text-sm">{t.organization.noCustomRolesAssigned}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -176,20 +178,20 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                 onClick={() => setIsAssigning(true)}
                 className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-medium transition-colors text-sm"
               >
-                + Gestisci Ruolo
+                {t.organization.manageRoleBtn}
               </button>
             ) : (
               <div className="bg-[#111] border border-white/10 rounded-xl p-4 flex flex-col gap-4">
-                <h4 className="text-white text-sm font-medium">Nuova Assegnazione</h4>
+                <h4 className="text-white text-sm font-medium">{t.organization.newAssignment}</h4>
                 
                 <div>
-                  <label className="block text-xs font-medium text-[#858585] mb-1.5 uppercase tracking-wider">Progetto</label>
+                  <label className="block text-xs font-medium text-[#858585] mb-1.5 uppercase tracking-wider">{t.organization.project}</label>
                   <select 
                     value={selectedProjectId}
                     onChange={(e) => setSelectedProjectId(e.target.value)}
                     className="w-full bg-[#050505] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
                   >
-                    <option value="">Seleziona un progetto...</option>
+                    <option value="">{t.organization.selectProject}</option>
                     {projects.map(p => (
                       <option key={p.id} value={p.id}>{p.name}</option>
                     ))}
@@ -198,7 +200,7 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
 
                 {selectedProjectId && (
                   <div>
-                    <label className="block text-xs font-medium text-[#858585] mb-1.5 uppercase tracking-wider">Ruolo</label>
+                    <label className="block text-xs font-medium text-[#858585] mb-1.5 uppercase tracking-wider">{t.organization.role}</label>
                     <select 
                       value={selectedRoleId}
                       onChange={(e) => {
@@ -207,42 +209,42 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                       }}
                       className="w-full bg-[#050505] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
                     >
-                      <option value="">Seleziona un ruolo...</option>
+                      <option value="">{t.organization.selectRole}</option>
                       {projectRoles.map(r => (
                         <option key={r.id} value={r.id}>{r.name}</option>
                       ))}
-                      <option value="CREATE_NEW" className="font-bold text-[#0D6EFD]">+ Crea nuovo ruolo</option>
+                      <option value="CREATE_NEW" className="font-bold text-[#0D6EFD]">{t.organization.createNewRoleAction}</option>
                     </select>
                   </div>
                 )}
 
                 {isCreatingRole && (
                   <div className="mt-2 bg-[#050505] border border-[#0D6EFD]/30 p-4 rounded-xl flex flex-col gap-4">
-                    <h5 className="text-white text-sm font-medium text-[#0D6EFD]">Crea Nuovo Ruolo</h5>
+                    <h5 className="text-white text-sm font-medium text-[#0D6EFD]">{t.organization.createRole}</h5>
                     <div>
-                      <label className="block text-xs font-medium text-[#858585] mb-1.5 uppercase tracking-wider">Nome Ruolo</label>
+                      <label className="block text-xs font-medium text-[#858585] mb-1.5 uppercase tracking-wider">{t.organization.roleName}</label>
                       <input 
                         type="text" 
                         value={newRoleName}
                         onChange={(e) => setNewRoleName(e.target.value)}
-                        placeholder="es. Marketing Manager" 
+                        placeholder={t.organization.roleNameInputPlaceholder}
                         className="w-full bg-[#111] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-[#858585] mb-2 uppercase tracking-wider">Permessi Moduli</label>
+                      <label className="block text-xs font-medium text-[#858585] mb-2 uppercase tracking-wider">{t.organization.modulePermissions}</label>
                       <div className="grid grid-cols-2 gap-3">
                         {MODULES.map(mod => (
                           <div key={mod.id} className="flex flex-col gap-1">
-                            <span className="text-xs text-white/70">{mod.label}</span>
+                            <span className="text-xs text-white/70">{t.sidebar[mod.labelKey]}</span>
                             <select
                               value={newRolePerms[mod.id]}
                               onChange={(e) => setNewRolePerms(prev => ({ ...prev, [mod.id]: e.target.value as PermissionLevel }))}
                               className="bg-black/50 border border-white/10 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none focus:border-[#0D6EFD]"
                             >
-                              <option value="none">Nessun Accesso</option>
-                              <option value="read">Sola Lettura</option>
-                              <option value="write">Lettura / Scrittura</option>
+                              <option value="none">{t.organization.noAccess}</option>
+                              <option value="read">{t.organization.readOnly}</option>
+                              <option value="write">{t.organization.readWrite}</option>
                             </select>
                           </div>
                         ))}
@@ -258,14 +260,14 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
                     setSelectedRoleId('');
                     setIsCreatingRole(false);
                   }} className="px-4 py-2 text-sm font-medium text-[#858585] hover:text-white transition-colors rounded-full">
-                    Annulla
+                    {t.common.cancel}
                   </button>
                   <button 
                     onClick={handleAssignAccess}
                     disabled={!selectedProjectId || !selectedRoleId || (isCreatingRole && !newRoleName.trim())}
                     className="px-4 py-2 text-sm font-medium bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full hover:bg-[#003B80]/80 transition-colors disabled:opacity-50 flex items-center justify-center"
                   >
-                    Conferma
+                    {t.common.confirm}
                   </button>
                 </div>
               </div>

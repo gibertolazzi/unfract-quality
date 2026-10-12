@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Globe, Plus, AlertCircle, CheckCircle2, ChevronDown, Copy, Loader2, ArrowRight } from 'lucide-react';
 import { useToast } from '@/contexts/ToastContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 // Mocking standard Resend DNS records structure
 interface DnsRecord {
@@ -21,6 +22,7 @@ interface Domain {
 }
 
 export function MarketingSettingsView({ projectId }: { projectId: string }) {
+  const { t } = useTranslation();
   const toast = useToast();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [isAdding, setIsAdding] = useState(false);
@@ -29,7 +31,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
 
   const handleAddDomain = async () => {
     if (!newDomain.includes('.')) {
-      toast.error('Inserisci un dominio valido (es. meyou.it)');
+      toast.error(t.marketing.validDomainError);
       return;
     }
     setIsAdding(true);
@@ -49,7 +51,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
       setNewDomain('');
       setIsAdding(false);
       setExpandedDomain(mockDomain.id);
-      toast.success('Dominio aggiunto! Ora configura i record DNS.');
+      toast.success(t.marketing.domainAddedSuccess);
     }, 1000);
   };
 
@@ -65,12 +67,12 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
       }
       return d;
     }));
-    toast.success('Dominio verificato con successo!');
+    toast.success(t.marketing.domainVerifiedSuccess);
   };
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.info('Copiato negli appunti');
+    toast.info(t.common.copiedToClipboard);
   };
 
   return (
@@ -80,8 +82,8 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
           <Globe size={20} />
         </div>
         <div>
-          <h2 className="text-xl font-medium text-white">Domini Mittente</h2>
-          <p className="text-sm text-[#858585]">Aggiungi e verifica il tuo dominio per inviare email da indirizzi personalizzati (es. info@tuodominio.com).</p>
+          <h2 className="text-xl font-medium text-white">{t.marketing.senderDomains}</h2>
+          <p className="text-sm text-[#858585]">{t.marketing.senderDomainsDesc}</p>
         </div>
       </div>
 
@@ -91,7 +93,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
         <div className="flex gap-3">
           <input 
             type="text" 
-            placeholder="es. tuodominio.it"
+            placeholder={t.marketing.domainPlaceholder}
             value={newDomain}
             onChange={e => setNewDomain(e.target.value)}
             className="flex-1 bg-black border border-[#1A1A1A] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#2A2A2A]"
@@ -102,7 +104,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
             className="flex items-center gap-2 px-6 py-2.5 bg-[#006AFF] hover:bg-blue-600 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
           >
             {isAdding ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-            Aggiungi Dominio
+            {t.marketing.addDomain}
           </button>
         </div>
 
@@ -125,7 +127,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${
                       domain.status === 'verified' ? 'bg-[#00FF38]/10 border-[#00FF38]/20 text-[#00FF38]' : 'bg-[#F5A623]/10 border-[#F5A623]/20 text-[#F5A623]'
                     }`}>
-                      {domain.status === 'verified' ? 'Verificato' : 'In attesa di verifica'}
+                      {domain.status === 'verified' ? t.marketing.verified : t.marketing.pendingVerification}
                     </span>
                   </div>
                   <ChevronDown size={18} className={`text-[#858585] transition-transform ${expandedDomain === domain.id ? 'rotate-180' : ''}`} />
@@ -136,7 +138,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
                   <div className="border-t border-[#1A1A1A] p-5 bg-[#050505]">
                     {domain.status !== 'verified' && (
                       <p className="text-sm text-[#858585] mb-5">
-                        Per verificare il tuo dominio, aggiungi i seguenti record nel pannello DNS del tuo provider (es. Aruba, Register, Cloudflare).
+                        {t.marketing.dnsInstructions}
                       </p>
                     )}
                     
@@ -144,18 +146,18 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
                       {domain.records.map((record, idx) => (
                         <div key={idx} className="flex flex-col gap-2 p-3 border border-[#1A1A1A] rounded-lg bg-black">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">Tipo</span>
+                            <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">{t.marketing.type}</span>
                             <span className="text-xs text-white bg-[#1A1A1A] px-2 py-0.5 rounded">{record.type}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">Host</span>
+                            <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">{t.marketing.host}</span>
                             <div className="flex items-center gap-2 flex-1 group">
                               <span className="text-xs text-[#C4C4C4] font-mono">{record.host}</span>
                               <button onClick={() => copyToClipboard(record.host)} className="opacity-0 group-hover:opacity-100 text-[#5A5A5A] hover:text-white transition-opacity"><Copy size={12} /></button>
                             </div>
                           </div>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">Valore</span>
+                            <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">{t.marketing.value}</span>
                             <div className="flex items-center gap-2 flex-1 group bg-[#111111] border border-[#1A1A1A] px-2 py-1 rounded text-xs text-[#C4C4C4] font-mono break-all relative">
                               <span className="pr-6">{record.value}</span>
                               <button onClick={() => copyToClipboard(record.value)} className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 text-[#5A5A5A] hover:text-white transition-opacity"><Copy size={12} /></button>
@@ -163,7 +165,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
                           </div>
                           {record.priority && (
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">Priorità</span>
+                              <span className="text-[10px] font-bold text-[#5A5A5A] uppercase tracking-wider w-12">{t.marketing.priority}</span>
                               <span className="text-xs text-white">{record.priority}</span>
                             </div>
                           )}
@@ -177,7 +179,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
                           onClick={() => handleVerify(domain.id)}
                           className="flex items-center gap-2 px-4 py-2 bg-white text-black text-sm font-medium rounded-xl hover:bg-gray-200 transition-colors"
                         >
-                          Verifica configurazione <ArrowRight size={16} />
+                          {t.marketing.verifyConfig} <ArrowRight size={16} />
                         </button>
                       </div>
                     )}
@@ -189,7 +191,7 @@ export function MarketingSettingsView({ projectId }: { projectId: string }) {
         ) : (
           <div className="flex flex-col items-center justify-center py-10 border border-dashed border-[#1A1A1A] rounded-xl bg-black/20">
             <Globe size={32} className="text-[#333] mb-3" />
-            <p className="text-sm text-[#858585]">Nessun dominio configurato.</p>
+            <p className="text-sm text-[#858585]">{t.marketing.noDomainsConfigured}</p>
           </div>
         )}
 

@@ -8,13 +8,14 @@ import { CustomRole, AppModule, PermissionLevel, ProjectMemberAccess, AccessRequ
 import { OrgMember } from '@/types/organization';
 import { assignUserRole, resolveAccessRequest } from '@/lib/services/iamService';
 import { Project } from '@/contexts/ProjectContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Organization } from './types';
 
-const MODULES: { id: AppModule; label: string }[] = [
-  { id: 'crm', label: 'CRM' },
-  { id: 'tasks', label: 'Task' },
-  { id: 'documentation', label: 'Documentazione' },
-  { id: 'settings', label: 'Impostazioni' }
+const MODULES: { id: AppModule; labelKey: 'crm' | 'tasks' | 'documentation' | 'settings' }[] = [
+  { id: 'crm', labelKey: 'crm' },
+  { id: 'tasks', labelKey: 'tasks' },
+  { id: 'documentation', labelKey: 'documentation' },
+  { id: 'settings', labelKey: 'settings' }
 ];
 
 interface ProjectIAMModalProps {
@@ -24,6 +25,7 @@ interface ProjectIAMModalProps {
 }
 
 export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMModalProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'roles' | 'members' | 'teams' | 'requests'>('roles');
 
   const [roles, setRoles] = useState<CustomRole[]>([]);
@@ -103,8 +105,8 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-white/10 shrink-0">
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">Permessi Progetto: {project.name}</h2>
-            <p className="text-[#858585] text-sm">Gestisci ruoli e accessi per questo progetto.</p>
+            <h2 className="text-2xl font-bold text-white mb-1">{t.organization.projectPermissions}: {project.name}</h2>
+            <p className="text-[#858585] text-sm">{t.organization.manageRolesAndAccess}</p>
           </div>
           <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-[#858585] hover:text-white transition-colors">
             <X size={20} />
@@ -117,13 +119,13 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
             onClick={() => setActiveTab('roles')}
             className={`flex shrink-0 items-center gap-2 px-4 py-2 text-[14px] rounded-xl font-medium transition-colors ${activeTab === 'roles' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
-            <ShieldCheck size={16} /> Ruoli Custom
+            <ShieldCheck size={16} /> {t.organization.customRoles}
           </button>
           <button 
             onClick={() => setActiveTab('members')}
             className={`flex shrink-0 items-center gap-2 px-4 py-2 text-[14px] rounded-xl font-medium transition-colors ${activeTab === 'members' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
-            <Users size={16} /> Assegnazione Membri
+            <Users size={16} /> {t.organization.memberAssignment}
           </button>
           
           {organization.structureMode === 'teams' && (
@@ -131,7 +133,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
               onClick={() => setActiveTab('teams')}
               className={`flex shrink-0 items-center gap-2 px-4 py-2 text-[14px] rounded-xl font-medium transition-colors ${activeTab === 'teams' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
             >
-              <Users size={16} /> Squadre (Teams)
+              <Users size={16} /> {t.organization.teams}
             </button>
           )}
 
@@ -139,7 +141,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
             onClick={() => setActiveTab('requests')}
             className={`flex shrink-0 items-center gap-2 px-4 py-2 text-[14px] rounded-xl font-medium transition-colors ${activeTab === 'requests' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
-            <Key size={16} /> Richieste Accesso {accessRequests.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{accessRequests.length}</span>}
+            <Key size={16} /> {t.organization.accessRequests} {accessRequests.length > 0 && <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">{accessRequests.length}</span>}
           </button>
         </div>
 
@@ -150,45 +152,45 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
           {activeTab === 'roles' && (
             <div className="flex flex-col gap-6">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-white">Ruoli del Progetto</h3>
+                <h3 className="text-lg font-medium text-white">{t.organization.projectRoles}</h3>
                 <button 
                   onClick={() => setIsCreatingRole(true)}
                   className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-xl font-medium hover:bg-[#003B80]/80 transition-colors"
                 >
-                  <Plus size={16} /> Crea Ruolo
+                  <Plus size={16} /> {t.organization.createRole}
                 </button>
               </div>
 
               {isCreatingRole && (
                 <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6 shadow-lg">
-                  <h4 className="text-md font-medium text-white mb-4">Nuovo Ruolo</h4>
+                  <h4 className="text-md font-medium text-white mb-4">{t.organization.newRole}</h4>
                   <input 
                     value={newRoleName}
                     onChange={e => setNewRoleName(e.target.value)}
-                    placeholder="Es. Stagista Marketing"
+                    placeholder={t.organization.roleNamePlaceholder}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white mb-6 focus:outline-none focus:border-[#0D6EFD]"
                   />
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
                     {MODULES.map(mod => (
                       <div key={mod.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                        <span className="text-white font-medium text-sm">{mod.label}</span>
+                        <span className="text-white font-medium text-sm">{t.sidebar[mod.labelKey]}</span>
                         <select 
                           value={newRolePerms[mod.id]}
                           onChange={(e) => setNewRolePerms(prev => ({ ...prev, [mod.id]: e.target.value as PermissionLevel }))}
                           className="bg-black/50 border border-white/10 rounded-lg px-2 py-1 text-xs text-white focus:outline-none focus:border-[#0D6EFD]"
                         >
-                          <option value="none">Nessun Accesso</option>
-                          <option value="read">Sola Lettura</option>
-                          <option value="write">Lettura / Scrittura</option>
+                          <option value="none">{t.organization.noAccess}</option>
+                          <option value="read">{t.organization.readOnly}</option>
+                          <option value="write">{t.organization.readWrite}</option>
                         </select>
                       </div>
                     ))}
                   </div>
                   
                   <div className="flex justify-end gap-3 mt-4">
-                    <button onClick={() => setIsCreatingRole(false)} className="px-5 py-2 rounded-full text-[#858585] hover:text-white transition-colors text-sm font-medium">Annulla</button>
-                    <button onClick={handleCreateRole} disabled={!newRoleName.trim()} className="px-5 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full hover:bg-[#003B80]/80 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center">Crea Ruolo</button>
+                    <button onClick={() => setIsCreatingRole(false)} className="px-5 py-2 rounded-full text-[#858585] hover:text-white transition-colors text-sm font-medium">{t.common.cancel}</button>
+                    <button onClick={handleCreateRole} disabled={!newRoleName.trim()} className="px-5 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full hover:bg-[#003B80]/80 transition-colors disabled:opacity-50 text-sm font-medium flex items-center justify-center">{t.organization.createRole}</button>
                   </div>
                 </div>
               )}
@@ -208,7 +210,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                         if (perm === 'none') return null;
                         return (
                           <div key={mod.id} className={`px-2 py-1 rounded-md text-[11px] font-medium border ${perm === 'write' ? 'bg-green-500/10 text-green-400 border-green-500/20' : 'bg-blue-500/10 text-blue-400 border-blue-500/20'}`}>
-                            {mod.label}: {perm === 'write' ? 'Write' : 'Read'}
+                            {t.sidebar[mod.labelKey]}: {perm === 'write' ? t.organization.write : t.organization.read}
                           </div>
                         );
                       })}
@@ -218,7 +220,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                 {roles.length === 0 && !isCreatingRole && (
                   <div className="col-span-full py-12 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl">
                     <ShieldAlert size={48} className="text-[#858585] mb-4 opacity-50" />
-                    <p className="text-[#858585]">Nessun ruolo custom creato.</p>
+                    <p className="text-[#858585]">{t.organization.noCustomRolesCreated}</p>
                   </div>
                 )}
               </div>
@@ -230,7 +232,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
             <div className="flex flex-col gap-4">
               {projectUsers.length === 0 && (
                 <div className="py-12 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl">
-                  <p className="text-[#858585]">Nessun membro nell'organizzazione.</p>
+                  <p className="text-[#858585]">{t.organization.noMembersInOrg}</p>
                 </div>
               )}
 
@@ -245,7 +247,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                         {user.initials}
                       </div>
                       <div>
-                        <p className="text-white font-medium text-sm">{user.displayName} {isOwner && <span className="ml-2 text-[10px] bg-[#FFB800]/20 text-[#FFB800] px-2 py-0.5 rounded-full">Owner</span>}</p>
+                        <p className="text-white font-medium text-sm">{user.displayName} {isOwner && <span className="ml-2 text-[10px] bg-[#FFB800]/20 text-[#FFB800] px-2 py-0.5 rounded-full">{t.organization.owner}</span>}</p>
                         <p className="text-[#858585] text-xs">{user.email}</p>
                       </div>
                     </div>
@@ -263,11 +265,11 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                         }}
                         className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
                       >
-                        <option value="none">Nessun Ruolo (Default)</option>
+                        <option value="none">{t.organization.noRoleDefault}</option>
                         {roles.map(r => (
                           <option key={r.id} value={r.id}>{r.name}</option>
                         ))}
-                        <option value="CREATE_NEW_ROLE" className="font-bold text-[#0D6EFD]">+ Crea nuovo ruolo</option>
+                        <option value="CREATE_NEW_ROLE" className="font-bold text-[#0D6EFD]">{t.organization.createNewRoleAction}</option>
                       </select>
                     )}
                   </div>
@@ -281,7 +283,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
             <div className="flex flex-col gap-4">
               {teams.length === 0 && (
                 <div className="py-12 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl">
-                  <p className="text-[#858585]">Nessuna squadra presente in questo Workspace.</p>
+                  <p className="text-[#858585]">{t.organization.noTeamsInWorkspace}</p>
                 </div>
               )}
 
@@ -296,7 +298,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                       </div>
                       <div>
                         <p className="text-white font-medium text-sm">{team.name}</p>
-                        <p className="text-[#858585] text-xs">Squadra</p>
+                        <p className="text-[#858585] text-xs">{t.organization.team}</p>
                       </div>
                     </div>
                     
@@ -312,11 +314,11 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                       }}
                       className="bg-black/50 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#0D6EFD]"
                     >
-                      <option value="none">Nessun Accesso (Default)</option>
+                      <option value="none">{t.organization.noAccessDefault}</option>
                       {roles.map(r => (
                         <option key={r.id} value={r.id}>{r.name}</option>
                       ))}
-                      <option value="CREATE_NEW_ROLE" className="font-bold text-[#0D6EFD]">+ Crea nuovo ruolo</option>
+                      <option value="CREATE_NEW_ROLE" className="font-bold text-[#0D6EFD]">{t.organization.createNewRoleAction}</option>
                     </select>
                   </div>
                 );
@@ -329,7 +331,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
             <div className="flex flex-col gap-4">
               {accessRequests.length === 0 && (
                 <div className="py-12 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl">
-                  <p className="text-[#858585]">Nessuna richiesta di accesso pendente.</p>
+                  <p className="text-[#858585]">{t.organization.noPendingRequests}</p>
                 </div>
               )}
 
@@ -340,18 +342,18 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
                   <div key={req.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-5 bg-[#0A0A0A] border border-yellow-500/30 rounded-xl gap-4">
                     <div className="flex flex-col gap-1">
                       <p className="text-white text-sm">
-                        <span className="font-semibold">{user ? user.displayName : req.userId}</span> ha richiesto i permessi di <span className="font-semibold text-yellow-500">{req.requestedLevel === 'write' ? 'Scrittura' : 'Lettura'}</span>
+                        <span className="font-semibold">{user ? user.displayName : req.userId}</span> {t.organization.hasRequestedPermissions} <span className="font-semibold text-yellow-500">{req.requestedLevel === 'write' ? t.organization.write : t.organization.read}</span>
                       </p>
                       <p className="text-xs text-[#858585]">
-                        Modulo: <span className="text-white capitalize">{req.module}</span>
+                        {t.organization.module}: <span className="text-white capitalize">{req.module}</span>
                       </p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <button onClick={() => handleRequestResponse(req.id, 'rejected')} className="px-3 py-1.5 rounded-lg text-[#858585] hover:bg-white/5 transition-colors text-sm">
-                        Rifiuta
+                        {t.organization.reject}
                       </button>
                       <button onClick={() => handleRequestResponse(req.id, 'approved')} className="flex items-center gap-2 px-3 py-1.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-lg hover:bg-green-500/30 transition-colors text-sm">
-                        <Check size={14} /> Approva
+                        <Check size={14} /> {t.organization.approve}
                       </button>
                     </div>
                   </div>

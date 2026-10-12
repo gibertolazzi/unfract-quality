@@ -1,5 +1,6 @@
 import { X, Mail, MessageSquare, ArrowLeft, SplitSquareHorizontal, FileText } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface CampaignChannelModalProps {
   open: boolean;
@@ -8,6 +9,7 @@ interface CampaignChannelModalProps {
 }
 
 export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChannelModalProps) {
+  const { t } = useTranslation();
   const [step, setStep] = useState<1 | 2>(1);
   const [selected, setSelected] = useState<'email' | 'sms' | null>(null);
   
@@ -36,9 +38,9 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
             )}
             <div>
               <h2 className="text-[17px] font-medium text-white">
-                {step === 1 ? 'Nuova campagna' : 'Crea una campagna email'}
+                {step === 1 ? t.marketing.newCampaign : t.marketing.createEmailCampaign}
               </h2>
-              {step === 1 && <p className="text-xs text-[#858585] mt-0.5">Scegli il canale della tua comunicazione</p>}
+              {step === 1 && <p className="text-xs text-[#858585] mt-0.5">{t.marketing.chooseCommunicationChannel}</p>}
             </div>
           </div>
           <button
@@ -66,24 +68,24 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
                   <Mail size={20} />
                 </div>
                 <div className="flex flex-col gap-1.5 mt-0.5">
-                  <span className="text-[15px] font-medium text-white">Email Marketing</span>
+                  <span className="text-[15px] font-medium text-white">{t.marketing.emailMarketing}</span>
                   <span className="text-[13px] text-[#A3A3A3] leading-relaxed">
-                    Invia newsletter, promozioni e aggiornamenti ai tuoi contatti usando template personalizzabili.
+                    {t.marketing.emailMarketingDesc}
                   </span>
                 </div>
               </button>
 
               <div className="flex items-start gap-4 rounded-2xl border border-[#1A1A1A] bg-black/40 p-5 opacity-50 relative overflow-hidden">
                 <div className="absolute top-4 right-4 rounded-full bg-[#1A1A1A] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-[#A3A3A3]">
-                  Coming soon
+                  {t.marketing.comingSoon}
                 </div>
                 <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#1A1A1A] text-[#A3A3A3]">
                   <MessageSquare size={20} />
                 </div>
                 <div className="flex flex-col gap-1.5 mt-0.5 pr-16">
-                  <span className="text-[15px] font-medium text-[#C4C4C4]">Campagna SMS</span>
+                  <span className="text-[15px] font-medium text-[#C4C4C4]">{t.marketing.smsCampaign}</span>
                   <span className="text-[13px] text-[#858585] leading-relaxed">
-                    Raggiungi i tuoi clienti direttamente sul loro smartphone con messaggi brevi e diretti.
+                    {t.marketing.smsCampaignDesc}
                   </span>
                 </div>
               </div>
@@ -94,14 +96,14 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
                 onClick={handleClose}
                 className="flex h-11 items-center justify-center rounded-xl px-5 bg-transparent text-[14px] font-medium text-[#A3A3A3] hover:text-white transition-colors"
               >
-                Annulla
+                {t.common.cancel}
               </button>
               <button
                 onClick={() => selected === 'email' && setStep(2)}
                 disabled={selected !== 'email'}
                 className="flex h-11 items-center justify-center rounded-xl px-6 bg-[#006AFF] text-[14px] font-medium text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continua
+                {t.marketing.continue}
               </button>
             </div>
           </div>
@@ -115,7 +117,7 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
                 }`}
               >
                 <FileText size={24} />
-                <span className="text-[13px] font-medium">Classica</span>
+                <span className="text-[13px] font-medium">{t.marketing.classic}</span>
               </button>
               <button
                 onClick={() => setCampaignType('ab')}
@@ -124,18 +126,18 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
                 }`}
               >
                 <SplitSquareHorizontal size={24} />
-                <span className="text-[13px] font-medium">Test A/B</span>
+                <span className="text-[13px] font-medium">{t.marketing.abTest}</span>
               </button>
             </div>
 
             <p className="text-[13px] text-[#A3A3A3] leading-relaxed mb-6">
-              Mantieni vivo l'interesse dei tuoi iscritti condividendo le ultime notizie, promuovendo i tuoi prodotti di maggior successo o annunciando un evento imminente.
+              {t.marketing.classicCampaignDesc}
             </p>
 
             <div className="flex flex-col gap-5">
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-[13px] font-medium text-white">Nome campagna</label>
+                  <label className="text-[13px] font-medium text-white">{t.marketing.campaignName}</label>
                   <span className="text-[11px] text-[#5A5A5A]">{campaignName.length}/128</span>
                 </div>
                 <input
@@ -148,16 +150,16 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[13px] font-medium text-white">Tag</label>
+                <label className="text-[13px] font-medium text-white">{t.marketing.tag}</label>
                 <button className="w-full flex items-center justify-between bg-black border border-[#1A1A1A] rounded-xl px-4 py-3 text-sm text-[#858585] text-left hover:border-[#2A2A2A] transition-colors">
-                  Seleziona tag
+                  {t.marketing.selectTag}
                 </button>
               </div>
 
               <div className="flex flex-col gap-2">
-                <label className="text-[13px] font-medium text-white">Cartella</label>
+                <label className="text-[13px] font-medium text-white">{t.marketing.folder}</label>
                 <button className="w-full flex items-center justify-between bg-black border border-[#1A1A1A] rounded-xl px-4 py-3 text-sm text-[#858585] text-left hover:border-[#2A2A2A] transition-colors">
-                  Aggiungi alla cartella
+                  {t.marketing.addToFolder}
                 </button>
               </div>
             </div>
@@ -167,14 +169,14 @@ export function CampaignChannelModal({ open, onClose, onConfirm }: CampaignChann
                 onClick={handleClose}
                 className="flex h-11 items-center justify-center rounded-xl px-5 bg-transparent text-[14px] font-medium text-[#A3A3A3] hover:text-white transition-colors"
               >
-                Annulla
+                {t.common.cancel}
               </button>
               <button
                 onClick={() => onConfirm('email', campaignName || 'Nuova Campagna')}
                 disabled={!campaignName.trim()}
                 className="flex h-11 items-center justify-center rounded-xl px-6 bg-[#006AFF] text-[14px] font-medium text-white hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Crea campagna
+                {t.marketing.createCampaign}
               </button>
             </div>
           </div>

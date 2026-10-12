@@ -3,11 +3,10 @@ import { X, Folder, PlusCircle, Search, Loader2 } from 'lucide-react';
 import { useProject } from '@/contexts/ProjectContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { Organization } from './types';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
-import { projectCreateMessage } from '@/lib/projects';
-import { useTranslation } from '@/contexts/TranslationContext';
 
 interface AssignProjectModalProps {
   organization: Organization;
@@ -15,11 +14,11 @@ interface AssignProjectModalProps {
 }
 
 export function AssignProjectModal({ organization, onClose }: AssignProjectModalProps) {
+  const { t } = useTranslation();
   const { projects } = useProject();
   const [searchQuery, setSearchQuery] = useState('');
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const toast = useToast();
-  const { t } = useTranslation();
 
   // Progetti che NON sono già in questa organizzazione
   const availableProjects = projects.filter(p => 
@@ -34,10 +33,10 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
         organizationIds: arrayUnion(organization.id)
       });
       onClose();
-      toast.success("Progetto assegnato!");
+      toast.success(t.organization.projectAssigned);
     } catch (error) {
       console.error(error);
-      toast.error("Errore durante l'assegnazione del progetto.");
+      toast.error(t.organization.projectAssignError);
     } finally {
       setIsAssigning(null);
     }
@@ -49,22 +48,29 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
 
   const handleCreateNew = async () => {
     const name = await dialog.prompt({
-      title: "Nuovo Progetto",
-      message: "Inserisci il nome del nuovo progetto:",
+      title: t.organization.newProjectTitle,
+      message: t.organization.enterNewProjectName,
       placeholder: "Es. Sito Web E-commerce",
-      confirmText: "Crea"
+      confirmText: t.organization.create
     });
 
     if (!name || !name.trim()) return;
 
     setIsCreating(true);
     try {
-      // Nasce già nell'organizzazione: nel suo workspace, visibile ai membri.
-      await createProject(name, organization.id);
-      toast.success("Progetto creato e assegnato!");
-      onClose();
+      const newProjectId = await createProject(name);
+      if (newProjectId) {
+        await updateDoc(doc(db, 'projects', newProjectId), {
+          organizationIds: arrayUnion(organization.id)
+        });
+        toast.success(t.organization.projectCreatedAndAssigned);
+        onClose();
+      } else {
+        toast.error(t.organization.projectCreateError);
+      }
     } catch (error) {
-      toast.error(projectCreateMessage(error, t.tasks));
+      console.error(error);
+      toast.error(t.organization.unexpectedError);
     } finally {
       setIsCreating(false);
     }
@@ -78,8 +84,8 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
       >
         <div className="flex items-center justify-between p-5 border-b border-white/5 bg-white/5">
           <div>
-            <h2 className="text-lg font-semibold text-white/90">Assegna Progetto</h2>
-            <p className="text-xs text-[#858585] mt-1">Aggiungi un progetto a {organization.name}</p>
+            <h2 className="text-lg font-semibold text-white/90">{t.organization.assignProject}</h2>
+            <p className="text-xs text-[#858585] mt-1">{t.organization.addProjectTo} {organization.name}</p>
           </div>
           <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors p-1 rounded-md hover:bg-white/10">
             <X size={20} />
@@ -94,20 +100,20 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
           >
             {isCreating ? <Loader2 size={16} className="animate-spin text-[#0D6EFD]" /> : <PlusCircle size={16} className="text-[#0D6EFD]" />}
             <span className="text-sm font-medium text-white group-hover:text-[#0D6EFD] transition-colors">
-              {isCreating ? 'Creazione in corso...' : 'Crea Nuovo Progetto'}
+              {isCreating ? t.organization.creating : t.organization.createNewProject}
             </span>
           </button>
           
           <div className="relative flex items-center py-2">
             <div className="flex-grow border-t border-white/10"></div>
-            <span className="flex-shrink-0 mx-4 text-[#858585] text-xs font-medium uppercase tracking-wider">Oppure assegna esistente</span>
+            <span className="flex-shrink-0 mx-4 text-[#858585] text-xs font-medium uppercase tracking-wider">{t.organization.orAssignExisting}</span>
             <div className="flex-grow border-t border-white/10"></div>
           </div>
 
           {availableProjects.length === 0 ? (
             <div className="text-center py-8">
               <Folder size={32} className="mx-auto text-[#858585] mb-3" />
-              <p className="text-sm text-[#858585]">Tutti i tuoi progetti sono già assegnati a questa organizzazione, oppure non ne hai creati.</p>
+              <p className="text-sm text-[#858585]">{t.organization.allProjectsAssigned}</p>
             </div>
           ) : (
             availableProjects.map(project => (
@@ -125,7 +131,7 @@ export function AssignProjectModal({ organization, onClose }: AssignProjectModal
                   disabled={!!isAssigning}
                   className="px-4 py-1.5 text-xs font-medium bg-[#006AFF] hover:bg-[#0055CC] text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2 opacity-0 group-hover:opacity-100"
                 >
-                  <PlusCircle size={14} /> Assegna
+                  <PlusCircle size={14} /> {t.organization.assign}
                 </button>
               </div>
             ))

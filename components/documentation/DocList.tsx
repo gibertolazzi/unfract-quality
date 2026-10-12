@@ -9,6 +9,7 @@ import { DocCard } from './DocCard';
 import { useProject } from '@/contexts/ProjectContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface DocListProps {
   documents: Document[];
@@ -21,6 +22,7 @@ export function DocList({ documents }: DocListProps) {
   const toast = useToast();
   const { activeProjectId } = useProject();
   const { user } = useAuth();
+  const { t } = useTranslation();
 
   const getAllDescendantIds = (parentId: string): string[] => {
     let ids: string[] = [];
@@ -48,23 +50,23 @@ export function DocList({ documents }: DocListProps) {
 
   const handleCreateNew = async () => {
     if (!activeProjectId || !user) {
-      toast.error("Progetto o utente non trovato.");
+      toast.error(t.documentation.userOrProjectNotFound);
       return;
     }
     setIsCreating(true);
     const { createDocument } = await import('@/lib/documentation');
     try {
-      const newId = await createDocument(activeProjectId, user.displayName || "Utente Sconosciuto");
+      const newId = await createDocument(activeProjectId, user.displayName || "User");
       if (newId) {
         router.push(`/documentation/${newId}?edit=true`);
       } else {
         setIsCreating(false);
-        toast.error('Errore durante la creazione del documento.');
+        toast.error(t.documentation.createDocError);
       }
     } catch (error) {
       console.error(error);
       setIsCreating(false);
-      toast.error('Errore durante la creazione del documento.');
+      toast.error(t.documentation.createDocError);
     }
   };
 
@@ -110,11 +112,11 @@ export function DocList({ documents }: DocListProps) {
           className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm disabled:opacity-50"
         >
           {isCreating ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-          New Document
+          {t.documentation.newDocument}
         </button>
 
         <button className="flex items-center gap-2 border border-white/10 bg-transparent text-[#858585] hover:text-white transition-colors px-4 py-2.5 rounded-xl text-sm font-medium">
-          Ordina per: più recente
+          {t.documentation.sortByRecent}
           <ChevronDown size={16} />
         </button>
       </div>
@@ -123,7 +125,7 @@ export function DocList({ documents }: DocListProps) {
       <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pb-10">
         {documents.length === 0 ? (
           <div className="text-center text-[#858585] mt-10">
-            Nessun documento trovato. Creane uno nuovo!
+            {t.documentation.noDocsFound}
           </div>
         ) : (
           renderTree(null, 0)

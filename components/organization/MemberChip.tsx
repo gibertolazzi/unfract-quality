@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { OrgMember } from '@/types/organization';
 import { UserAvatar } from '@/components/shared/UserAvatar';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProject } from '@/contexts/ProjectContext';
 
@@ -24,16 +24,16 @@ export function MemberChip({ member, orgId, onClick }: MemberChipProps) {
         const orgProjects = projects.filter(p => p.organizationIds?.includes(orgId));
         if (orgProjects.length === 0) return;
 
-        // Find this member's access in these projects: un accesso per
-        // progetto, con ID fisso `<progetto>_<utente>`.
-        const memberSnaps = await Promise.all(
-          orgProjects.map(p => getDoc(doc(db, 'project_members', `${p.id}_${member.uid}`))),
-        );
+        // Find this member's access in these projects
+        const memberQuery = query(collection(db, 'project_members'), where('userId', '==', member.uid));
+        const memberSnap = await getDocs(memberQuery);
         
         const roleIds = new Set<string>();
-        memberSnaps.forEach(d => {
-          const roleId = d.exists() ? d.data().roleId : null;
-          if (roleId) roleIds.add(roleId);
+        memberSnap.forEach(d => {
+          const data = d.data();
+          if (orgProjects.some(p => p.id === data.projectId)) {
+            roleIds.add(data.roleId);
+          }
         });
 
         if (roleIds.size > 0) {

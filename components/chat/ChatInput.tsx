@@ -9,6 +9,7 @@ import { sendMessage, Mention, Attachment } from '@/lib/chat';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { Send, ImagePlus, Paperclip, Loader2, X, File as FileIcon, Plus, Mic, Square, Trash2 } from 'lucide-react';
 import { useEffect } from 'react';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -45,6 +46,7 @@ function uploadChatFile(chatId: string, file: File, index: number, workspaceId?:
 }
 
 export function ChatInput({ chatId }: { chatId: string }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
   const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
@@ -127,7 +129,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
     }
 
     if (failedFiles.length > 0) {
-      setUploadError(storageFull || `Caricamento non riuscito per: ${failedFiles.join(', ')}`);
+      setUploadError(storageFull || `${t.chat.uploadFailedFor} ${failedFiles.join(', ')}`);
     }
     setIsUploading(false);
   };
@@ -232,7 +234,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
       }, 1000);
     } catch (error) {
       console.error("Error accessing microphone:", error);
-      alert("Non riesco ad accedere al microfono. Controlla i permessi del browser.");
+      alert(t.chat.cannotAccessMic);
     }
   };
 
@@ -294,7 +296,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
                 <button 
                   type="button"
                   onClick={() => removeAttachment(i)}
-                  aria-label={`Rimuovi ${att.payload.name || 'allegato'}`}
+                  aria-label={`${t.chat.removeAttachmentAria} ${att.payload.name || ''}`}
                   className="absolute right-1 top-1 rounded-full bg-black/80 p-1 text-white opacity-100 backdrop-blur-sm transition-opacity hover:bg-black md:opacity-0 md:group-hover:opacity-100"
                 >
                   <X size={10} />
@@ -376,7 +378,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
                 }}
                 onKeyUp={(e) => setCursorPos(e.currentTarget.selectionStart || 0)}
                 onClick={(e) => setCursorPos(e.currentTarget.selectionStart || 0)}
-                placeholder={canWrite ? "Ask anything... usa @ per taggare" : "Non hai i permessi per scrivere in questo canale"}
+                placeholder={canWrite ? t.chat.askAnythingPlaceholder : t.chat.noPermissionToWrite}
                 className="w-full bg-white/5 rounded-full pl-6 pr-6 py-3.5 text-[15px] text-white placeholder:text-[#555555] outline-none focus:bg-white/10 transition-all shadow-[inset_0_1px_4px_rgba(255,255,255,0.15)] border border-white/5 backdrop-blur-md disabled:opacity-50 disabled:cursor-not-allowed"
               />
               

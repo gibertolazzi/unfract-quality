@@ -22,7 +22,7 @@ async function postJson<T>(path: string, body: unknown): Promise<T> {
 }
 
 /** Riassunto, decisioni e task di un meeting, dall'audio salvato e dalla trascrizione. */
-export function requestMeetingAnalysis(input: { projectId: string; audioUrl?: string; transcript?: string }): Promise<MeetingAnalysis> {
+export function requestMeetingAnalysis(input: { projectId: string; audioUrl?: string; transcript?: string; locale?: string }): Promise<MeetingAnalysis> {
   return postJson<MeetingAnalysis>('/api/ai/meeting', input);
 }
 

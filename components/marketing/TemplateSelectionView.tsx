@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, LayoutTemplate, Box, Mail, X, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { updateCampaign } from '@/lib/services/marketingService';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 const TABS = [
   { id: 'tuoi', label: 'I tuoi modelli', icon: LayoutTemplate },
@@ -22,6 +23,13 @@ const BASE_TEMPLATES = [
 
 export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
   const router = useRouter();
+  const { t } = useTranslation();
+
+  const tabs = [
+    { id: 'tuoi', label: t.marketing.yourTemplates, icon: LayoutTemplate },
+    { id: 'base', label: t.marketing.baseTemplates, icon: Box },
+    { id: 'pronto', label: t.marketing.readyToUse, icon: Mail },
+  ];
   const [activeTab, setActiveTab] = useState('base');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<any>(null);
@@ -43,7 +51,7 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
           <Link href={`/marketing/campaigns/${campaignId}`} className="p-2 bg-white/5 rounded-full text-[#858585] hover:text-white transition-colors">
             <ArrowLeft size={18} />
           </Link>
-          <h1 className="text-xl font-medium">Crea un'email</h1>
+          <h1 className="text-xl font-medium">{t.marketing.createAnEmail}</h1>
         </div>
         <button 
           onClick={() => router.push(`/marketing/campaigns/${campaignId}`)}
@@ -59,21 +67,21 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
         {/* Sidebar */}
         <aside className="w-64 border-r border-[#1A1A1A] p-6 flex flex-col gap-6">
           <button onClick={() => setShowCreateModal(true)} className="w-full bg-[#1A1A1A] text-white py-2.5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 hover:bg-[#2A2A2A] transition-colors">
-            Crea da zero
+            {t.marketing.createFromScratch}
           </button>
           
           <div>
-            <h3 className="text-[11px] font-medium uppercase tracking-wider text-[#5A5A5A] mb-3">La tua email</h3>
+            <h3 className="text-[11px] font-medium uppercase tracking-wider text-[#5A5A5A] mb-3">{t.marketing.yourEmail}</h3>
             <div className="flex items-center gap-2 text-sm text-[#C4C4C4] p-2">
               <Mail size={16} />
-              <span>Email della campagna</span>
+              <span>{t.marketing.campaignEmail}</span>
             </div>
           </div>
 
           <div>
-            <h3 className="text-[11px] font-medium uppercase tracking-wider text-[#5A5A5A] mb-3">Modelli</h3>
+            <h3 className="text-[11px] font-medium uppercase tracking-wider text-[#5A5A5A] mb-3">{t.marketing.templates}</h3>
             <nav className="flex flex-col gap-1">
-              {TABS.map(tab => (
+              {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -205,13 +213,13 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
                         onClick={() => handleSelectTemplate(template.id)}
                         className="px-6 py-2 w-36 bg-white text-black rounded-full font-medium text-sm hover:bg-gray-200 transition-colors"
                       >
-                        Usa modello
+                        {t.marketing.useTemplate}
                       </button>
                       <button 
                         onClick={(e) => { e.stopPropagation(); setPreviewTemplate(template); }}
                         className="px-6 py-2 w-36 bg-[#1A1A1A] text-white rounded-full font-medium text-sm hover:bg-[#2A2A2A] flex items-center justify-center gap-2 transition-colors border border-white/10"
                       >
-                        <Eye size={16} /> Anteprima
+                        <Eye size={16} /> {t.marketing.preview}
                       </button>
                     </div>
                   </div>
@@ -224,7 +232,7 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-[#858585]">
               <LayoutTemplate size={48} className="mb-4 opacity-20" />
-              <p>Nessun modello trovato in questa categoria.</p>
+              <p>{t.marketing.noTemplatesInCategory}</p>
             </div>
           )}
         </main>
@@ -234,13 +242,13 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="relative flex w-full max-w-[600px] flex-col overflow-hidden rounded-[24px] border border-[#1A1A1A] bg-[#111111] animate-in fade-in zoom-in-95 duration-200">
             <header className="flex items-center justify-between border-b border-[#1A1A1A] px-6 py-5">
-              <h2 className="text-[17px] font-medium text-white">Crea da zero</h2>
+              <h2 className="text-[17px] font-medium text-white">{t.marketing.createFromScratch}</h2>
               <button onClick={() => setShowCreateModal(false)} className="rounded-lg p-1.5 text-[#858585] hover:bg-white/5 hover:text-white transition-colors">
                 <X size={18} />
               </button>
             </header>
             <div className="flex flex-col gap-4 p-6">
-              <p className="text-[14px] text-[#A3A3A3] mb-2">Scegli come vuoi creare la tua campagna:</p>
+              <p className="text-[14px] text-[#A3A3A3] mb-2">{t.marketing.chooseHowToCreate}</p>
               
               <button 
                 onClick={() => router.push(`/marketing/editor/${campaignId}?type=dnd`)}
@@ -250,8 +258,8 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
                   <LayoutTemplate size={20} />
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-medium text-white mb-1">Editor Drag & Drop</h3>
-                  <p className="text-[13px] text-[#858585]">L'editor visivo completo con elementi riutilizzabili. Perfetto per newsletter strutturate e moderne.</p>
+                  <h3 className="text-[15px] font-medium text-white mb-1">{t.marketing.dragAndDropEditor}</h3>
+                  <p className="text-[13px] text-[#858585]">{t.marketing.dragAndDropDesc}</p>
                 </div>
               </button>
 
@@ -263,8 +271,8 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
                   <Mail size={20} />
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-medium text-white mb-1">Editor semplice (Testo RTF)</h3>
-                  <p className="text-[13px] text-[#858585]">Scrivi la tua email come fai solitamente, aggiungendo testo e immagini inline in modo semplice e veloce.</p>
+                  <h3 className="text-[15px] font-medium text-white mb-1">{t.marketing.simpleEditor}</h3>
+                  <p className="text-[13px] text-[#858585]">{t.marketing.simpleEditorDesc}</p>
                 </div>
               </button>
 
@@ -276,8 +284,8 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
                   <Box size={20} />
                 </div>
                 <div>
-                  <h3 className="text-[15px] font-medium text-white mb-1">Codice HTML personalizzato</h3>
-                  <p className="text-[13px] text-[#858585]">Hai già un design in HTML? Incolla qui il tuo codice o scrivilo direttamente da zero.</p>
+                  <h3 className="text-[15px] font-medium text-white mb-1">{t.marketing.customHtmlCode}</h3>
+                  <p className="text-[13px] text-[#858585]">{t.marketing.customHtmlDesc}</p>
                 </div>
               </button>
 
@@ -425,7 +433,7 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
                 onClick={() => setPreviewTemplate(null)}
                 className="px-6 py-2 bg-gray-100 text-gray-700 rounded-full font-medium text-sm hover:bg-gray-200 transition-colors"
               >
-                Indietro
+                {t.common.back}
               </button>
               <button 
                 onClick={() => {
@@ -434,7 +442,7 @@ export function TemplateSelectionView({ campaignId }: { campaignId: string }) {
                 }}
                 className="px-6 py-2 bg-[#1A1A1A] text-white rounded-full font-medium text-sm hover:bg-black transition-colors"
               >
-                Usa modello
+                {t.marketing.useTemplate}
               </button>
             </footer>
           </div>

@@ -307,8 +307,9 @@ export default function MeetingDetailPage({ params: paramsPromise }: { params: P
         projectId: meeting.projectId || activeProjectId || '',
         audioUrl: meeting.audioUrl,
         transcript: meeting.transcript,
+        locale,
       });
-      const newTitle = meeting.title.replace(" (Trascrizione Fallita)", "");
+      const newTitle = meeting.title.replace(" (Trascrizione Fallita)", "").replace(" (Transcription Failed)", "");
       
       const newData = {
         title: newTitle,

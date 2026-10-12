@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { X, CheckCircle2 } from 'lucide-react';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 export function CustomPrompt({ 
   title, 
   placeholder, 
   onConfirm, 
-  onClose,
+  onClose, 
   colors,
   showCloudToggle
 }: { 
@@ -16,6 +17,7 @@ export function CustomPrompt({
   colors?: string[];
   showCloudToggle?: boolean;
 }) {
+  const { t } = useTranslation();
   const [value, setValue] = useState('');
   const [selectedColor, setSelectedColor] = useState(colors ? colors[0] : undefined);
   const [useCloud, setUseCloud] = useState(false);
@@ -28,7 +30,7 @@ export function CustomPrompt({
       >
         <div className="flex items-center justify-between p-4 border-b border-white/5 bg-white/5">
           <h3 className="text-sm font-semibold text-white/90">{title}</h3>
-          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors, showCloudToggle">
+          <button onClick={onClose} className="text-[#858585] hover:text-white transition-colors">
             <X size={18} />
           </button>
         </div>
@@ -45,7 +47,7 @@ export function CustomPrompt({
               }
             }}
             placeholder={placeholder}
-            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#006AFF] transition-colors, showCloudToggle"
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white outline-none focus:border-[#006AFF] transition-colors"
           />
 
           
@@ -53,20 +55,20 @@ export function CustomPrompt({
             <div className="flex items-center gap-3 mt-2 px-2">
               <button 
                 onClick={() => setUseCloud(!useCloud)}
-                className={`w-10 h-5 rounded-full relative transition-colors, showCloudToggle ${useCloud ? 'bg-[#006AFF]' : 'bg-white/10'}`}
+                className={`w-10 h-5 rounded-full relative transition-colors ${useCloud ? 'bg-[#006AFF]' : 'bg-white/10'}`}
               >
                 <div className={`absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white transition-transform ${useCloud ? 'left-5' : 'left-1'}`} />
               </button>
               <div className="flex flex-col">
-                <span className="text-xs font-medium text-white/90">Intelligenza Profonda (Cloud)</span>
-                <span className="text-[10px] text-white/50">Ideale per ragionamenti complessi. Se disattivo usa l'AI locale.</span>
+                <span className="text-xs font-medium text-white/90">{t.common.deepIntelligence}</span>
+                <span className="text-[10px] text-white/50">{t.common.deepIntelligenceDesc}</span>
               </div>
             </div>
           )}
 
           {colors && (
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs text-[#858585]">Colore:</span>
+              <span className="text-xs text-[#858585]">{t.common.color}</span>
               <div className="flex gap-2">
                 {colors.map(color => (
                   <button 
@@ -82,18 +84,18 @@ export function CustomPrompt({
         </div>
         
         <div className="p-4 border-t border-white/5 bg-black/40 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-full font-medium transition-colors, showCloudToggle">
-            Annulla
+          <button onClick={onClose} className="px-4 py-2 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-full font-medium transition-colors">
+            {t.common.cancel}
           </button>
           <button 
             onClick={() => {
               if (value.trim()) onConfirm(value.trim(), selectedColor, useCloud);
             }}
             disabled={!value.trim()}
-            className="flex items-center gap-2 px-4 py-2 bg-[#006AFF] hover:bg-blue-600 disabled:opacity-50 text-white rounded-full text-sm font-medium transition-colors, showCloudToggle"
+            className="flex items-center gap-2 px-4 py-2 bg-[#006AFF] hover:bg-blue-600 disabled:opacity-50 text-white rounded-full text-sm font-medium transition-colors"
           >
             <CheckCircle2 size={16} />
-            Conferma
+            {t.common.confirm}
           </button>
         </div>
       </div>

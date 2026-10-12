@@ -16,6 +16,7 @@ import { trackUpload, uploadErrorMessage } from '@/lib/usage';
 import { ensureOwnedOrgWorkspace } from '@/lib/orgWorkspace';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { AssignProjectModal } from './AssignProjectModal';
 import { ProjectIAMModal } from './ProjectIAMModal';
 import { MemberProfileModal } from './MemberProfileModal';
@@ -26,6 +27,7 @@ import { Folder } from 'lucide-react';
 import { TeamsSection } from './TeamsSection';
 
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const { projects } = useProject();
   const { activeWorkspaceId } = useWorkspace();
@@ -102,10 +104,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       await updateDoc(doc(db, 'workspaces', org.id), { name }).catch(err => console.warn('Nome del workspace non aggiornato:', err));
       setOrg({ ...org, name });
       setEditedName(name);
-      toast.success("Nome aggiornato.");
+      toast.success(t.organization.nameUpdated);
     } catch (err) {
       console.error(err);
-      toast.error("Errore durante l'aggiornamento del nome.");
+      toast.error(t.organization.nameUpdateError);
       setEditedName(org.name);
     }
   };
@@ -123,10 +125,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       await trackUpload(org.id, storageRef.fullPath);
       await updateDoc(doc(db, 'organizations', org.id), { bannerUrl: url });
       setOrg({ ...org, bannerUrl: url });
-      toast.success("Banner caricato.");
+      toast.success(t.organization.bannerUploaded);
     } catch (err) {
       console.error(err);
-      toast.error(uploadErrorMessage(err, "Errore durante l'upload del banner."));
+      toast.error(uploadErrorMessage(err, t.organization.bannerUploadError));
     } finally {
       setIsUploadingBanner(false);
     }
@@ -144,10 +146,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       await trackUpload(org.id, storageRef.fullPath);
       await updateDoc(doc(db, 'organizations', org.id), { logoUrl: url });
       setOrg({ ...org, logoUrl: url });
-      toast.success("Logo caricato.");
+      toast.success(t.organization.logoUploaded);
     } catch (err) {
       console.error(err);
-      toast.error(uploadErrorMessage(err, "Errore durante l'upload del logo."));
+      toast.error(uploadErrorMessage(err, t.organization.logoUploadError));
     } finally {
       setIsUploadingLogo(false);
     }
@@ -173,7 +175,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         setInviteLink(link);
       }
       await navigator.clipboard.writeText(link);
-      toast.success("Link copiato negli appunti! Vale 48 ore.");
+      toast.success(t.organization.linkCopied);
     } catch (err: any) {
       console.error(err);
       toast.error(`Errore: ${err.message}`);
@@ -184,7 +186,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
   const handleSendEmailInvite = async () => {
     if (!inviteEmail.trim() || !inviteEmail.includes('@')) {
-      toast.error("Inserisci un indirizzo email valido.");
+      toast.error(t.organization.validEmailError);
       return;
     }
     
@@ -198,12 +200,12 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Errore durante l'invio dell'email.");
+        throw new Error(errorData.error || t.organization.emailInviteError);
       }
 
       setInviteEmail('');
       setInviteModalOpen(false);
-      toast.success('Invito inviato con successo!');
+      toast.success(t.organization.inviteSentSuccess);
     } catch (err: any) {
       console.error(err);
       toast.error(`Errore: ${err.message}`);
@@ -214,10 +216,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
   const handleUnassignProject = async (projectId: string) => {
     const isConfirmed = await dialog.confirm({
-      title: "Rimuovi Progetto",
-      message: "Sei sicuro di voler rimuovere questo progetto dall'organizzazione?",
+      title: t.organization.removeProjectTitle,
+      message: t.organization.removeProjectMessage,
       isDestructive: true,
-      confirmText: "Rimuovi"
+      confirmText: t.organization.remove
     });
     if (!isConfirmed) return;
 
@@ -225,10 +227,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       await updateDoc(doc(db, 'projects', projectId), {
         organizationIds: arrayRemove(org.id)
       });
-      toast.success("Progetto rimosso.");
+      toast.success(t.organization.projectRemoved);
     } catch (err) {
       console.error(err);
-      toast.error("Errore durante la rimozione del progetto.");
+      toast.error(t.organization.projectRemoveError);
     }
   };
 
@@ -285,7 +287,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
             className="flex items-center gap-2 px-4 py-2 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-full font-medium transition-colors hover:bg-[#003B80]/80 text-sm"
           >
             <UserPlus size={16} className="text-[#00A6FF]" />
-            Aggiungi Membri
+            {t.organization.inviteMembers}
           </button>
         </div>
       </div>
@@ -307,7 +309,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
               className="flex items-center gap-2 bg-black/60 border border-white/20 text-white px-5 py-2.5 rounded-xl backdrop-blur-md font-medium text-[14px] hover:bg-black/80 transition-colors"
             >
               {isUploadingBanner ? <Loader2 size={16} className="animate-spin" /> : <ImagePlus size={16} />}
-              {isUploadingBanner ? 'Caricamento...' : 'Modifica Banner'}
+              {isUploadingBanner ? t.organization.creating : t.organization.editBanner}
             </button>
           </div>
         )}
@@ -381,10 +383,10 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                     await setDoc(doc(db, 'workspaces', org.id), { structureMode: mode.id }, { merge: true });
                     await updateDoc(doc(db, 'organizations', org.id), { structureMode: mode.id }); // Legacy sync
                     setOrg({ ...org, structureMode: mode.id as any });
-                    toast.success("Modello operativo aggiornato.");
+                    toast.success(t.organization.operatingModelUpdated);
                   } catch (e) {
                     console.error(e);
-                    toast.error("Errore nell'aggiornamento.");
+                    toast.error(t.organization.operatingModelError);
                   }
                 }}
                 className={`flex-1 flex flex-col items-center justify-center p-4 rounded-2xl border transition-all ${
@@ -410,7 +412,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         <section className="px-2 mt-8 mb-16">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <h2 className="text-2xl font-bold text-white tracking-tight">Progetti (Modalità Flat)</h2>
+              <h2 className="text-2xl font-bold text-white tracking-tight">{t.organization.projectsFlatMode}</h2>
               <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
                 {assignedProjects.length}
               </div>
@@ -420,13 +422,13 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
               className="h-[40px] px-4 bg-[#002451] border border-[#003B80] text-[#00A6FF] rounded-xl font-medium flex items-center gap-2 transition-colors hover:bg-[#003B80]/80 text-[13px]"
             >
               <PlusCircle size={16} className="text-[#00A6FF]" />
-              Aggiungi Progetto
+              {t.organization.addProject}
             </button>
           </div>
 
           <div className="flex flex-wrap gap-4">
             {assignedProjects.length === 0 ? (
-              <p className="text-[#858585] text-sm">Nessun progetto in questo Workspace.</p>
+              <p className="text-[#858585] text-sm">{t.organization.noProjectsInWorkspace}</p>
             ) : (
               assignedProjects.map(project => (
                 <div 
@@ -439,21 +441,21 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-white font-medium text-[15px] group-hover:text-[#00A6FF] transition-colors">{project.name}</span>
-                      <span className="text-[#858585] text-xs">Apri progetto</span>
+                      <span className="text-[#858585] text-xs">{t.organization.openProject}</span>
                     </div>
                   </Link>
                   <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
                     <button 
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIamProject(project); }}
                       className="w-[34px] h-[34px] rounded-full hover:bg-white/10 flex items-center justify-center text-[#858585] hover:text-white transition-colors"
-                      title="Gestisci Accessi"
+                      title={t.organization.manageAccess}
                     >
                       <Users size={16} />
                     </button>
                     <button 
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleUnassignProject(project.id); }}
                       className="w-[34px] h-[34px] rounded-full hover:bg-red-400/10 flex items-center justify-center text-[#858585] hover:text-red-400 transition-colors"
-                      title="Rimuovi dal Workspace"
+                      title={t.organization.removeFromWorkspace}
                     >
                       <Trash2 size={16} />
                     </button>
@@ -476,21 +478,21 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
               <h2 className="text-2xl font-bold text-white tracking-tight">Enterprise IAM</h2>
-              <span className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded uppercase font-bold tracking-wider">Avanzato</span>
+              <span className="px-2 py-1 bg-green-500/10 text-green-500 text-xs rounded uppercase font-bold tracking-wider">{t.common.advanced}</span>
             </div>
           </div>
           
           <div className="flex flex-col gap-6">
             <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-white font-medium mb-4 flex items-center gap-2"><Link2 size={16} className="text-[#006AFF]"/> Dipartimenti (Nested)</h3>
-              <p className="text-[#858585] text-sm mb-4">Gestisci gerarchie complesse (es. HR {'>'} Recruiting).</p>
-              <button onClick={() => dialog.alert({ title: "Prossimamente", message: "La gestione dei dipartimenti annidati (Corporate) sarà disponibile nel prossimo aggiornamento Enterprise."})} className="text-sm text-[#006AFF] hover:underline">Configura Dipartimenti &rarr;</button>
+              <h3 className="text-white font-medium mb-4 flex items-center gap-2"><Link2 size={16} className="text-[#006AFF]"/> {t.organization.departmentsNested}</h3>
+              <p className="text-[#858585] text-sm mb-4">{t.organization.departmentsDesc}</p>
+              <button onClick={() => dialog.alert({ title: t.organization.comingSoon, message: t.organization.comingSoonDept })} className="text-sm text-[#006AFF] hover:underline">{t.organization.configureDepartments}</button>
             </div>
             
             <div className="bg-[#0A0A0A] border border-white/10 rounded-2xl p-6">
-              <h3 className="text-white font-medium mb-4 flex items-center gap-2"><Lock size={16} className="text-[#006AFF]"/> Ruoli Custom Globali (RBAC)</h3>
-              <p className="text-[#858585] text-sm mb-4">Crea ruoli specifici validi in tutto il workspace (es. "Viewer CRM").</p>
-              <button onClick={() => dialog.alert({ title: "Prossimamente", message: "La gestione delle policy globali sarà disponibile nel prossimo aggiornamento Enterprise. I ruoli personalizzati sono attualmente configurabili all'interno dei singoli progetti."})} className="text-sm text-[#006AFF] hover:underline">Gestisci Policy &rarr;</button>
+              <h3 className="text-white font-medium mb-4 flex items-center gap-2"><Lock size={16} className="text-[#006AFF]"/> {t.organization.customGlobalRoles}</h3>
+              <p className="text-[#858585] text-sm mb-4">{t.organization.customGlobalRolesDesc}</p>
+              <button onClick={() => dialog.alert({ title: t.organization.comingSoon, message: t.organization.comingSoonPolicy })} className="text-sm text-[#006AFF] hover:underline">{t.organization.managePolicies}</button>
             </div>
           </div>
         </section>
@@ -500,7 +502,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       <section className="px-2 mb-16">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-white tracking-tight">Directory Utenti</h2>
+            <h2 className="text-xl font-bold text-white tracking-tight">{t.organization.userDirectory}</h2>
             <div className="bg-[#1A1A1A] border border-white/5 rounded-full px-2.5 py-0.5 text-[#858585] text-[13px] font-medium flex items-center justify-center min-w-[28px]">
               {org.members?.length || 0}
             </div>
@@ -509,7 +511,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
             onClick={() => setInviteModalOpen(true)} 
             className="px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-sm font-medium transition-colors"
           >
-            Invita
+            {t.organization.invite}
           </button>
         </div>
 
@@ -529,8 +531,8 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         <section className="px-2 mb-16">
           <div className="border border-red-500/20 bg-red-500/5 rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-base font-semibold text-red-400">Elimina organizzazione</h2>
-              <p className="text-sm text-[#858585] mt-1">Prima vanno cancellati i progetti del suo workspace. L'operazione è irreversibile.</p>
+              <h2 className="text-base font-semibold text-red-400">{t.organization.deleteOrgTitle}</h2>
+              <p className="text-sm text-[#858585] mt-1">{t.organization.deleteOrgDesc}</p>
             </div>
             <button
               onClick={handleDeleteOrg}
@@ -538,7 +540,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
               className="shrink-0 flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white rounded-full text-sm font-medium transition-colors"
             >
               {isDeletingOrg ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
-              Elimina
+              {t.common.delete}
             </button>
           </div>
         </section>
@@ -551,12 +553,12 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
             <button onClick={() => setInviteModalOpen(false)} className="absolute top-6 right-6 text-[#858585] hover:text-white">
               <X size={20} />
             </button>
-            <h2 className="text-2xl font-semibold text-white mb-2">Invita Membri</h2>
-            <p className="text-[#858585] text-sm mb-6">Invia un invito via email o condividi il link con il tuo team.</p>
+            <h2 className="text-2xl font-semibold text-white mb-2">{t.organization.inviteMembers}</h2>
+            <p className="text-[#858585] text-sm mb-6">{t.organization.inviteDesc}</p>
             
             {/* Invite via Email */}
             <div className="mb-6">
-              <label className="text-sm font-medium text-white/70 block mb-2">Invita tramite Email</label>
+              <label className="text-sm font-medium text-white/70 block mb-2">{t.organization.inviteViaEmail}</label>
               <div className="flex items-center gap-3">
                 <input 
                   type="email" 
@@ -570,14 +572,14 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                   disabled={!inviteEmail.trim() || isSendingInvite}
                   className="px-5 py-2.5 bg-[#006AFF] hover:bg-blue-600 disabled:bg-[#006AFF]/50 text-white rounded-xl font-medium transition-colors text-sm flex items-center gap-2"
                 >
-                  {isSendingInvite ? <Loader2 size={16} className="animate-spin" /> : 'Invia'}
+                  {isSendingInvite ? <Loader2 size={16} className="animate-spin" /> : t.organization.send}
                 </button>
               </div>
             </div>
 
             <div className="relative flex items-center py-2 mb-6">
               <div className="flex-grow border-t border-white/10"></div>
-              <span className="flex-shrink-0 mx-4 text-[#858585] text-xs font-medium">OPPURE CONDIVIDI IL LINK</span>
+              <span className="flex-shrink-0 mx-4 text-[#858585] text-xs font-medium">{t.organization.orShareLink}</span>
               <div className="flex-grow border-t border-white/10"></div>
             </div>
 
@@ -586,7 +588,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 type="text" 
                 readOnly 
                 value={inviteLink}
-                placeholder="Premi Copia per creare un link valido 48 ore"
+                placeholder={t.organization.inviteLinkPlaceholder}
                 className="w-full bg-transparent border-none outline-none text-white/70 text-sm px-2 placeholder:text-white/40"
               />
               <button 
@@ -594,7 +596,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 disabled={isCreatingLink}
                 className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm rounded-lg transition-colors font-medium"
               >
-                <Copy size={16} /> Copia
+                <Copy size={16} /> {t.organization.copy}
               </button>
             </div>
             
@@ -603,7 +605,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                 onClick={() => setInviteModalOpen(false)}
                 className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl font-medium transition-colors text-sm"
               >
-                Chiudi
+                {t.common.close}
               </button>
             </div>
           </div>

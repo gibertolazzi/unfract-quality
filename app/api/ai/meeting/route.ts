@@ -35,6 +35,7 @@ export async function POST(request: Request) {
   const projectId = typeof body.projectId === 'string' ? body.projectId : '';
   const audioUrl = typeof body.audioUrl === 'string' ? body.audioUrl : '';
   const transcript = typeof body.transcript === 'string' ? body.transcript.slice(0, MAX_TRANSCRIPT) : '';
+  const locale = body.locale === 'en' ? 'en' : 'it';
 
   const project = await aiProjectWorkspace(uid, projectId);
   if (!project.allowed) {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await analyzeMeeting(audio, transcript);
+    const result = await analyzeMeeting(audio, transcript, locale);
     await countAiCall(project.workspaceId);
     return NextResponse.json(result);
   } catch (error) {

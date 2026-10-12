@@ -30,6 +30,7 @@ import { marked } from 'marked';
 import { collection, getDocs, query, limit, where, doc as firestoreDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { generateDocContent } from '@/app/actions/aiActions';
+import { useTranslation } from '@/contexts/TranslationContext';
 import { storage } from '@/lib/firebase';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { deleteStoredFile } from '@/lib/usage';
@@ -93,6 +94,7 @@ interface DocEditorProps {
 }
 
 export function DocEditor({ doc: initialDoc }: DocEditorProps) {
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user } = useAuth();
@@ -498,11 +500,11 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       {isDeleteModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-xl font-medium text-white mb-2">Elimina Documento</h3>
-            <p className="text-white/60 text-sm mb-6">Sei sicuro di voler eliminare definitivamente "{doc.title}"? Questa azione non può essere annullata.</p>
+            <h3 className="text-xl font-medium text-white mb-2">{t.documentation.deleteDocTitle}</h3>
+            <p className="text-white/60 text-sm mb-6">{t.documentation.deleteDocDesc}</p>
             <div className="flex items-center justify-end gap-3">
-              <button onClick={() => setIsDeleteModalOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-medium text-white hover:bg-white/10">Annulla</button>
-              <button onClick={handleDelete} disabled={isDeleting} className="px-5 py-2.5 rounded-full text-sm font-medium bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white flex items-center gap-2">{isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} Elimina</button>
+              <button onClick={() => setIsDeleteModalOpen(false)} className="px-5 py-2.5 rounded-full text-sm font-medium text-white hover:bg-white/10">{t.common.cancel}</button>
+              <button onClick={handleDelete} disabled={isDeleting} className="px-5 py-2.5 rounded-full text-sm font-medium bg-red-500 hover:bg-red-600 disabled:opacity-60 text-white flex items-center gap-2">{isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />} {t.common.delete}</button>
             </div>
           </div>
         </div>
@@ -512,9 +514,9 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       {promptConfig?.isOpen && promptConfig.type === 'link' && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
           <div className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 className="text-xl font-medium text-white mb-4">Inserisci Link</h3>
+            <h3 className="text-xl font-medium text-white mb-4">{t.documentation.insertLink}</h3>
             
-            <label className="text-sm text-[#858585] mb-1 block">URL Esterno o Elemento della pagina</label>
+            <label className="text-sm text-[#858585] mb-1 block">{t.documentation.urlOrPageElement}</label>
             <input 
               type="text" 
               value={linkUrl}
@@ -526,7 +528,7 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
             
             {headingsList.length > 0 && (
               <div className="mb-6">
-                <label className="text-sm text-[#858585] mb-2 block">Oppure seleziona un titolo della pagina:</label>
+                <label className="text-sm text-[#858585] mb-2 block">{t.documentation.orSelectPageHeading}</label>
                 <div className="max-h-40 overflow-y-auto bg-white/5 border border-white/10 rounded-xl p-2 flex flex-col gap-1 custom-scrollbar">
                   {headingsList.map(h => (
                     <button 
@@ -542,8 +544,8 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
             )}
 
             <div className="flex items-center justify-end gap-3">
-              <button onClick={() => setPromptConfig(null)} className="px-5 py-2.5 rounded-full text-sm font-medium text-white hover:bg-white/10">Annulla</button>
-              <button onClick={() => insertLink(linkUrl)} className="px-5 py-2.5 rounded-full text-sm font-medium bg-[#006AFF] hover:bg-blue-600 text-white">Conferma</button>
+              <button onClick={() => setPromptConfig(null)} className="px-5 py-2.5 rounded-full text-sm font-medium text-white hover:bg-white/10">{t.common.cancel}</button>
+              <button onClick={() => insertLink(linkUrl)} className="px-5 py-2.5 rounded-full text-sm font-medium bg-[#006AFF] hover:bg-blue-600 text-white">{t.common.confirm}</button>
             </div>
           </div>
         </div>
@@ -553,12 +555,12 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
       {/* AI Assist prompt */}
       {promptConfig?.isOpen && promptConfig.type === 'ai' && (
         <CustomPrompt 
-          title="Genera con IA"
-          placeholder="Es. Fai un riassunto dei meeting di oggi..."
+          title={t.documentation.generateWithAi}
+          placeholder={t.documentation.aiPlaceholder}
           showCloudToggle={true}
           onConfirm={async (prompt, _color, useCloud) => {
             setPromptConfig(null);
-            toast.info("Raccolta del contesto e generazione in corso...");
+            toast.info(t.documentation.gatheringContext);
             
             try {
               let contextText = "";
@@ -572,20 +574,37 @@ export function DocEditor({ doc: initialDoc }: DocEditorProps) {
                   let eventsList: any[] = [];
                   if (user) {
                     const eventsSnap = await getDocs(query(collection(db, 'users', user.uid, 'events'), limit(20)));
-                    eventsList = eventsSnap.docs.map(d => ({ titolo: d.data().title, data: d.data().date }));
+                    eventsList = eventsSnap.docs.map(d => ({ title: d.data().title, date: d.data().date }));
                   }
                   
                   const columnsList = columnsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                   const getColumnName = (colId: string) => {
                     const col = columnsList.find(c => c.id === colId) as any;
-                    return col ? col.title : 'Senza Colonna';
+                    return col ? col.title : (locale === 'en' ? 'Unassigned Column' : 'Senza Colonna');
                   };
 
                   const tasks = tasksSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                   const meetings = meetingsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                   const docs = docsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
                   
-                  contextText = `
+                  const isEn = locale === 'en';
+                  contextText = isEn ? `
+Here is the INTERNAL PROJECT CONTEXT (current project data).
+NOTE: Understand logical relationships between events, meetings, and tasks. Analyze task "status" (columns) and "priority".
+---
+TASKS (Active & Completed):
+${JSON.stringify(tasks.map((t: any) => ({ title: t.title, status: getColumnName(t.columnId), priority: t.priority || 'None', description: t.description })))}
+
+TRANSCRIBED MEETINGS:
+${JSON.stringify(meetings.map((m: any) => ({ title: m.title, date: m.date, summary: m.summary })))}
+
+DOCUMENTATION (Recent titles):
+${JSON.stringify(docs.map((d: any) => ({ title: d.title })))}
+
+CALENDAR EVENTS:
+${JSON.stringify(eventsList)}
+---
+` : `
 Ecco il CONTESTO INTERNO della piattaforma (i dati del progetto attuale).
 ATTENZIONE: L'utente si aspetta che tu capisca i collegamenti logici. Usa questi dati per espandere concetti, correlare eventi, meeting e task. Analizza accuratamente lo "stato" (la colonna: To Do, Doing, Done) e la "priorita" delle task.
 ---
@@ -607,10 +626,17 @@ ${JSON.stringify(eventsList)}
                 }
               }
 
-              const systemPromptText = `Sei un eccellente assistente AI integrato in un editor documentale aziendale.
+              const isEn = locale === 'en';
+              const systemPromptText = isEn ? `You are an expert enterprise documentation AI assistant.
+You MUST generate content EXCLUSIVELY using standard Markdown code (e.g. ## Headings, **bold**, * lists).
+NEVER format as raw HTML.
+ALWAYS respond strictly in English.
+Do NOT enclose your entire response in triple backticks.
+${contextText}` : `Sei un eccellente assistente AI integrato in un editor documentale aziendale.
 Devi generare il contenuto usando ESCLUSIVAMENTE codice Markdown (es. ## Titoli, **grassetto**, * liste).
 NON formattare mai in HTML.
 Usa SEMPRE Markdown per creare elenchi, intestazioni e testi.
+Rispondi rigorosamente in italiano.
 NON racchiudere la risposta in backtick.
 ${contextText}`;
 
@@ -630,9 +656,9 @@ ${contextText}`;
                 if (!response && typeof navigator !== 'undefined' && (navigator as any).gpu) {
                   try {
                     if (!isWebLLMLoaded()) {
-                      toast.info("Caricamento WebLLM (può richiedere 1 min se primo avvio)...");
+                      toast.info(t.documentation.loadingWebLlm);
                     } else {
-                      toast.info("Generazione in corso...");
+                      toast.info(t.documentation.generating);
                     }
                     const engine = await getWebLLMEngine((progress) => {
                       console.log("WebLLM Progress:", progress);
@@ -651,8 +677,8 @@ ${contextText}`;
               }
               
               if (!response || useCloud) {
-                toast.info("Generazione in corso...");
-                const generated = await generateDocContent(user ? await user.getIdToken() : '', activeProjectId || '', prompt, contextText);
+                toast.info(t.documentation.generating);
+                const generated = await generateDocContent(user ? await user.getIdToken() : '', activeProjectId || '', prompt, contextText, (locale as 'it' | 'en'));
                 if (generated.error !== undefined) {
                   toast.error(generated.error);
                   return;
@@ -667,10 +693,10 @@ ${contextText}`;
               const htmlContent = await marked.parse(response);
 
               if (editor) editor.commands.insertContent(htmlContent);
-              toast.success("Contenuto generato con successo!");
+              toast.success(t.documentation.contentGeneratedSuccess);
             } catch (e) {
               console.error(e);
-              toast.error("Errore della generazione AI.");
+              toast.error(t.documentation.aiGenerationError);
             }
           }}
           onClose={() => setPromptConfig(null)}

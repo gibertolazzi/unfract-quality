@@ -46,8 +46,8 @@ export async function POST(request: Request) {
 
   let systemInstruction: string | undefined;
   let prompt: string;
+  const english = body.locale === 'en';
   if (kind === 'meeting') {
-    const english = body.locale === 'en';
     systemInstruction = english
       ? 'Extract the main topic from the summary and write a title of at most 5 words. Reply only with the title, without markdown or prefixes.'
       : "Estrai l'argomento principale dal riepilogo e scrivi un titolo di massimo 5 parole. Rispondi solo con il titolo, senza markdown o prefissi.";
@@ -55,7 +55,9 @@ export async function POST(request: Request) {
       ? `Meeting summary:\n\n${source}\n\nWrite only the title (5 words maximum):`
       : `Riepilogo della riunione:\n\n${source}\n\nScrivi solo il titolo (massimo 5 parole):`;
   } else {
-    prompt = `Genera un titolo molto breve (massimo 4-5 parole) per descrivere questo messaggio dell'utente. Restituisci SOLO il titolo senza virgolette e senza altra punteggiatura.\nMessaggio: "${source}"`;
+    prompt = english
+      ? `Generate a very brief title (maximum 4-5 words) to summarize this user message. Return ONLY the title without quotes and without any other punctuation.\nMessage: "${source}"`
+      : `Genera un titolo molto breve (massimo 4-5 parole) per descrivere questo messaggio dell'utente. Restituisci SOLO il titolo senza virgolette e senza altra punteggiatura.\nMessaggio: "${source}"`;
   }
 
   try {
