@@ -154,10 +154,15 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
       })) as Message[];
       
       // Sort locally to avoid Firebase index error
-      msgs.sort((a, b) => {
-        if (!a.createdAt || !b.createdAt) return 0;
-        return a.createdAt.toMillis() - b.createdAt.toMillis();
-      });
+      const getMillis = (item: any) => {
+        if (!item?.createdAt) return 0;
+        if (typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+        if (typeof item.createdAt.toDate === 'function') return item.createdAt.toDate().getTime();
+        if (typeof item.createdAt.seconds === 'number') return item.createdAt.seconds * 1000;
+        const d = new Date(item.createdAt);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+      };
+      msgs.sort((a, b) => getMillis(a) - getMillis(b));
       setMessages(msgs);
       setIsLoading(false);
 
@@ -243,7 +248,7 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
 
   const handleMentionClick = (mention: Mention) => {
     if (mention.type === 'doc') {
-      router.push(`/documents/${mention.id}`);
+      router.push(`/documentation/${mention.id}`);
     } else if (mention.type === 'meeting') {
       router.push(`/meetings/${mention.id}`);
     } else if (mention.type === 'task') {

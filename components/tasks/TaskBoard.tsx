@@ -16,6 +16,7 @@ import { useDialog } from '@/contexts/DialogContext';
 import { useIAM } from '@/contexts/IamContext';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { safeFormat } from '@/lib/dateUtils';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200]',
@@ -84,7 +85,7 @@ export function TaskCard({
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-[#858585]">
                 <Calendar size={16} />
-                <span className="text-[13px] font-sans font-medium">{task.date || t.tasks.noDate}</span>
+                <span className="text-[13px] font-sans font-medium">{typeof task.date === 'string' && task.date.trim() ? task.date : (safeFormat(task.date, 'yyyy-MM-dd') || t.tasks.noDate)}</span>
               </div>
               <div className={`px-3 py-1 text-xs rounded-full border ${priorityStyles[task.priority as keyof typeof priorityStyles] || 'text-white/60 border-white/20'}`}>
                 {priorityLabels[task.priority] || t.tasks.priorityMedium}

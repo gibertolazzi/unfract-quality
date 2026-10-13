@@ -5,6 +5,7 @@ import { DragDropContext, DropResult } from '@hello-pangea/dnd';
 import { useSearchParams } from 'next/navigation';
 import { RefreshCw, ChevronDown, ChevronLeft, ChevronRight, Settings } from 'lucide-react';
 import { addMonths, subMonths, addWeeks, subWeeks, addDays, subDays, addYears, subYears, format, setHours } from 'date-fns';
+import { safeFormat } from '@/lib/dateUtils';
 import { it, enUS } from 'date-fns/locale';
 import { CalendarEvent, CalendarViewType } from './types';
 import { MonthView } from './MonthView';
@@ -201,10 +202,10 @@ export function CalendarBoard() {
 
   const getHeaderTitle = () => {
     const locale = dateLocale;
-    if (view === 'year') return format(currentDate, 'yyyy', { locale });
-    if (view === 'day') return format(currentDate, 'MMMM yyyy', { locale });
-    if (view === 'week') return format(currentDate, 'MMMM yyyy', { locale });
-    return format(currentDate, 'MMMM yyyy', { locale });
+    if (view === 'year') return safeFormat(currentDate, 'yyyy', { locale });
+    if (view === 'day') return safeFormat(currentDate, 'MMMM yyyy', { locale });
+    if (view === 'week') return safeFormat(currentDate, 'MMMM yyyy', { locale });
+    return safeFormat(currentDate, 'MMMM yyyy', { locale });
   };
 
   // Scarica gli eventi di Google/Outlook tramite backend (token sempre rinnovati lato server)
@@ -231,8 +232,8 @@ export function CalendarBoard() {
           ...e,
           title: e.title || t.calendar.untitled,
           date: start,
-          startTime: format(start, 'HH:mm'),
-          endTime: format(end, 'HH:mm'),
+          startTime: safeFormat(start, 'HH:mm', undefined, '09:00'),
+          endTime: safeFormat(end, 'HH:mm', undefined, '10:00'),
         } as CalendarEvent;
       });
       setExternalEvents(mapped);

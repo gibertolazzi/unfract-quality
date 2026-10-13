@@ -9,6 +9,7 @@ import { DayPicker } from 'react-day-picker';
 import { format } from 'date-fns';
 import { it } from 'date-fns/locale';
 import 'react-day-picker/dist/style.css';
+import { parseSafeDate, isValidDate, safeFormat } from '@/lib/dateUtils';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -85,7 +86,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       setCategory(task.category || 'General');
       setColumnId(task.columnId || (columns[0]?.id || ''));
       setEpicId(task.epicId || '');
-      setDate(task.date ? new Date(task.date) : undefined);
+      setDate(parseSafeDate(task.date) || undefined);
       setComments(task.comments || []);
       setAttachments(task.attachments || []);
       setAssigneeUid(task.assigneeUid ?? (task.isNew ? (user?.uid || null) : null));
@@ -309,7 +310,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         category,
         columnId: columnId || null,
         epicId: epicId || null,
-        date: date ? format(date, 'yyyy-MM-dd') : null,
+        date: parseSafeDate(date) ? safeFormat(date, 'yyyy-MM-dd') : null,
         updatedAt: serverTimestamp(),
         attachments,
         mentions: descriptionMentions,
@@ -539,7 +540,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   onClick={() => setIsCalendarOpen(!isCalendarOpen)}
                   className="bg-transparent border-b border-white/20 text-white font-medium outline-none focus:border-[#006AFF] py-1 hover:border-white/40 transition-colors"
                 >
-                  {date ? format(date, 'dd MMM yyyy', { locale: locale === 'it' ? it : undefined }) : t.tasks.selectDate}
+                  {isValidDate(date) ? safeFormat(date, 'dd MMM yyyy', { locale: locale === 'it' ? it : undefined }, t.tasks.selectDate) : t.tasks.selectDate}
                 </button>
                 
                 {isCalendarOpen && (
@@ -557,8 +558,8 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                     `}</style>
                     <DayPicker
                       mode="single"
-                      selected={date}
-                      onSelect={(d) => { setDate(d); setIsCalendarOpen(false); }}
+                      selected={parseSafeDate(date) || undefined}
+                      onSelect={(d) => { setDate(parseSafeDate(d) || undefined); setIsCalendarOpen(false); }}
                       locale={locale === 'it' ? it : undefined}
                     />
                   </div>
@@ -719,7 +720,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                           <span className="text-sm font-medium text-white">{comment.author}</span>
                           <div className="flex items-center gap-2">
                             <span className="text-[11px] text-[#858585]">
-                              {comment.createdAt ? format(new Date(comment.createdAt), 'dd MMM HH:mm', { locale: locale === 'it' ? it : undefined }) : ''}
+                              {comment.createdAt ? safeFormat(comment.createdAt, 'dd MMM HH:mm', { locale: locale === 'it' ? it : undefined }) : ''}
                             </span>
                             {(comment.authorUid === user?.uid || comment.author === user?.displayName) && (
                               <button

@@ -2,6 +2,14 @@ import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { Document, DocBlock } from '@/types/documentation';
 import { deleteStoredFile } from '@/lib/usage';
+import { parseSafeDate } from '@/lib/dateUtils';
+
+const normalizeDocDate = (rawDate: any): string => {
+  if (typeof rawDate === 'string' && rawDate.trim()) return rawDate;
+  const d = parseSafeDate(rawDate);
+  if (d) return d.toLocaleDateString('it-IT');
+  return new Date().toLocaleDateString('it-IT');
+};
 
 const COLLECTION_NAME = 'documentation';
 
@@ -20,7 +28,7 @@ export async function getDocuments(projectId: string): Promise<Document[]> {
         id: doc.id,
         title: data.title || 'Nuovo Documento',
         manager: data.manager || 'Utente',
-        date: data.date || new Date().toLocaleDateString('it-IT'),
+        date: normalizeDocDate(data.date),
         company: data.company || 'Unfract',
         lastUpdate: data.lastUpdate || 'poco fa',
         blocks: data.blocks || [],
@@ -50,7 +58,7 @@ export function subscribeToDocuments(projectId: string, callback: (docs: Documen
         id: doc.id,
         title: data.title || 'Nuovo Documento',
         manager: data.manager || 'Utente',
-        date: data.date || new Date().toLocaleDateString('it-IT'),
+        date: normalizeDocDate(data.date),
         company: data.company || 'Unfract',
         lastUpdate: data.lastUpdate || 'poco fa',
         blocks: data.blocks || [],
@@ -89,7 +97,7 @@ export async function getDocumentById(id: string): Promise<(Document & { project
       id: docSnap.id,
       title: data.title || 'Nuovo Documento',
       manager: data.manager || 'Utente',
-      date: data.date || new Date().toLocaleDateString('it-IT'),
+      date: normalizeDocDate(data.date),
       company: data.company || 'Unfract',
       lastUpdate: data.lastUpdate || 'poco fa',
       blocks: data.blocks || [],

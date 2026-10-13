@@ -9,7 +9,7 @@ import { collection, getDocs, query, where, onSnapshot, orderBy, doc, updateDoc,
 import { db } from '@/lib/firebase';
 import { searchCalendarEvents } from '@/lib/googleCalendar';
 import { useRouter } from 'next/navigation';
-import { formatDistanceToNow } from 'date-fns';
+import { safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { it } from 'date-fns/locale';
 import { useProject } from '@/contexts/ProjectContext';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
@@ -772,10 +772,8 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                       
                       let timeAgo = '';
                       if (notif.createdAt) {
-                        try {
-                           const localeArg = locale === 'it' ? it : undefined;
-                           timeAgo = formatDistanceToNow(notif.createdAt.toDate(), { addSuffix: true, locale: localeArg });
-                        } catch(e) {}
+                        const localeArg = locale === 'it' ? it : undefined;
+                        timeAgo = safeFormatDistanceToNow(notif.createdAt, { addSuffix: true, locale: localeArg });
                       }
 
                       return (

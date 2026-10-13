@@ -2,6 +2,14 @@ import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy, where, onSnapshot } from 'firebase/firestore';
 import { Meeting } from '@/types/meetings';
 import { deleteStoredFile } from '@/lib/usage';
+import { parseSafeDate } from '@/lib/dateUtils';
+
+const normalizeMeetingDate = (rawDate: any): string => {
+  if (typeof rawDate === 'string' && rawDate.trim()) return rawDate;
+  const d = parseSafeDate(rawDate);
+  if (d) return d.toLocaleDateString('it-IT');
+  return new Date().toLocaleDateString('it-IT');
+};
 
 const COLLECTION_NAME = 'meetings';
 
@@ -19,7 +27,7 @@ export async function getMeetings(projectId: string): Promise<Meeting[]> {
       return {
         id: doc.id,
         title: data.title || 'Meeting Senza Titolo',
-        date: data.date || new Date().toLocaleDateString('it-IT'),
+        date: normalizeMeetingDate(data.date),
         duration: data.duration || '0 min',
         manager: data.manager || 'Utente',
         summary: data.summary || '',
@@ -56,7 +64,7 @@ export function subscribeToMeetings(projectId: string, callback: (meetings: Meet
       return {
         id: doc.id,
         title: data.title || 'Meeting Senza Titolo',
-        date: data.date || new Date().toLocaleDateString('it-IT'),
+        date: normalizeMeetingDate(data.date),
         duration: data.duration || '0 min',
         manager: data.manager || 'Utente',
         summary: data.summary || '',
@@ -97,7 +105,7 @@ export async function getMeetingById(id: string): Promise<(Meeting & { projectId
     return {
       id: docSnap.id,
       title: data.title || 'Meeting Senza Titolo',
-      date: data.date || new Date().toLocaleDateString('it-IT'),
+      date: normalizeMeetingDate(data.date),
       duration: data.duration || '0 min',
       manager: data.manager || 'Utente',
       summary: data.summary || '',

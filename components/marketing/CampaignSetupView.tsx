@@ -60,7 +60,14 @@ export function CampaignSetupView({ campaignId }: { campaignId: string }) {
   }
 
   if (!campaign) {
-    return <div className="p-8 text-[#858585]">{t.marketing.campaignNotFound}</div>;
+    return (
+      <div className="flex flex-col items-center justify-center p-12 text-center h-full">
+        <p className="text-[#858585] text-base mb-4">{t.marketing.campaignNotFound}</p>
+        <Link href="/marketing" className="px-4 py-2 bg-[#006AFF] hover:bg-[#0056d6] text-white rounded-xl transition-colors text-sm font-medium">
+          {t.marketing.campaigns}
+        </Link>
+      </div>
+    );
   }
 
   const isSenderComplete = !!campaign.sender?.email;

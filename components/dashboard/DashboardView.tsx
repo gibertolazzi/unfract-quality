@@ -5,7 +5,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useClock } from "@/contexts/ClockContext";
 import { collection, onSnapshot, query, where, doc, updateDoc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { startOfDay, endOfDay, isWithinInterval } from "date-fns";
+import { safeFormat } from "@/lib/dateUtils";
 import Link from "next/link";
 import { useProject } from "@/contexts/ProjectContext";
 import { CheckCircle2, Circle, CircleDot, ArrowRight, Video, ExternalLink } from "lucide-react";
@@ -121,8 +122,8 @@ export function DashboardView() {
           return {
             id: event.id,
             title: event.title || t.dashboard.untitled,
-            startTime: event.startTime || format(eventStart, "HH:mm"),
-            endTime: event.endTime || format(eventEnd, "HH:mm"),
+            startTime: event.startTime || safeFormat(eventStart, "HH:mm", undefined, "09:00"),
+            endTime: event.endTime || safeFormat(eventEnd, "HH:mm", undefined, "10:00"),
             meetLink: event.meetLink || undefined,
             date: eventStart,
             googleEventId: event.googleEventId,

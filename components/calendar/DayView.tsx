@@ -2,7 +2,8 @@ import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { CalendarEvent } from './types';
-import { format, isSameDay, isToday } from 'date-fns';
+import { isSameDay, isToday } from 'date-fns';
+import { safeFormat } from '@/lib/dateUtils';
 import { it, enUS } from 'date-fns/locale';
 
 interface DayViewProps {
@@ -25,9 +26,9 @@ export function DayView({ currentDate, events, onEventClick, onTimeSlotClick }: 
       <div className="flex border-b border-white/10">
         <div className="w-16 shrink-0 border-r border-white/5" />
         <div className="flex-1 text-center py-4">
-          <div className="text-sm text-[#858585] font-medium uppercase">{format(currentDate, 'EEEE', { locale: dateLocale })}</div>
+          <div className="text-sm text-[#858585] font-medium uppercase">{safeFormat(currentDate, 'EEEE', { locale: dateLocale })}</div>
           <div className={`mx-auto w-fit px-4 py-1 rounded-full text-2xl font-bold mt-1 ${isToday(currentDate) ? 'bg-[#006AFF] text-white' : 'text-white'}`}>
-            {format(currentDate, 'd MMMM yyyy', { locale: dateLocale })}
+            {safeFormat(currentDate, 'd MMMM yyyy', { locale: dateLocale })}
           </div>
         </div>
       </div>

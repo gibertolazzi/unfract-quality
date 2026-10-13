@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, use } from "react";
 import { format, addDays, startOfToday, isSameDay } from "date-fns";
+import { safeFormat } from "@/lib/dateUtils";
 import { enUS, it } from "date-fns/locale";
 import { Calendar as CalendarIcon, Clock, Video } from "lucide-react";
 import { DayPicker } from "react-day-picker";
@@ -49,7 +50,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
     try {
       // Il giorno scelto, non la mezzanotte del browser in UTC: il server lo
       // legge nel fuso di chi riceve le prenotazioni.
-      const day = format(date, 'yyyy-MM-dd');
+      const day = safeFormat(date, 'yyyy-MM-dd');
       const res = await fetch(`/api/calendar/slots?userId=${encodeURIComponent(params.userId)}&date=${day}`);
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -231,7 +232,7 @@ export default function BookingPage({ params: paramsPromise }: { params: Promise
             <h3 className="text-2xl font-bold mb-2">{t.booking.confirmDetails}</h3>
             <p className="text-[#858585] mb-8 flex items-center gap-2">
               <CalendarIcon size={16} />
-              {format(new Date(selectedSlot), "EEEE d MMMM yyyy HH:mm", { locale: dateLocale })}
+              {safeFormat(selectedSlot, "EEEE d MMMM yyyy HH:mm", { locale: dateLocale })}
             </p>
 
             <div className="flex flex-col gap-6">

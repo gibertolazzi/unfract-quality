@@ -1,6 +1,6 @@
 import React from 'react';
 import { Calendar, ChevronDown, Check } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { parseSafeDate, safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { it } from 'date-fns/locale';
 import { useTranslation } from '@/contexts/TranslationContext';
 
@@ -130,9 +130,9 @@ export function TaskList({
                 </div>
               </div>
               <div className="flex items-center gap-4 text-[11px] text-[#858585]">
-                <span>{t.tasks.created}{task.createdAt ? formatDistanceToNow(task.createdAt.toDate ? task.createdAt.toDate() : new Date(task.createdAt), { addSuffix: true, locale: locale === 'it' ? it : undefined }) : t.tasks.na}</span>
-                <span>{t.tasks.updated}{task.updatedAt ? formatDistanceToNow(task.updatedAt.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt), { addSuffix: true, locale: locale === 'it' ? it : undefined }) : t.tasks.na}</span>
-                <span>{t.tasks.deadline}<strong className={`font-medium ${new Date(task.date) < new Date() && !isDone ? 'text-red-500' : 'text-white'}`}>{task.date || t.tasks.na}</strong></span>
+                <span>{t.tasks.created}{task.createdAt ? safeFormatDistanceToNow(task.createdAt, { addSuffix: true, locale: locale === 'it' ? it : undefined }, t.tasks.na) : t.tasks.na}</span>
+                <span>{t.tasks.updated}{task.updatedAt ? safeFormatDistanceToNow(task.updatedAt, { addSuffix: true, locale: locale === 'it' ? it : undefined }, t.tasks.na) : t.tasks.na}</span>
+                <span>{t.tasks.deadline}<strong className={`font-medium ${(() => { const d = parseSafeDate(task.date); return d && d < new Date() && !isDone; })() ? 'text-red-500' : 'text-white'}`}>{task.date || t.tasks.na}</strong></span>
               </div>
             </div>
           </div>

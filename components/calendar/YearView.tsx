@@ -1,6 +1,7 @@
 import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
-import { startOfYear, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isToday } from 'date-fns';
+import { startOfYear, addMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday } from 'date-fns';
+import { safeFormat } from '@/lib/dateUtils';
 import { it, enUS } from 'date-fns/locale';
 
 interface YearViewProps {
@@ -22,7 +23,7 @@ function MiniMonth({ date, onMonthClick, t, dateLocale }: { date: Date, onMonthC
       className="flex flex-col gap-2 p-4 bg-black/20 border border-white/10 rounded-2xl cursor-pointer hover:border-white/20 hover:bg-white/5 transition-all"
     >
       <h3 className="text-sm font-semibold text-white mb-2 pl-1">
-        {format(monthStart, 'MMMM', { locale: dateLocale })}
+        {safeFormat(monthStart, 'MMMM', { locale: dateLocale })}
       </h3>
       
       <div className="grid grid-cols-7 gap-y-2">
@@ -44,7 +45,7 @@ function MiniMonth({ date, onMonthClick, t, dateLocale }: { date: Date, onMonthC
                 ${isCurrDay ? 'bg-[#006AFF] text-white font-bold' : ''}
               `}
             >
-              {format(day, 'd', { locale: dateLocale })}
+              {safeFormat(day, 'd', { locale: dateLocale })}
             </div>
           );
         })}

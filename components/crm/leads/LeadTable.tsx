@@ -8,6 +8,7 @@ import { LeadState } from '@/components/crm/constants';
 import { LeadSort, LeadSortField, Page, PAGE_SIZES } from '@/lib/crm/leadFilters';
 import { LeadStateBadge } from './LeadStateBadge';
 import { OwnerOption } from './LeadFiltersBar';
+import { parseSafeDate } from '@/lib/dateUtils';
 
 interface LeadTableProps {
   page: Page<CrmLead>;
@@ -31,16 +32,18 @@ const formatEuro = (n: number) =>
 
 function formatDate(value: any, locale: string): string {
   if (!value) return '—';
-  const date = typeof value === 'string' ? new Date(value) : (value?.toMillis ? new Date(value.toMillis()) : null);
-  if (!date || Number.isNaN(date.getTime())) return '—';
+  const date = parseSafeDate(value);
+  if (!date) return '—';
   return date.toLocaleDateString(locale === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
 function isOverdue(value: any): boolean {
   if (!value) return false;
-  const iso = typeof value === 'string' ? value.slice(0, 10)
-    : value?.toMillis ? new Date(value.toMillis()).toISOString().slice(0, 10) : '';
-  return !!iso && iso < new Date().toISOString().slice(0, 10);
+  const d = parseSafeDate(value);
+  if (!d) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return d < today;
 }
 
 function OwnerCell({ lead, owners, onAssign }: {

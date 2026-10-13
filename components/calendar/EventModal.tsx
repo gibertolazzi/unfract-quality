@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar as CalendarIcon, Clock, AlignLeft, Video, Users, Download } from 'lucide-react';
 import { CalendarEvent } from './types';
-import { format } from 'date-fns';
+import { safeFormat, parseSafeDate } from '@/lib/dateUtils';
 import { it } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -177,8 +177,11 @@ export function EventModal({ isOpen, onClose, onSave, onDelete, initialEvent, se
               <CalendarIcon size={18} className="text-[#858585]" />
               <input 
                 type="date"
-                value={format(date, 'yyyy-MM-dd')}
-                onChange={(e) => setDate(new Date(e.target.value))}
+                value={safeFormat(date, 'yyyy-MM-dd')}
+                onChange={(e) => {
+                  const d = parseSafeDate(e.target.value);
+                  if (d) setDate(d);
+                }}
                 className="bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-white outline-none focus:border-white/30"
               />
             </div>

@@ -2,7 +2,8 @@ import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { CalendarEvent } from './types';
-import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, isSameDay, isToday } from 'date-fns';
+import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, isToday } from 'date-fns';
+import { safeFormat } from '@/lib/dateUtils';
 import { it, enUS } from 'date-fns/locale';
 
 interface MonthViewProps {
@@ -60,7 +61,7 @@ export function MonthView({ currentDate, events, onEventClick, onDayClick }: Mon
                   >
                     <div className="flex justify-between items-start mb-1">
                       <span className={`flex items-center justify-center text-[13px] font-semibold w-6 h-6 rounded-full ${isToday(day) ? 'bg-[#006AFF] text-white' : (!isCurrentMonth ? 'text-[#858585]' : 'text-white')}`}>
-                        {format(day, 'd', { locale: dateLocale })}
+                        {safeFormat(day, 'd', { locale: dateLocale })}
                       </span>
                     </div>
                     

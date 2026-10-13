@@ -315,7 +315,7 @@ const {
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate text-[11px] text-white">{entry.title || '—'}</span>
                     <span className="text-[10px] text-[#5A5A5A]">
-                      {entry.badge} · {ownerName(entry.actorUid)} · {formatDate(new Date(entry.at).toISOString())}
+                      {entry.badge} · {ownerName(entry.actorUid)} · {formatDate(entry.at)}
                     </span>
                   </span>
                 </li>
@@ -369,7 +369,7 @@ const {
                     : row.customer.status === 'suspended' ? 'sospeso' : 'inattivo'}
                 </span>
                 <span className="shrink-0 text-[10px] text-[#858585]">
-                  {row.since ? formatDate(new Date(row.since).toISOString()) : '—'}
+                  {row.since ? formatDate(row.since) : '—'}
                 </span>
               </li>
             ))}

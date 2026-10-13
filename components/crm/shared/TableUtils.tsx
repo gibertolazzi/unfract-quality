@@ -14,13 +14,13 @@ import { useTranslation } from '@/contexts/TranslationContext';
 export const formatEuro = (n: number, lang: string = 'it') =>
   new Intl.NumberFormat(lang === 'it' ? 'it-IT' : 'en-US', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n);
 
-/** Accetta sia stringhe ISO sia Timestamp Firestore. */
+import { parseSafeDate } from '@/lib/dateUtils';
+
+/** Accetta sia stringhe ISO sia Timestamp Firestore sia oggetti Date. */
 export function formatDate(value: any, lang: string = 'it'): string {
   if (!value) return '—';
-  const date = typeof value === 'string'
-    ? new Date(value)
-    : (value?.toMillis ? new Date(value.toMillis()) : null);
-  if (!date || Number.isNaN(date.getTime())) return '—';
+  const date = parseSafeDate(value);
+  if (!date) return '—';
   return date.toLocaleDateString(lang === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 

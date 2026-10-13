@@ -37,8 +37,15 @@ export default function DocumentDetailPage({ params: paramsPromise }: { params: 
     return (
       <div className="flex flex-col items-center justify-center h-full text-center">
         <h2 className="text-xl font-bold mb-2">Documento non trovato</h2>
-        <p className="text-[#858585] mb-4">Assicurati di avere i permessi per vederlo.</p>
-        <button onClick={() => window.location.reload()} className="px-4 py-2 bg-blue-600 rounded-lg">Ricarica</button>
+        <p className="text-[#858585] mb-4">Assicurati di avere i permessi per vederlo o che non sia stato rimosso.</p>
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/documentation')} className="px-4 py-2 bg-[#006AFF] hover:bg-[#0056d6] text-white rounded-lg transition-colors">
+            Torna alla documentazione
+          </button>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors">
+            Ricarica
+          </button>
+        </div>
       </div>
     );
   }

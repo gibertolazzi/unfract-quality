@@ -52,12 +52,19 @@ export default function InvitePage() {
 
   return (
     <div className="flex h-screen w-full items-center justify-center bg-[#0B0B0B] text-white">
-      <div className="flex flex-col items-center gap-4">
+      <div className="flex flex-col items-center gap-4 text-center max-w-md px-4">
         {status.includes('corso') || status.includes('aggiungendo') ? (
           <Loader2 className="w-10 h-10 animate-spin text-[#006AFF]" />
         ) : null}
         <p className="text-white/70 font-medium">{status}</p>
-        
+        {!status.includes('corso') && !status.includes('aggiungendo') && (
+          <button
+            onClick={() => router.push('/')}
+            className="mt-2 px-5 py-2.5 bg-[#006AFF] hover:bg-[#0056d6] text-white rounded-xl text-sm font-medium transition-colors"
+          >
+            Vai all’applicazione
+          </button>
+        )}
       </div>
     </div>
   );

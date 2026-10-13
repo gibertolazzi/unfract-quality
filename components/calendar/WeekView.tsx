@@ -2,7 +2,8 @@ import React from 'react';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { CalendarEvent } from './types';
-import { startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, isToday } from 'date-fns';
+import { startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, isToday } from 'date-fns';
+import { safeFormat } from '@/lib/dateUtils';
 import { it, enUS } from 'date-fns/locale';
 
 interface WeekViewProps {
@@ -28,9 +29,9 @@ export function WeekView({ currentDate, events, onEventClick, onTimeSlotClick }:
         <div className="w-16 shrink-0 border-r border-white/5" /> {/* Time column header */}
         {days.map((day, i) => (
           <div key={i} className={`flex-1 text-center py-3 border-white/5 ${i !== days.length - 1 ? 'border-r' : ''}`}>
-            <div className="text-xs text-[#858585] font-medium uppercase">{format(day, 'EEE', { locale: dateLocale })}</div>
+            <div className="text-xs text-[#858585] font-medium uppercase">{safeFormat(day, 'EEE', { locale: dateLocale })}</div>
             <div className={`mx-auto w-8 h-8 flex items-center justify-center rounded-full text-lg font-semibold mt-1 ${isToday(day) ? 'bg-[#006AFF] text-white' : 'text-white'}`}>
-              {format(day, 'd', { locale: dateLocale })}
+              {safeFormat(day, 'd', { locale: dateLocale })}
             </div>
           </div>
         ))}
