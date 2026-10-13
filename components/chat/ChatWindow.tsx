@@ -296,134 +296,189 @@ export function ChatWindow({ chatId, onOpenSidebar }: { chatId: string, onOpenSi
         ) : messages.length === 0 ? (
           <div className="text-center text-[#858585] text-sm mt-10">{t.chat.noMessages}</div>
         ) : (
-          messages.filter(msg => !msg.deletedFor?.includes(user?.uid || '')).map((msg) => (
-            <div key={msg.id} className={`flex flex-col group w-full ${msg.senderId === user?.uid ? 'items-end' : 'items-start'}`}>
-              <div className="flex items-center gap-2 mb-1">
-                {!msg.deletedForEveryone && (
-                  <button 
-                    onClick={() => setMessageToDelete(msg)}
-                    className="opacity-0 group-hover:opacity-100 text-[#858585] hover:text-[#FF0004] transition-all p-1"
-                    title={t.chat.deleteMessage}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                )}
-                <span className="text-[10px] text-[#858585]">{msg.senderName || t.chat.you}</span>
-              </div>
-              
-              <div className={`rounded-[20px] px-5 py-3 w-max max-w-[80%] text-[14px] leading-relaxed shadow-sm ${
-                 msg.senderId === user?.uid 
-                   ? (msg.deletedForEveryone ? 'bg-transparent border border-white/10 text-[#858585] italic' : 'bg-[#006AFF] text-white rounded-tr-sm')
-                   : (msg.deletedForEveryone ? 'bg-transparent border border-white/10 text-[#858585] italic' : 'bg-white/5 border border-white/5 text-[#E0E0E0] rounded-tl-sm')
-              } ${hasVisibleText(msg) ? '' : 'hidden'}`}>
-                {msg.deletedForEveryone ? (
-                   <div className="flex items-center gap-2">
-                     <Ban size={14} className="opacity-50" />
-                     {t.chat.messageDeleted}
-                   </div>
-                ) : (
-                   msg.text && renderTextWithMentions(msg.text, msg.mentions || [])
-                )}
-              </div>
-              
-              {/* Attachments */}
-              {msg.attachments && msg.attachments.length > 0 && (
-                <div className="mt-2 flex w-full min-w-0 max-w-[80%] flex-col gap-2">
-                  {msg.attachments.some(att => att.type === 'image') && (
-                    <div className="grid w-full max-w-[420px] grid-cols-2 gap-2 sm:grid-cols-3">
-                      {msg.attachments.filter(att => att.type === 'image').map((att, i) => {
-                        const galleryIndex = imageGallery.findIndex(image => image.url === att.payload.url);
+          messages.filter(msg => !msg.deletedFor?.includes(user?.uid || '')).map((msg) => {
+            const isMe = msg.senderId === user?.uid;
+            const hasText = hasVisibleText(msg);
+            const imageAttachments = (msg.attachments || []).filter(att => att.type === 'image');
+            const nonImageAttachments = (msg.attachments || []).filter(att => att.type !== 'image');
+            const nonUserMentions = (msg.mentions || []).filter(m => m.type !== 'user');
+
+            return (
+              <div key={msg.id} className={`flex flex-col group w-full ${isMe ? 'items-end' : 'items-start'}`}>
+                {/* Header (Sender name & Trash button) */}
+                <div className={`flex items-center gap-2 mb-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <span className="text-[10px] text-[#858585]">{msg.senderName || t.chat.you}</span>
+                  {!msg.deletedForEveryone && (
+                    <button 
+                      onClick={() => setMessageToDelete(msg)}
+                      className="opacity-0 group-hover:opacity-100 text-[#858585] hover:text-[#FF0004] transition-all p-1"
+                      title={t.chat.deleteMessage}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Message Content Stack */}
+                <div className={`flex flex-col gap-2 max-w-[80%] ${isMe ? 'items-end' : 'items-start'}`}>
+                  {/* Image Attachments (top) */}
+                  {imageAttachments.length > 0 && (
+                    <div className={`flex flex-col gap-2 ${isMe ? 'items-end' : 'items-start'}`}>
+                      {imageAttachments.length === 1 ? (
+                        (() => {
+                          const att = imageAttachments[0];
+                          const galleryIndex = imageGallery.findIndex(image => image.url === att.payload.url);
+                          return (
+                            <button
+                              key={att.payload.url}
+                              type="button"
+                              onClick={() => setSelectedImageIndex(galleryIndex)}
+                              className="group relative overflow-hidden rounded-[20px] border border-white/10 bg-[#111] transition-all hover:border-white/25 focus:outline-none focus:ring-2 focus:ring-[#006AFF] max-w-[280px] sm:max-w-[320px] shadow-sm"
+                              aria-label={`${t.chat.openImage} ${att.payload.name || t.chat.image.toLowerCase()}`}
+                            >
+                              <img
+                                src={att.payload.url}
+                                alt={att.payload.name || t.chat.image}
+                                className="block w-full h-auto max-h-[340px] object-cover rounded-[20px] transition duration-200 group-hover:scale-[1.02]"
+                              />
+                            </button>
+                          );
+                        })()
+                      ) : (
+                        <div className={`grid gap-2 ${
+                          imageAttachments.length === 2 
+                            ? 'grid-cols-2 max-w-[340px]' 
+                            : 'grid-cols-2 sm:grid-cols-3 max-w-[420px]'
+                        }`}>
+                          {imageAttachments.map((att, i) => {
+                            const galleryIndex = imageGallery.findIndex(image => image.url === att.payload.url);
+                            return (
+                              <button
+                                key={`${att.payload.url}-${i}`}
+                                type="button"
+                                onClick={() => setSelectedImageIndex(galleryIndex)}
+                                className="group relative aspect-square min-w-0 overflow-hidden rounded-[16px] border border-white/10 bg-[#111] transition hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-[#006AFF]"
+                                aria-label={`${t.chat.openImage} ${att.payload.name || t.chat.image.toLowerCase()}`}
+                              >
+                                <img
+                                  src={att.payload.url}
+                                  alt={att.payload.name || t.chat.image}
+                                  className="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
+                                />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Message Text Bubble */}
+                  {hasText && (
+                    <div className={`rounded-[20px] px-5 py-3 w-fit max-w-full text-[14px] leading-relaxed shadow-sm ${
+                      isMe 
+                        ? (msg.deletedForEveryone ? 'bg-transparent border border-white/10 text-[#858585] italic' : 'bg-[#006AFF] text-white rounded-tr-sm')
+                        : (msg.deletedForEveryone ? 'bg-transparent border border-white/10 text-[#858585] italic' : 'bg-white/5 border border-white/5 text-[#E0E0E0] rounded-tl-sm')
+                    }`}>
+                      {msg.deletedForEveryone ? (
+                        <div className="flex items-center gap-2">
+                          <Ban size={14} className="opacity-50" />
+                          {t.chat.messageDeleted}
+                        </div>
+                      ) : (
+                        msg.text && renderTextWithMentions(msg.text, msg.mentions || [])
+                      )}
+                    </div>
+                  )}
+
+                  {/* Non-image Attachments (Videos, Audio, Files) */}
+                  {nonImageAttachments.length > 0 && (
+                    <div className={`flex flex-col gap-2 ${isMe ? 'items-end' : 'items-start'}`}>
+                      {nonImageAttachments.map((att: Attachment, i: number) => {
+                        if (att.type === 'video') {
+                          return (
+                            <div key={i} className="w-full max-w-[420px] overflow-hidden rounded-[20px] border border-white/10 bg-black">
+                              <video
+                                src={att.payload.url}
+                                controls
+                                playsInline
+                                preload="metadata"
+                                className="block max-h-[360px] w-full object-contain"
+                              >
+                                {t.chat.videoNotSupported}
+                              </video>
+                            </div>
+                          );
+                        }
+                        if (att.type === 'audio') {
+                          return <CustomAudioPlayer key={i} url={att.payload.url} />;
+                        }
+                        if (att.type === 'file') {
+                          return (
+                            <a
+                              key={i}
+                              href={att.payload.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl p-3 transition-colors min-w-[220px] max-w-[320px]"
+                            >
+                              <div className="w-10 h-10 rounded-xl bg-[#006AFF]/20 text-[#006AFF] flex items-center justify-center shrink-0">
+                                <FileIcon size={20} />
+                              </div>
+                              <div className="flex flex-col overflow-hidden flex-1 min-w-0">
+                                <span className="text-sm text-white/90 truncate font-medium">{att.payload.name}</span>
+                                <span className="text-[10px] text-[#858585]">
+                                  {att.payload.size ? (att.payload.size / 1024 / 1024).toFixed(2) + ' MB' : ''}
+                                </span>
+                              </div>
+                            </a>
+                          );
+                        }
+                        return null;
+                      })}
+                    </div>
+                  )}
+
+                  {/* Rich Cards for Mentions */}
+                  {nonUserMentions.length > 0 && (
+                    <div className={`flex flex-col gap-2 ${isMe ? 'items-end' : 'items-start'}`}>
+                      {nonUserMentions.map((mention: Mention, i: number) => {
+                        const item = mention.fullItem || {};
+                        const priority = item.priority || 'Medium';
+                        
                         return (
-                          <button
-                            key={`${att.payload.url}-${i}`}
-                            type="button"
-                            onClick={() => setSelectedImageIndex(galleryIndex)}
-                            className="group relative aspect-square min-w-0 overflow-hidden rounded-xl border border-white/10 bg-[#111] transition hover:border-white/30 focus:outline-none focus:ring-2 focus:ring-[#006AFF]"
-                            aria-label={`${t.chat.openImage} ${att.payload.name || t.chat.image.toLowerCase()}`}
+                          <div 
+                            key={i} 
+                            onClick={() => handleMentionClick(mention)}
+                            className="flex items-center gap-3 bg-[#1A1A1A] border border-white/10 rounded-xl p-3 min-w-[280px] max-w-[320px] hover:bg-white/5 cursor-pointer transition-all group relative overflow-hidden"
                           >
-                            <img src={att.payload.url} alt={att.payload.name || t.chat.image} className="h-full w-full object-contain p-1 transition duration-200 group-hover:scale-[1.03]" />
-                          </button>
+                            {mention.type === 'task' && (
+                              <div className={`absolute -top-4 -left-4 w-12 h-12 rounded-full ${getPriorityGlow(priority)} opacity-20 blur-[12px] pointer-events-none`} />
+                            )}
+                            <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0 text-[#858585] z-10 border border-white/5">
+                              {mention.type === 'task' ? <CheckSquare size={18} /> : mention.type === 'meeting' ? <Calendar size={18} /> : <FileText size={18} />}
+                            </div>
+                            <div className="flex flex-col overflow-hidden flex-1 z-10">
+                              <span className="text-[10px] font-bold text-[#858585] uppercase tracking-wider mb-0.5 flex items-center gap-2">
+                                {mention.type}
+                                {mention.type === 'task' && (
+                                  <span className={`text-[8px] px-1.5 py-0.5 rounded-full border ${getPriorityColor(priority)}`}>
+                                    {priority}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="text-sm font-medium text-white truncate group-hover:text-[#006AFF] transition-colors">{mention.name.replace(/-/g, ' ')}</span>
+                            </div>
+                            <ChevronRight size={16} className="text-[#858585] opacity-0 group-hover:opacity-100 transition-opacity z-10" />
+                          </div>
                         );
                       })}
                     </div>
                   )}
-                  <div className="flex flex-col items-start gap-2">
-                  {msg.attachments.filter(att => att.type !== 'image').map((att: Attachment, i: number) => {
-                    if (att.type === 'video') {
-                      return (
-                        <div key={i} className="w-full max-w-[480px] overflow-hidden rounded-lg border border-white/10 bg-black">
-                          <video
-                            src={att.payload.url}
-                            controls
-                            playsInline
-                            preload="metadata"
-                            className="block max-h-[420px] w-full object-contain"
-                          >
-                            {t.chat.videoNotSupported}
-                          </video>
-                        </div>
-                      );
-                    }
-                    if (att.type === 'audio') {
-                      return <CustomAudioPlayer key={i} url={att.payload.url} />;
-                    }
-                    if (att.type === 'file') {
-                      return (
-                        <a key={i} href={att.payload.url} target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg p-3 transition-colors">
-                          <div className="w-10 h-10 rounded bg-[#006AFF]/20 text-[#006AFF] flex items-center justify-center shrink-0">
-                            <FileIcon size={20} />
-                          </div>
-                          <div className="flex flex-col overflow-hidden max-w-[150px]">
-                            <span className="text-sm text-white/90 truncate">{att.payload.name}</span>
-                            <span className="text-[10px] text-[#858585]">{(att.payload.size / 1024 / 1024).toFixed(2)} MB</span>
-                          </div>
-                        </a>
-                      );
-                    }
-                    return null;
-                  })}
-                  </div>
                 </div>
-              )}
-
-              {/* Rich Cards for Mentions */}
-              {msg.mentions && msg.mentions.filter(m => m.type !== 'user').length > 0 && (
-                <div className="flex flex-col gap-2 mt-2 w-max max-w-[80%]">
-                  {msg.mentions.filter(m => m.type !== 'user').map((mention: Mention, i: number) => {
-                    const item = mention.fullItem || {};
-                    const priority = item.priority || 'Medium';
-                    
-                    return (
-                      <div 
-                        key={i} 
-                        onClick={() => handleMentionClick(mention)}
-                        className="flex items-center gap-3 bg-[#1A1A1A] border border-white/10 rounded-xl p-3 min-w-[280px] max-w-[320px] hover:bg-white/5 cursor-pointer transition-all group relative overflow-hidden"
-                      >
-                        {mention.type === 'task' && (
-                          <div className={`absolute -top-4 -left-4 w-12 h-12 rounded-full ${getPriorityGlow(priority)} opacity-20 blur-[12px] pointer-events-none`} />
-                        )}
-                        <div className="w-10 h-10 rounded-lg bg-white/5 flex items-center justify-center shrink-0 text-[#858585] z-10 border border-white/5">
-                          {mention.type === 'task' ? <CheckSquare size={18} /> : mention.type === 'meeting' ? <Calendar size={18} /> : <FileText size={18} />}
-                        </div>
-                        <div className="flex flex-col overflow-hidden flex-1 z-10">
-                          <span className="text-[10px] font-bold text-[#858585] uppercase tracking-wider mb-0.5 flex items-center gap-2">
-                            {mention.type}
-                            {mention.type === 'task' && (
-                              <span className={`text-[8px] px-1.5 py-0.5 rounded-full border ${getPriorityColor(priority)}`}>
-                                {priority}
-                              </span>
-                            )}
-                          </span>
-                          <span className="text-sm font-medium text-white truncate group-hover:text-[#006AFF] transition-colors">{mention.name.replace(/-/g, ' ')}</span>
-                        </div>
-                        <ChevronRight size={16} className="text-[#858585] opacity-0 group-hover:opacity-100 transition-opacity z-10" />
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))
+              </div>
+            );
+          })
         )}
       </div>
 
