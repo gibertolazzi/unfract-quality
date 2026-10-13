@@ -14,7 +14,19 @@ const priorityConfig = {
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 
-export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks: any[]; columns: any[]; onTaskClick: (task: any) => void; onToggleDone: (task: any) => void }) {
+export function TaskList({ 
+  tasks, 
+  columns, 
+  onTaskClick, 
+  onToggleDone,
+  membersMap 
+}: { 
+  tasks: any[]; 
+  columns: any[]; 
+  onTaskClick: (task: any) => void; 
+  onToggleDone: (task: any) => void;
+  membersMap?: Map<string, { displayName: string; photoURL?: string }>;
+}) {
   const { user } = useAuth();
   const { t, locale } = useTranslation();
   const priorityLabels: Record<string, string> = {
@@ -31,6 +43,16 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
         const priorityStyle = getPriorityStyle(task.priority);
         const col = columns.find(c => c.id === task.columnId);
         const isDone = col?.title.toLowerCase() === 'done';
+
+        const requester = task.requesterUid && membersMap ? membersMap.get(task.requesterUid) : null;
+        const isRequesterMe = task.requesterUid === user?.uid;
+        const requesterName = requester?.displayName || (isRequesterMe ? (user?.displayName || user?.email) : undefined) || t.tasks.user;
+        const requesterPhoto = requester?.photoURL || (isRequesterMe ? user?.photoURL : undefined);
+
+        const assignee = task.assigneeUid && membersMap ? membersMap.get(task.assigneeUid) : null;
+        const isAssigneeMe = task.assigneeUid === user?.uid;
+        const assigneeName = assignee?.displayName || task.assignee || (isAssigneeMe ? (user?.displayName || user?.email) : undefined) || (t.crm?.unassigned || 'Non assegnato');
+        const assigneePhoto = assignee?.photoURL || (isAssigneeMe ? user?.photoURL : undefined);
 
         let blobColors = ['bg-blue-600/40', 'bg-transparent'];
         if (task.priority === 'High' || task.priority === 'Critical') {
@@ -70,22 +92,22 @@ export function TaskList({ tasks, columns, onTaskClick, onToggleDone }: { tasks:
               <div className="flex items-center gap-6 ml-8">
                 <div className="flex items-center gap-2">
                   <UserAvatar
-                    src={user?.photoURL}
-                    name={user?.displayName || user?.email}
+                    src={requesterPhoto}
+                    name={requesterName}
                     className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
                     imageClassName="w-full h-full object-cover"
                   />
-                  <span className="text-white/70 text-xs">{user?.displayName || t.tasks.user} <span className="text-[#858585]">(R)</span></span>
+                  <span className="text-white/70 text-xs">{requesterName} <span className="text-[#858585]">(R)</span></span>
                 </div>
                 
                 <div className="flex items-center gap-2">
                   <UserAvatar
-                    src={user?.photoURL}
-                    name={user?.displayName || user?.email}
+                    src={assigneePhoto}
+                    name={assigneeName}
                     className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
                     imageClassName="w-full h-full object-cover"
                   />
-                  <span className="text-white/70 text-xs">{user?.displayName || t.tasks.user} <span className="text-[#858585]">(A)</span></span>
+                  <span className="text-white/70 text-xs">{assigneeName} <span className="text-[#858585]">(A)</span></span>
                 </div>
               </div>
             </div>

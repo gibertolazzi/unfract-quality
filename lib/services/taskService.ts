@@ -99,9 +99,10 @@ export const TaskService = {
     });
 
     const { createNotification } = require('./notificationService');
-    if (currentUser) {
+    const notifyAssigneeUid = taskData.assigneeUid;
+    if (notifyAssigneeUid) {
       createNotification({
-        userId: currentUser.uid,
+        userId: notifyAssigneeUid,
         title: 'Nuova task assegnata',
         description: `Sei stato assegnato a "${taskData.title || 'Nuova Task'}"`,
         type: 'task',
@@ -140,6 +141,14 @@ export const TaskService = {
 
     if (updates.assigneeUid && updates.assigneeUid !== previous.assigneeUid && updates.assigneeUid !== actorUid) {
       await enqueueTaskEmail(updates.assigneeUid, 'assignment', task, actorName, 'Ti è stata assegnata una task.', taskId);
+      const { createNotification } = require('./notificationService');
+      createNotification({
+        userId: updates.assigneeUid,
+        title: 'Nuova task assegnata',
+        description: `Sei stato assegnato a "${task.title || 'Task'}"`,
+        type: 'task',
+        link: '/'
+      });
     }
     if (previous.requesterUid && previous.requesterUid !== actorUid) {
       await enqueueTaskEmail(previous.requesterUid, 'requester', task, actorName, 'La task per cui hai fatto richiesta è stata aggiornata.', taskId);

@@ -1001,7 +1001,7 @@
     "modelCorporate": "Corporate (Advanced)",
     "operatingModelUpdated": "Operating model updated.",
     "operatingModelError": "Error updating operating model.",
-    "projectsFlatMode": "Projects (Flat Mode)",
+    "projectsFlatMode": "Projects",
     "addProject": "Add Project",
     "noProjectsInWorkspace": "No projects in this Workspace.",
     "openProject": "Open project",

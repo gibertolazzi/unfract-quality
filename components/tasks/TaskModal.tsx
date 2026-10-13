@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar as CalendarIcon, X, Send, Trash2, CheckCircle2, Paperclip, FileText, Image as ImageIcon, Video } from 'lucide-react';
 import { db, storage } from '@/lib/firebase';
@@ -14,6 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useProject } from '@/contexts/ProjectContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
+import { useIAM } from '@/contexts/IamContext';
 import { deleteStoredFile, trackUpload, uploadErrorMessage } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
@@ -40,9 +42,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   };
   const toast = useToast();
   const dialog = useDialog();
-  const { activeProjectId } = useProject();
+  const { activeProjectId, activeProject } = useProject();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
   const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
+  const { organizations } = useOrganization();
+  const { canWrite } = useIAM();
+  const hasTasksWrite = canWrite('tasks');
+
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('Medium');
@@ -50,6 +56,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const [columnId, setColumnId] = useState('');
   const [epicId, setEpicId] = useState('');
   const [date, setDate] = useState<Date | undefined>();
+  const [assigneeUid, setAssigneeUid] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [attachments, setAttachments] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -81,9 +88,72 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       setDate(task.date ? new Date(task.date) : undefined);
       setComments(task.comments || []);
       setAttachments(task.attachments || []);
+      setAssigneeUid(task.assigneeUid ?? (task.isNew ? (user?.uid || null) : null));
       setSessionUploadedPaths([]);
     }
-  }, [task, columns]);
+  }, [task, columns, user?.uid]);
+
+  const availableAssignees = useMemo(() => {
+    const projectOrgIds = activeProject?.organizationIds || [];
+    const map = new Map<string, { uid: string; displayName: string; email?: string; photoURL?: string }>();
+
+    organizations
+      .filter(org => projectOrgIds.length === 0 || projectOrgIds.includes(org.id) || org.id === activeProject?.workspaceId)
+      .forEach(org => {
+        (org.members || []).forEach(member => {
+          map.set(member.uid, {
+            uid: member.uid,
+            displayName: member.displayName || member.email,
+            email: member.email,
+            photoURL: member.photoURL
+          });
+        });
+      });
+
+    if (map.size === 0) {
+      organizations.forEach(org => {
+        (org.members || []).forEach(member => {
+          map.set(member.uid, {
+            uid: member.uid,
+            displayName: member.displayName || member.email,
+            email: member.email,
+            photoURL: member.photoURL
+          });
+        });
+      });
+    }
+
+    if (user && !map.has(user.uid)) {
+      map.set(user.uid, {
+        uid: user.uid,
+        displayName: user.displayName || user.email || 'Tu',
+        email: user.email || '',
+        photoURL: user.photoURL || undefined
+      });
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.displayName.localeCompare(b.displayName, 'it'));
+  }, [organizations, activeProject, user]);
+
+  const currentAssignee = useMemo(() => {
+    if (!assigneeUid) return null;
+    const found = availableAssignees.find(m => m.uid === assigneeUid);
+    if (found) return found;
+    if (assigneeUid === user?.uid) {
+      return {
+        uid: user.uid,
+        displayName: user.displayName || user.email || 'Tu',
+        email: user.email || '',
+        photoURL: user.photoURL || undefined
+      };
+    }
+    return {
+      uid: assigneeUid,
+      displayName: task?.assignee || 'Assegnatario',
+      email: '',
+      photoURL: undefined
+    };
+  }, [assigneeUid, availableAssignees, user, task]);
 
   // Click outside to close calendar
   useEffect(() => {
@@ -245,7 +315,12 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
         mentions: descriptionMentions,
       };
       if (task.requesterUid || (isNew && user?.uid)) taskData.requesterUid = task.requesterUid || user?.uid;
-      if (task.assigneeUid || (isNew && user?.uid)) taskData.assigneeUid = task.assigneeUid || user?.uid;
+      taskData.assigneeUid = assigneeUid || null;
+      if (currentAssignee?.displayName) {
+        taskData.assignee = currentAssignee.displayName;
+      } else if (!assigneeUid) {
+        taskData.assignee = null;
+      }
       if (task.createdBy || (isNew && user?.uid)) taskData.createdBy = task.createdBy || user?.uid;
       if (activeProjectId) {
         taskData.projectId = activeProjectId;
@@ -491,13 +566,31 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
               </div>
               <div className="flex items-center gap-2">
                 <span>{t.tasks.assignedTo}</span>
-                <div className="flex items-center -space-x-2">
+                <div className="flex items-center gap-2">
                   <UserAvatar
-                    src={user?.photoURL}
-                    name={user?.displayName || user?.email}
-                    className="w-6 h-6 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-[10px]"
+                    src={currentAssignee?.photoURL}
+                    name={currentAssignee?.displayName || currentAssignee?.email || 'Nessuno'}
+                    className="w-6 h-6 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-[10px] shrink-0"
                     imageClassName="w-full h-full object-cover"
                   />
+                  <div className="relative">
+                    <select
+                      value={assigneeUid || ''}
+                      onChange={(e) => setAssigneeUid(e.target.value || null)}
+                      disabled={!hasTasksWrite && !onSaveLocal}
+                      className="appearance-none bg-transparent border-b border-white/20 text-white font-medium text-xs sm:text-sm outline-none focus:border-[#006AFF] py-0.5 pl-1 pr-6 hover:border-white/40 transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <option value="" className="bg-black text-[#858585]">{t.crm?.unassigned || 'Non assegnato'}</option>
+                      {availableAssignees.map(member => (
+                        <option key={member.uid} value={member.uid} className="bg-black text-white">
+                          {member.displayName} {member.uid === user?.uid ? `(${t.chat?.you || 'Tu'})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

@@ -29,7 +29,7 @@ import { TeamsSection } from './TeamsSection';
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { projects } = useProject();
+  const { projects, setActiveProjectId } = useProject();
   const { activeWorkspaceId } = useWorkspace();
   const [assignedProjects, setAssignedProjects] = useState<Project[]>([]);
   const [org, setOrg] = useState(initialOrg);
@@ -47,7 +47,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
           const projs: Project[] = [];
           snapshot.forEach((doc: any) => {
             const data = doc.data();
-            if (Array.isArray(data.organizationIds) && data.organizationIds.includes(org.id)) {
+            if (data.workspaceId === org.id || (Array.isArray(data.organizationIds) && data.organizationIds.includes(org.id))) {
               projs.push({ id: doc.id, ...data } as Project);
             }
           });
@@ -407,8 +407,8 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
       {/* Conditional Sections based on Structure Mode */}
 
-      {/* FLAT MODE: Show only Projects and Workspace Members */}
-      {(org.structureMode === 'flat' || !org.structureMode) && (
+      {/* FLAT & TEAMS MODE: Show Projects */}
+      {(org.structureMode === 'flat' || org.structureMode === 'teams' || !org.structureMode) && (
         <section className="px-2 mt-8 mb-16">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
@@ -435,7 +435,13 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                   key={project.id} 
                   className="flex items-center justify-between min-w-[280px] flex-1 max-w-[400px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all group"
                 >
-                  <Link href={`/project/${project.id}/tasks`} className="flex items-center gap-3 flex-1 cursor-pointer">
+                  <div 
+                    onClick={() => {
+                      setActiveProjectId(project.id);
+                      router.push('/dashboard');
+                    }} 
+                    className="flex items-center gap-3 flex-1 cursor-pointer"
+                  >
                     <div className="w-[34px] h-[34px] rounded-full bg-[#006AFF]/10 flex items-center justify-center text-[#006AFF]">
                       <Folder size={16} />
                     </div>
@@ -443,7 +449,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
                       <span className="text-white font-medium text-[15px] group-hover:text-[#00A6FF] transition-colors">{project.name}</span>
                       <span className="text-[#858585] text-xs">{t.organization.openProject}</span>
                     </div>
-                  </Link>
+                  </div>
                   <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
                     <button 
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setIamProject(project); }}

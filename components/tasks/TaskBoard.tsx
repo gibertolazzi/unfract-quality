@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Calendar, PlusCircle, Trash2, Layout, List, CalendarDays, GripVertical } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { TaskModal } from '@/components/tasks/TaskModal';
@@ -11,6 +11,7 @@ import { TaskService, ColumnService, EpicService } from '@/lib/services/taskServ
 import { useProject } from '@/contexts/ProjectContext';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useIAM } from '@/contexts/IamContext';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -23,7 +24,17 @@ const priorityStyles = {
   Critical: 'text-[#FF0004] border-[#FF0004]'
 };
 
-export function TaskCard({ task, index, onClick }: { task: any; index: number; onClick: () => void }) {
+export function TaskCard({ 
+  task, 
+  index, 
+  onClick,
+  membersMap
+}: { 
+  task: any; 
+  index: number; 
+  onClick: () => void;
+  membersMap?: Map<string, { displayName: string; photoURL?: string }>;
+}) {
   const { user } = useAuth();
   const { t } = useTranslation();
   const priorityLabels: Record<string, string> = {
@@ -40,6 +51,11 @@ export function TaskCard({ task, index, onClick }: { task: any; index: number; o
   } else if (task.priority === 'Low') {
     blobColors = ['bg-blue-600/40', 'bg-transparent'];
   }
+
+  const assignee = task.assigneeUid && membersMap ? membersMap.get(task.assigneeUid) : null;
+  const isMine = task.assigneeUid === user?.uid;
+  const avatarSrc = assignee?.photoURL || (isMine ? user?.photoURL : undefined);
+  const avatarName = assignee?.displayName || task.assignee || (isMine ? (user?.displayName || user?.email) : undefined) || 'Unassigned';
   
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -78,10 +94,10 @@ export function TaskCard({ task, index, onClick }: { task: any; index: number; o
           </div>
           
           <div className="relative z-10 flex items-center justify-between mt-2">
-            <div className="flex items-center -space-x-2">
+            <div className="flex items-center -space-x-2" title={avatarName ? `${t.tasks.assignedTo} ${avatarName}` : undefined}>
               <UserAvatar
-                src={user?.photoURL}
-                name={user?.displayName || user?.email}
+                src={avatarSrc}
+                name={avatarName}
                 className="w-8 h-8 rounded-full border border-black bg-blue-600 overflow-hidden flex items-center justify-center text-white font-bold text-xs"
                 imageClassName="w-full h-full object-cover"
               />
@@ -108,7 +124,8 @@ export function TaskColumn({
   onColumnTitleBlur, 
   onDeleteColumn,
   onNewTask,
-  hasTasksWrite
+  hasTasksWrite,
+  membersMap
 }: { 
   column: any; 
   tasks: any[]; 
@@ -119,6 +136,7 @@ export function TaskColumn({
   onDeleteColumn: (id: string) => void;
   onNewTask: (colId: string) => void;
   hasTasksWrite: boolean;
+  membersMap?: Map<string, { displayName: string; photoURL?: string }>;
 }) {
   return (
     <Draggable draggableId={column.id} index={index}>
@@ -166,7 +184,7 @@ export function TaskColumn({
                 className={`flex min-h-[500px] flex-col gap-4 rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
               >
                 {tasks.map((t, idx) => (
-                  <TaskCard key={t.id} task={t} index={idx} onClick={() => onTaskClick(t)} />
+                  <TaskCard key={t.id} task={t} index={idx} onClick={() => onTaskClick(t)} membersMap={membersMap} />
                 ))}
                 {provided.placeholder}
               </div>
@@ -180,6 +198,8 @@ export function TaskColumn({
 
 export function TaskBoard() {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { organizations } = useOrganization();
   const [columns, setColumns] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [epics, setEpics] = useState<any[]>([]);
@@ -194,6 +214,19 @@ export function TaskBoard() {
   const { canRead, canWrite, loading: iamLoading } = useIAM();
   const searchParams = useSearchParams();
   const highlightTask = searchParams?.get('highlightTask');
+
+  const membersMap = useMemo(() => {
+    const map = new Map<string, { displayName: string; photoURL?: string }>();
+    organizations.forEach(org => {
+      (org.members || []).forEach(m => {
+        map.set(m.uid, { displayName: m.displayName || m.email, photoURL: m.photoURL });
+      });
+    });
+    if (user) {
+      map.set(user.uid, { displayName: user.displayName || user.email || 'Tu', photoURL: user.photoURL || undefined });
+    }
+    return map;
+  }, [organizations, user]);
 
   useEffect(() => {
     if (highlightTask && tasks.length > 0) {
@@ -472,6 +505,7 @@ export function TaskBoard() {
                       onColumnTitleBlur={handleColumnTitleBlur}
                       onDeleteColumn={deleteColumn}
                       onNewTask={openNewTaskModal}
+                      membersMap={membersMap}
                     />
                   );
                 })}
@@ -484,7 +518,7 @@ export function TaskBoard() {
 
       {activeView === 'tasklist' && (
         <div className="flex-1 overflow-y-auto">
-          <TaskList tasks={tasks} columns={columns} onTaskClick={setSelectedTask} onToggleDone={toggleTaskDone} />
+          <TaskList tasks={tasks} columns={columns} onTaskClick={setSelectedTask} onToggleDone={toggleTaskDone} membersMap={membersMap} />
         </div>
       )}
 

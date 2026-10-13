@@ -1001,7 +1001,7 @@
     "modelCorporate": "Corporate (Avanzato)",
     "operatingModelUpdated": "Modello operativo aggiornato.",
     "operatingModelError": "Errore nell'aggiornamento.",
-    "projectsFlatMode": "Progetti (Modalità Flat)",
+    "projectsFlatMode": "Progetti",
     "addProject": "Aggiungi Progetto",
     "noProjectsInWorkspace": "Nessun progetto in questo Workspace.",
     "openProject": "Apri progetto",
