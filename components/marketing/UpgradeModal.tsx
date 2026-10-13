@@ -10,6 +10,7 @@ interface UpgradeModalProps {
 export function UpgradeModal({ onClose }: UpgradeModalProps) {
   const { user } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [managingSubscription, setManagingSubscription] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -50,8 +51,6 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
       setLoadingPlan(null);
     }
   };
-
-  const [managingSubscription, setManagingSubscription] = useState(false);
 
   const handleManageSubscription = async () => {
     setManagingSubscription(true);
