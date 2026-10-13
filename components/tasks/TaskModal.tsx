@@ -540,7 +540,10 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
           {/* Attachments Section */}
           <div className="flex flex-col gap-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t.tasks.attachments}</h4>
+              <div>
+                <h4 className="text-sm font-semibold text-white/70 uppercase tracking-wider">{t.tasks.attachments}</h4>
+                <p className="text-[10px] text-[#858585] mt-0.5">Caricando file dichiari di possedere i relativi diritti e che il materiale non viola diritti altrui.</p>
+              </div>
               <button 
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading}

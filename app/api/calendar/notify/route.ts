@@ -102,7 +102,7 @@ export async function POST(request: Request) {
 
     const resend = new Resend(resendKey);
     const { error } = await resend.emails.send({
-      from: 'Unfract Calendar <calendar@unfract.com>',
+      from: process.env.RESEND_FROM_EMAIL || 'Unfract <hello@unfract.com>',
       to: [guestEmail],
       subject,
       html: getCalendarEventEmailHtml({

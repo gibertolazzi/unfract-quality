@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { readJsonObject } from '@/lib/server/requestBody';
+import { appUrl } from '@/lib/appUrl';
 
 /**
  * Invio email del CRM.
@@ -78,13 +79,12 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 export async function POST(request: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const resendKey = process.env.RESEND_API_KEY;
-  const firebaseApiKey = process.env.FIREBASE_WEB_API_KEY;
-  const fromAddress = process.env.CRM_EMAIL_FROM;
+  const firebaseApiKey = process.env.FIREBASE_WEB_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  const fromAddress = process.env.CRM_EMAIL_FROM || process.env.RESEND_FROM_EMAIL || 'Unfract <hello@unfract.com>';
 
-  // Nessun ripiego: senza configurazione la route non spedisce e lo dichiara,
-  // invece di partire con una chiave scritta nel codice.
+  // Senza configurazione la route non spedisce e lo dichiara.
   if (!resendKey || !firebaseApiKey || !fromAddress) {
-    console.error('CRM email route not configured: missing RESEND_API_KEY, FIREBASE_WEB_API_KEY or CRM_EMAIL_FROM');
+    console.error('CRM email route not configured: missing RESEND_API_KEY, FIREBASE_WEB_API_KEY/NEXT_PUBLIC_FIREBASE_API_KEY or CRM_EMAIL_FROM');
     return NextResponse.json(
       { error: 'Invio email non configurato sul server.' },
       { status: 500 }
@@ -145,6 +145,7 @@ export async function POST(request: Request) {
   servedKeys.set(key, Date.now());
 
   try {
+    const baseUrl = appUrl();
     const result = await resend.emails.send({
       from: fromAddress,
       to: String(to),
@@ -152,6 +153,10 @@ export async function POST(request: Request) {
       text: String(text),
       html: html ? String(html) : undefined,
       replyTo: replyTo ? String(replyTo) : undefined,
+      headers: {
+        'List-Unsubscribe': `<${baseUrl}/api/email/unsubscribe?email=${encodeURIComponent(String(to))}>`,
+        'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+      },
     }, { idempotencyKey: `crm:${key}`.slice(0, 256) });
 
     if (result.error) {

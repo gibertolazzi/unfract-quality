@@ -129,6 +129,20 @@ export function generateEmailHtml(blocks: any[]): string {
         `).join('')}
       </table>
       
+      <!-- Footer Legale Obbligatorio (Art. 130 Codice Privacy e GDPR) -->
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top: 32px; border-top: 1px solid #E5E5E5; padding: 24px 16px;">
+        <tr>
+          <td align="center" style="font-family: Arial, sans-serif; font-size: 12px; color: #888888; line-height: 1.6;">
+            <p style="margin: 0 0 6px 0;">Ricevi questa email perché hai prestato il consenso alle comunicazioni di Unfract.</p>
+            <p style="margin: 0 0 6px 0;">Unfract S.r.l. • P.IVA / C.F. 00000000000 • Sede Legale: Italia</p>
+            <p style="margin: 0;">
+              Non desideri più ricevere queste comunicazioni? 
+              <a href="{{unsubscribe_url}}" target="_blank" style="color: #006AFF; text-decoration: underline;">Disiscriviti qui con un clic</a>.
+            </p>
+          </td>
+        </tr>
+      </table>
+      
       <!--[if mso]>
       </td>
       </tr>

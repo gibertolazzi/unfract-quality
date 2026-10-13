@@ -610,7 +610,9 @@
     "continueWithGoogle": "Continua con Google",
     "googleError": "Accesso con Google non riuscito. Riprova.",
     "noAccount": "Non hai un account?",
-    "backToLogin": "Torna al login"
+    "backToLogin": "Torna al login",
+    "ageConsentLabel": "Dichiaro di avere almeno 14 anni (o l'età minima richiesta nel mio Paese) e accetto i Termini e l'Informativa Privacy",
+    "ageConsentRequired": "È necessario dichiarare di avere almeno 14 anni per procedere con la registrazione."
   },
   "booking": {
     "confirmed": "Meeting confermato!",

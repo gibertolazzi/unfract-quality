@@ -84,20 +84,56 @@ function subjectFor(item: QueueItem): string {
   }
 }
 
-export async function GET(request: Request) {
+function extractCronToken(request: Request): string | null {
+  const authHeader = request.headers.get('authorization') || '';
+  if (authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  if (authHeader) {
+    return authHeader.trim();
+  }
+  const customHeader = request.headers.get('x-cron-secret') || request.headers.get('x-cron-key');
+  if (customHeader) {
+    return customHeader.trim();
+  }
+  try {
+    const url = new URL(request.url);
+    const queryKey = url.searchParams.get('key') || url.searchParams.get('secret');
+    if (queryKey) {
+      return queryKey.trim();
+    }
+  } catch {
+    // fallback se url parsing fallisce
+  }
+  return null;
+}
+
+async function handleCron(request: Request) {
   const secret = process.env.CRON_SECRET;
   if (!secret) {
     console.error('CRON_SECRET is not configured');
-    return new NextResponse('Cron non configurato', { status: 503 });
+    return NextResponse.json({ error: 'Cron non configurato: variabile CRON_SECRET mancante.' }, { status: 503 });
   }
-  if (request.headers.get('authorization') !== `Bearer ${secret}`) {
-    return new NextResponse('Unauthorized', { status: 401 });
+
+  const token = extractCronToken(request);
+  if (!token || token !== secret) {
+    return NextResponse.json({ error: 'Unauthorized: chiave cron non valida o assente.' }, { status: 401 });
   }
+
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: 'RESEND_API_KEY non configurata' }, { status: 503 });
   }
 
+  let forceImmediate = false;
+  try {
+    const url = new URL(request.url);
+    forceImmediate = url.searchParams.get('force') === 'true';
+  } catch {
+    // ignore
+  }
+
   const resend = new Resend(process.env.RESEND_API_KEY);
+  const fromEmail = process.env.RESEND_FROM_EMAIL || 'Unfract <hello@unfract.com>';
 
   try {
     const snapshot = await adminDb.collection('notifications_queue').where('processed', '==', false).limit(QUEUE_BATCH).get();
@@ -153,7 +189,7 @@ export async function GET(request: Request) {
       }
 
       const waitMs = intervalMs(settings.groupFrequency || '3min');
-      const due = enabled.filter(item => Date.now() - item.createdAt >= waitMs);
+      const due = enabled.filter(item => forceImmediate || (Date.now() - item.createdAt >= waitMs));
       if (!due.length) continue;
       const claimedIds = await claim(due.map(item => item.docId), Date.now());
       const claimed = due.filter(item => claimedIds.has(item.docId));
@@ -163,7 +199,7 @@ export async function GET(request: Request) {
         const displayName = userData.displayName || 'Utente';
         const result = claimed.length === 1
           ? await resend.emails.send({
-              from: process.env.RESEND_FROM_EMAIL || 'Unfract <notifications@unfract.com>',
+              from: fromEmail,
               to: [userData.email],
               subject: subjectFor(claimed[0]),
               html: getNotificationEmailHtml({
@@ -178,7 +214,7 @@ export async function GET(request: Request) {
               }),
             })
           : await resend.emails.send({
-              from: process.env.RESEND_FROM_EMAIL || 'Unfract <notifications@unfract.com>',
+              from: fromEmail,
               to: [userData.email],
               subject: `Hai ${claimed.length} nuove notifiche in Unfract`,
               html: getRecapEmailHtml({ recipientName: displayName, notifications: claimed }),
@@ -206,4 +242,12 @@ export async function GET(request: Request) {
     console.error('Cron Error:', error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
+}
+
+export async function GET(request: Request) {
+  return handleCron(request);
+}
+
+export async function POST(request: Request) {
+  return handleCron(request);
 }

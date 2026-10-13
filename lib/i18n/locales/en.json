@@ -610,7 +610,9 @@
     "continueWithGoogle": "Continue with Google",
     "googleError": "Google sign-in failed. Please try again.",
     "noAccount": "Don't have an account?",
-    "backToLogin": "Back to sign in"
+    "backToLogin": "Back to sign in",
+    "ageConsentLabel": "I declare that I am at least 14 years old (or the legal age in my country) and accept the Terms and Privacy Policy",
+    "ageConsentRequired": "You must confirm you are at least 14 years old to register."
   },
   "booking": {
     "confirmed": "Meeting confirmed!",

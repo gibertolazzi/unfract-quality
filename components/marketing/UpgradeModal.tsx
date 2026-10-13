@@ -51,6 +51,28 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
     }
   };
 
+  const [managingSubscription, setManagingSubscription] = useState(false);
+
+  const handleManageSubscription = async () => {
+    setManagingSubscription(true);
+    try {
+      const response = await fetch('/api/stripe/customer-portal', {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Nessun abbonamento attivo trovato.');
+      }
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      alert(error.message || 'Impossibile accedere al portale abbonamenti.');
+    } finally {
+      setManagingSubscription(false);
+    }
+  };
+
   return createPortal(
     <div className="fixed inset-0 bg-[#060608]/95 backdrop-blur-3xl z-[9999] flex flex-col items-center justify-center p-4 sm:p-6 overflow-y-auto">
       
@@ -122,9 +144,14 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
             <h3 className="text-[22px] font-semibold text-white mb-2 tracking-tight relative z-10 mt-2">Pro</h3>
             <p className="text-[13px] text-[#858585] mb-6 min-h-[40px] leading-relaxed relative z-10">Copre al 100% l'esigenza di un piccolo team.</p>
             
-            <div className="mb-8 flex items-baseline gap-1 relative z-10">
+            <div className="mb-4 flex items-baseline gap-1 relative z-10">
               <span className="text-[40px] font-bold text-white tracking-tight">10 €</span>
               <span className="text-[#858585] text-[13px]">/mese per utente</span>
+            </div>
+
+            <div className="mb-6 relative z-10 text-[11px] text-[#858585] leading-normal">
+              Rinnovo automatico mensile. IVA esclusa.<br />
+              Disdetta e recesso online in qualsiasi momento.
             </div>
             
             <button 
@@ -239,9 +266,14 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
             <h3 className="text-[22px] font-semibold text-white mb-2 tracking-tight relative z-10">Scale</h3>
             <p className="text-[13px] text-[#858585] mb-6 min-h-[40px] leading-relaxed relative z-10">Per agenzie con meeting commerciali ogni giorno.</p>
             
-            <div className="mb-8 flex items-baseline gap-1 relative z-10">
+            <div className="mb-4 flex items-baseline gap-1 relative z-10">
               <span className="text-[40px] font-bold text-white tracking-tight">25 €</span>
               <span className="text-[#858585] text-[13px]">/mese per utente</span>
+            </div>
+
+            <div className="mb-6 relative z-10 text-[11px] text-[#858585] leading-normal">
+              Rinnovo automatico mensile. IVA esclusa.<br />
+              Disdetta e recesso online in qualsiasi momento.
             </div>
             
             <button 
@@ -326,6 +358,22 @@ export function UpgradeModal({ onClose }: UpgradeModalProps) {
             </div>
           </div>
 
+        </div>
+
+        {/* Funzione di recesso online e gestione abbonamento (Art. 54-bis Codice del Consumo) */}
+        <div className="mt-8 pt-6 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#858585]">
+          <div className="text-center sm:text-left leading-relaxed">
+            <span className="text-white/80 font-medium block">Diritto di recesso legale di 14 giorni garantito ai sensi del Codice del Consumo.</span>
+            Puoi gestire il tuo piano o esercitare il recesso online in qualsiasi momento con un solo clic.
+          </div>
+          <button
+            type="button"
+            onClick={handleManageSubscription}
+            disabled={managingSubscription}
+            className="px-5 py-2.5 bg-white/5 hover:bg-white/10 border border-white/15 rounded-xl text-white font-medium transition-all shrink-0 disabled:opacity-50"
+          >
+            {managingSubscription ? 'Accesso in corso...' : 'Funzione di recesso e gestione abbonamento'}
+          </button>
         </div>
       </div>
     </div>,

@@ -25,7 +25,7 @@ interface AuthContextType {
   googleError: string | null;
   loginWithGoogle: () => Promise<void>;
   loginWithEmail: (e: string, p: string) => Promise<void>;
-  registerWithEmail: (e: string, p: string, name: string) => Promise<void>;
+  registerWithEmail: (e: string, p: string, name: string, ageDeclared?: boolean) => Promise<void>;
   resetPassword: (e: string) => Promise<void>;
   logout: () => Promise<void>;
   accessToken: string | null;
@@ -151,16 +151,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const registerWithEmail = async (email: string, password: string, name: string) => {
+  const registerWithEmail = async (email: string, password: string, name: string, ageDeclared: boolean = true) => {
     try {
       const result = await createUserWithEmailAndPassword(auth, email, password);
-      // Aggiorniamo subito il nome nel documento utente
+      // Aggiorniamo subito il nome nel documento utente con i consensi e l'attestazione di età
       const userRef = doc(db, 'users', result.user.uid);
       await setDoc(userRef, {
         displayName: name,
         email: email,
         photoURL: null,
         plan: 'free', // Predisposizione per la fase 2
+        ageDeclaredAtLeast14: ageDeclared,
+        consentsTimestamp: new Date().toISOString(),
         createdAt: new Date(),
       }, { merge: true });
     } catch (error) {

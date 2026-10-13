@@ -76,4 +76,22 @@ describe('cron delle email di notifica', () => {
     expect(queue('q1')).toMatchObject({ processed: false, lastError: 'rate limited' });
     expect(result.errors).toEqual(['anna: rate limited']);
   });
+
+  it('accetta autenticazione tramite query param ?key= e metodo POST', async () => {
+    const { POST } = await import('@/app/api/cron/process-emails/route');
+    mocks.db.store.set('notifications_queue/q1', queued('anna'));
+    const response = await POST(new Request('http://localhost/api/cron/process-emails?key=cron'));
+    const result = await response.json();
+    expect(response.status).toBe(200);
+    expect(result.sentCount).toBe(1);
+  });
+
+  it('bypassa l’attesa se force=true è presente nei parametri', async () => {
+    const { GET } = await import('@/app/api/cron/process-emails/route');
+    mocks.db.store.set('notifications_queue/fresca', queued('anna', { createdAt: Timestamp.now() }));
+    const response = await GET(new Request('http://localhost/api/cron/process-emails?key=cron&force=true'));
+    const result = await response.json();
+    expect(result.sentCount).toBe(1);
+    expect(queue('fresca').processed).toBe(true);
+  });
 });
