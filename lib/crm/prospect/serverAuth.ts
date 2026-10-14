@@ -65,18 +65,31 @@ export interface GuardOptions {
  * un utente non autenticato non merita nemmeno di essere interpretato.
  */
 export async function guardRequest(request: Request, options: GuardOptions): Promise<AuthResult> {
-  const apiKey = process.env.FIREBASE_WEB_API_KEY;
-  if (!apiKey) {
-    console.error(`Prospect route "${options.operation}" not configured: missing FIREBASE_WEB_API_KEY`);
-    return { ok: false, status: 500, error: 'Sezione ricerca non configurata sul server.' };
-  }
-
   const autorizzazione = request.headers.get('authorization') || '';
   const idToken = autorizzazione.startsWith('Bearer ') ? autorizzazione.slice(7).trim() : '';
   if (!idToken) return { ok: false, status: 401, error: 'Autenticazione mancante.' };
 
-  const uid = await verificaToken(idToken, apiKey);
-  if (!uid) return { ok: false, status: 401, error: 'Autenticazione non valida.' };
+  const apiKey = process.env.FIREBASE_WEB_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+  let uid = '';
+
+  if (apiKey) {
+    uid = await verificaToken(idToken, apiKey);
+  }
+
+  // Fallback con Firebase Admin SDK se apiKey non è impostata o identitytoolkit fallisce
+  if (!uid) {
+    try {
+      const { adminAuth } = await import('@/lib/firebase-admin');
+      const decoded = await adminAuth.verifyIdToken(idToken);
+      uid = decoded?.uid || '';
+    } catch {
+      // Token non valido o Admin SDK non configurato
+    }
+  }
+
+  if (!uid) {
+    return { ok: false, status: 401, error: 'Autenticazione non valida o sessione scaduta.' };
+  }
 
   const finestraMs = options.windowMs ?? 60_000;
   // Il limite vale **per utente** ed è condiviso fra le istanze (S21): un ciclo
