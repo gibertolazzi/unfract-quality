@@ -78,6 +78,12 @@ export interface CrmLead extends CrmBase {
   postalCode?: string;
   country?: string;
 
+  // Dati fiscali e verifica
+  vatNumber?: string;
+  taxCode?: string;
+  vatVerifiedAt?: any;
+  vatSource?: 'vies' | 'provider' | 'manual';
+
   /** Dominio ricavato dall'email o dal sito: seconda chiave per i duplicati. */
   companyDomain: string;
 
@@ -127,6 +133,8 @@ export interface CrmAccount extends CrmBase {
   // Dati fiscali, opzionali secondo la specifica.
   vatNumber: string;
   taxCode: string;
+  vatVerifiedAt?: any;
+  vatSource?: 'vies' | 'provider' | 'manual';
 
   ownerUid: string;
   sources: string[];
@@ -300,8 +308,19 @@ export interface CrmFollowup extends CrmBase {
   opportunityId: string;
   linkedMeetingId: string;
 
-  /** Da dove nasce: inserimento manuale, meeting, email, proposta AI. */
-  createdFrom: 'manual' | 'meeting' | 'email' | 'sms' | 'ai';
+  /** Da dove nasce: inserimento manuale, meeting, email, proposta AI, regola o sequenza. */
+  createdFrom: 'manual' | 'meeting' | 'email' | 'sms' | 'ai' | 'rule' | 'sequence';
+  automation?: {
+    ruleId?: string;
+    sequenceId?: string;
+    enrollmentId?: string;
+    stepIndex?: number;
+    mode: 'task' | 'auto_send' | 'draft';
+    templateId?: string;
+    executedAt?: string;
+    error?: string;
+  };
+  dedupeKey?: string;
   linkedCalendarEventId: string;
 }
 

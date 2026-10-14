@@ -36,6 +36,10 @@ export function mapLead(id: string, data: any): CrmLead {
     city: data.city || '',
     postalCode: data.postalCode || '',
     country: data.country || '',
+    vatNumber: data.vatNumber || '',
+    taxCode: data.taxCode || '',
+    vatVerifiedAt: data.vatVerifiedAt || null,
+    vatSource: data.vatSource || 'manual',
     companyDomain: data.companyDomain || '',
     source: data.source || '',
     ownerUid: data.ownerUid || '',
@@ -98,6 +102,10 @@ export interface CreateLeadInput {
   city?: string;
   postalCode?: string;
   country?: string;
+  vatNumber?: string;
+  taxCode?: string;
+  vatVerifiedAt?: any;
+  vatSource?: 'vies' | 'provider' | 'manual';
   companyDomain?: string;
   source?: string;
   ownerUid?: string;
@@ -126,7 +134,7 @@ export async function createLead(
   const phone = input.phone || '';
   const domain = input.companyDomain || extractDomain(email);
 
-  const duplicates = await findDuplicates(ctx.projectId, { email, phone, domain });
+  const duplicates = await findDuplicates(ctx.projectId, { email, phone, domain, vatNumber: input.vatNumber });
 
   const id = await createRecord(COLLECTION_NAME, ctx, {
     fullName: input.fullName || '',
@@ -139,6 +147,10 @@ export async function createLead(
     city: input.city || '',
     postalCode: input.postalCode || '',
     country: input.country || '',
+    vatNumber: input.vatNumber || '',
+    taxCode: input.taxCode || '',
+    vatVerifiedAt: input.vatVerifiedAt || null,
+    vatSource: input.vatSource || 'manual',
     companyDomain: domain,
     source: input.source || '',
     ownerUid: input.ownerUid || ctx.uid,

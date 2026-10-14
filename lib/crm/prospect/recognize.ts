@@ -34,6 +34,7 @@ import { normalizeVat, normalizeDomain } from './base';
 export function partitaIvaValida(raw: string): boolean {
   const cifre = normalizeVat(raw);
   if (!/^\d{11}$/.test(cifre)) return false;
+  if (cifre === '00000000000') return false;
 
   let somma = 0;
   for (let i = 0; i < 10; i++) {

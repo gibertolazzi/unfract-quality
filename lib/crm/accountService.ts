@@ -25,6 +25,8 @@ export function mapAccount(id: string, data: any): CrmAccount {
     postalCode: data.postalCode || '',
     vatNumber: data.vatNumber || '',
     taxCode: data.taxCode || '',
+    vatVerifiedAt: data.vatVerifiedAt || null,
+    vatSource: data.vatSource || 'manual',
     ownerUid: data.ownerUid || '',
     sources: data.sources || [],
     notes: data.notes || '',
@@ -74,6 +76,8 @@ export interface CreateAccountInput {
   postalCode?: string;
   vatNumber?: string;
   taxCode?: string;
+  vatVerifiedAt?: any;
+  vatSource?: 'vies' | 'provider' | 'manual';
   ownerUid?: string;
   sources?: string[];
   notes?: string;
@@ -81,7 +85,7 @@ export interface CreateAccountInput {
 
 export async function createAccount(ctx: CrmContextRef, input: CreateAccountInput) {
   const domain = extractDomain(input.domain || input.website);
-  const duplicates = await findDuplicates(ctx.projectId, { domain });
+  const duplicates = await findDuplicates(ctx.projectId, { domain, vatNumber: input.vatNumber });
 
   const id = await createRecord(COLLECTION_NAME, ctx, {
     legalName: input.legalName || '',
@@ -97,6 +101,8 @@ export async function createAccount(ctx: CrmContextRef, input: CreateAccountInpu
     postalCode: input.postalCode || '',
     vatNumber: input.vatNumber || '',
     taxCode: input.taxCode || '',
+    vatVerifiedAt: input.vatVerifiedAt || null,
+    vatSource: input.vatSource || 'manual',
     ownerUid: input.ownerUid || ctx.uid,
     sources: input.sources || [],
     notes: input.notes || '',

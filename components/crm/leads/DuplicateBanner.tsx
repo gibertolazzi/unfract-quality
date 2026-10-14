@@ -19,6 +19,7 @@ const MATCH_LABELS: Record<string, string> = {
   email: 'stessa email',
   phone: 'stesso telefono',
   domain: 'stesso dominio',
+  vat: 'stessa partita IVA',
 };
 
 /**

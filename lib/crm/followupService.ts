@@ -27,6 +27,8 @@ export function mapFollowup(id: string, data: any): CrmFollowup {
     opportunityId: data.opportunityId || '',
     linkedMeetingId: data.linkedMeetingId || '',
     createdFrom: data.createdFrom || 'manual',
+    automation: data.automation || undefined,
+    dedupeKey: data.dedupeKey || '',
     linkedCalendarEventId: data.linkedCalendarEventId || '',
   };
 }

@@ -16,7 +16,7 @@ export interface DuplicateMatch {
   collection: string;
   label: string;
   /** Su che cosa ha corrisposto: serve a spiegare all'utente il perché. */
-  matchedOn: ('email' | 'phone' | 'domain')[];
+  matchedOn: ('email' | 'phone' | 'domain' | 'vat')[];
 }
 
 export interface DuplicateQuery {
@@ -24,6 +24,8 @@ export interface DuplicateQuery {
   phone?: string;
   /** Dominio o sito aziendale; se assente si ricava dall'email. */
   domain?: string;
+  /** Partita IVA normalizzata o grezza. */
+  vatNumber?: string;
 }
 
 interface SearchTarget {
@@ -31,6 +33,7 @@ interface SearchTarget {
   emailField: string;
   phoneField: string;
   domainField: string;
+  vatField?: string;
   labelOf: (data: any) => string;
 }
 
@@ -40,6 +43,7 @@ const TARGETS: SearchTarget[] = [
     emailField: 'emailNormalized',
     phoneField: 'phoneNormalized',
     domainField: 'companyDomain',
+    vatField: 'vatNumber',
     labelOf: d => d.fullName || d.companyName || d.email || 'Lead',
   },
   {
@@ -47,6 +51,7 @@ const TARGETS: SearchTarget[] = [
     emailField: 'emailNormalized',
     phoneField: 'phoneNormalized',
     domainField: '',
+    vatField: '',
     labelOf: d => d.fullName || d.email || 'Contatto',
   },
   {
@@ -54,6 +59,7 @@ const TARGETS: SearchTarget[] = [
     emailField: '',
     phoneField: '',
     domainField: 'domain',
+    vatField: 'vatNumber',
     labelOf: d => d.displayName || d.legalName || d.domain || 'Azienda',
   },
 ];
@@ -96,19 +102,23 @@ export async function findDuplicates(
   const email = normalizeEmail(input.email);
   const phone = normalizePhone(input.phone);
   const domain = extractDomain(input.domain || input.email);
+  const vatNumber = input.vatNumber
+    ? input.vatNumber.trim().toUpperCase().replace(/[\s.\-\/]/g, '').replace(/^IT/, '').replace(/[^0-9]/g, '')
+    : '';
 
-  if (!email && !phone && !domain) return [];
+  if (!email && !phone && !domain && !vatNumber) return [];
 
   const results = new Map<string, DuplicateMatch>();
 
   for (const target of TARGETS) {
-    const [byEmail, byPhone, byDomain] = await Promise.all([
+    const [byEmail, byPhone, byDomain, byVat] = await Promise.all([
       matchField(target.collectionName, projectId, target.emailField, email),
       matchField(target.collectionName, projectId, target.phoneField, phone),
       matchField(target.collectionName, projectId, target.domainField, domain),
+      matchField(target.collectionName, projectId, target.vatField || '', vatNumber),
     ]);
 
-    const merge = (hits: Map<string, any>, reason: 'email' | 'phone' | 'domain') => {
+    const merge = (hits: Map<string, any>, reason: 'email' | 'phone' | 'domain' | 'vat') => {
       hits.forEach((data, id) => {
         if (id === excludeId) return;
         const key = `${target.collectionName}:${id}`;
@@ -129,6 +139,7 @@ export async function findDuplicates(
     merge(byEmail, 'email');
     merge(byPhone, 'phone');
     merge(byDomain, 'domain');
+    merge(byVat, 'vat');
   }
 
   // Le corrispondenze su più chiavi sono più affidabili: prima quelle.

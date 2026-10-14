@@ -2,14 +2,20 @@
 
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useState } from 'react';
-import { X } from 'lucide-react';
-import { CrmLead, CrmConsents } from '@/components/crm/types';
+import { X, Search, Loader2, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { CrmLead, CrmConsents, CrmAccount } from '@/components/crm/types';
 import { OwnerOption } from './LeadFiltersBar';
 import { useCloseOnEscape } from '@/hooks/useCloseOnEscape';
+import { lookupVat, validateItalianVatChecksum, findExistingAccountByVat } from '@/lib/crm/vatService';
+import { useProject } from '@/contexts/ProjectContext';
 
 export interface LeadFormValues {
   fullName: string;
   companyName: string;
+  vatNumber?: string;
+  taxCode?: string;
+  vatVerifiedAt?: any;
+  vatSource?: 'vies' | 'provider' | 'manual';
   email: string;
   phone: string;
   address: string;
@@ -60,6 +66,7 @@ export function LeadFormModal({
   open, lead, owners, sources, policyVersion, saving, onClose, onSubmit,
 }: LeadFormModalProps) {
   const { t } = useTranslation();
+  const { activeProjectId } = useProject();
   useCloseOnEscape(onClose, !saving);
 
   const isEdit = !!lead;
@@ -67,12 +74,16 @@ export function LeadFormModal({
   const [values, setValues] = useState<LeadFormValues>(() => ({
     fullName: lead?.fullName || '',
     companyName: lead?.companyName || '',
+    vatNumber: lead?.vatNumber || '',
+    taxCode: lead?.taxCode || '',
+    vatVerifiedAt: lead?.vatVerifiedAt || null,
+    vatSource: lead?.vatSource || 'manual',
     email: lead?.email || '',
     phone: lead?.phone || '',
     address: lead?.address || '',
     city: lead?.city || '',
     postalCode: lead?.postalCode || '',
-    country: lead?.country || '',
+    country: lead?.country || 'IT',
     source: lead?.source || '',
     estimatedValue: lead?.estimatedValue || 0,
     ownerUid: lead?.ownerUid || '',
@@ -80,11 +91,78 @@ export function LeadFormModal({
     consents: lead?.consents || emptyConsents(),
   }));
 
+  const [vatSearching, setVatSearching] = useState(false);
+  const [vatMessage, setVatMessage] = useState<{ text: string; type: 'success' | 'warn' | 'error' } | null>(null);
+  const [duplicateAccount, setDuplicateAccount] = useState<CrmAccount | null>(null);
   const [error, setError] = useState('');
 
   if (!open) return null;
 
   const set = (patch: Partial<LeadFormValues>) => setValues(v => ({ ...v, ...patch }));
+
+  const handleVatLookup = async () => {
+    const vat = (values.vatNumber || '').trim();
+    if (!vat) {
+      setVatMessage({ text: 'Inserisci prima una Partita IVA.', type: 'warn' });
+      return;
+    }
+
+    setVatMessage(null);
+    setDuplicateAccount(null);
+
+    if (values.country === 'IT' || /^\d{11}$/.test(vat.replace(/^IT/i, ''))) {
+      if (!validateItalianVatChecksum(vat)) {
+        setVatMessage({
+          text: 'Non è una partita IVA valida (la cifra di controllo non torna).',
+          type: 'error',
+        });
+        return;
+      }
+    }
+
+    if (activeProjectId) {
+      const existing = await findExistingAccountByVat(activeProjectId, vat);
+      if (existing) {
+        setDuplicateAccount(existing);
+      }
+    }
+
+    setVatSearching(true);
+    try {
+      const resp = await lookupVat(vat, values.country || 'IT');
+      if (!resp.ok) {
+        setVatMessage({
+          text: resp.error || 'Verifica Partita IVA fallita.',
+          type: resp.retryable ? 'warn' : 'error',
+        });
+        return;
+      }
+
+      const res = resp.result;
+      if (res) {
+        setValues(v => ({
+          ...v,
+          vatNumber: res.vatNumber || v.vatNumber,
+          companyName: res.legalName || v.companyName,
+          address: res.address || v.address,
+          city: res.city || v.city,
+          postalCode: res.postalCode || v.postalCode,
+          country: res.countryCode || v.country,
+          vatVerifiedAt: res.verifiedAt,
+          vatSource: res.source,
+        }));
+
+        setVatMessage({
+          text: 'Dati azienda compilati con successo da VIES.',
+          type: 'success',
+        });
+      }
+    } catch {
+      setVatMessage({ text: 'Errore durante la verifica.', type: 'error' });
+    } finally {
+      setVatSearching(false);
+    }
+  };
 
   const setConsent = (channel: 'email' | 'sms', granted: boolean) => {
     set({
@@ -125,6 +203,75 @@ export function LeadFormModal({
         </header>
 
         <div className="flex flex-col gap-4 overflow-y-auto px-6 py-5">
+          {/* Box P.IVA per Lead B2B */}
+          <div className="rounded-xl border border-[#222] bg-[#121212]/80 p-3">
+            <div className="flex items-center justify-between pb-1.5">
+              <span className="text-[10px] font-medium uppercase tracking-wide text-[#A0A0A0]">
+                Compilazione da Partita IVA (opzionale)
+              </span>
+              {values.vatVerifiedAt && (
+                <span className="flex items-center gap-1 text-[10px] text-[#10B981]">
+                  <CheckCircle2 size={11} /> Verificata VIES
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                value={values.vatNumber || ''}
+                onChange={e => {
+                  set({ vatNumber: e.target.value });
+                  if (vatMessage) setVatMessage(null);
+                  if (duplicateAccount) setDuplicateAccount(null);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleVatLookup();
+                  }
+                }}
+                placeholder="Es. 00743110157"
+                className={`${inputClass} flex-1 font-mono text-xs`}
+              />
+              <button
+                type="button"
+                onClick={handleVatLookup}
+                disabled={vatSearching || !values.vatNumber?.trim()}
+                className="flex items-center gap-1 rounded-lg border border-[#2A2A2A] bg-white px-3 py-2 text-xs font-medium text-black transition-opacity hover:opacity-90 disabled:opacity-40"
+              >
+                {vatSearching ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+                <span>{vatSearching ? 'Verifica…' : 'Compila'}</span>
+              </button>
+            </div>
+
+            {vatMessage && (
+              <div
+                className={`mt-2 flex items-center gap-1.5 rounded-lg p-2 text-xs ${
+                  vatMessage.type === 'success'
+                    ? 'border border-[#10B981]/30 bg-[#10B981]/10 text-[#34D399]'
+                    : vatMessage.type === 'warn'
+                    ? 'border border-[#F59E0B]/30 bg-[#F59E0B]/10 text-[#FBBF24]'
+                    : 'border border-[#EF4444]/30 bg-[#EF4444]/10 text-[#F87171]'
+                }`}
+              >
+                {vatMessage.type === 'success' ? (
+                  <CheckCircle2 size={13} className="shrink-0" />
+                ) : (
+                  <AlertTriangle size={13} className="shrink-0" />
+                )}
+                <span>{vatMessage.text}</span>
+              </div>
+            )}
+
+            {duplicateAccount && (
+              <div className="mt-2 flex items-start gap-1.5 rounded-lg border border-[#F59E0B]/30 bg-[#F59E0B]/10 p-2 text-xs text-[#FBBF24]">
+                <AlertTriangle size={13} className="mt-0.5 shrink-0" />
+                <span>
+                  Nel CRM esiste già l&apos;azienda <strong>&laquo;{duplicateAccount.displayName || duplicateAccount.legalName}&raquo;</strong> con questa P.IVA.
+                </span>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <Field label={t.crm.name}>
               <input
