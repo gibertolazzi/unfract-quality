@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { Task, Column, Epic } from '@/types/tasks';
 import type { ColumnCategory } from '@/lib/taskWorkflow';
+import { planWriteCount, type TemplatePlan } from '@/lib/workflowTemplates';
 import { queueNotification, QueuedEmailType } from '@/lib/queueNotification';
 import { deleteStoredFile } from '@/lib/usage';
 
@@ -249,6 +250,26 @@ export const ColumnService = {
     const batch = writeBatch(db);
     taskIds.forEach((id, i) => batch.update(doc(db, 'tasks', id), { columnId: targetColumnId, order: startOrder + i }));
     batch.delete(doc(db, 'columns', columnId));
+    return await batch.commit();
+  },
+
+  /** ID di una colonna nuova, prima di scriverla (modelli di flusso). */
+  newId() {
+    return doc(collection(db, 'columns')).id;
+  },
+
+  /** Applica un modello di flusso (lib/workflowTemplates.ts) in un'unica scrittura. */
+  async applyTemplate(projectId: string, plan: TemplatePlan) {
+    if (planWriteCount(plan) > 450) throw new Error('Troppe attività da spostare in una volta.');
+    const batch = writeBatch(db);
+    plan.writes.forEach(({ id, isNew, data }) => {
+      if (isNew) batch.set(doc(db, 'columns', id), { ...data, projectId });
+      else batch.update(doc(db, 'columns', id), { ...data });
+    });
+    plan.removals.forEach(removal => {
+      removal.taskIds.forEach((id, i) => batch.update(doc(db, 'tasks', id), { columnId: removal.moveTo, order: removal.startOrder + i }));
+      batch.delete(doc(db, 'columns', removal.id));
+    });
     return await batch.commit();
   },
 

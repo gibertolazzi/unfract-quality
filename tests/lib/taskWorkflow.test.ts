@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  categoryFromTitle, columnCategory, deleteColumnBlock, displayColumnId, firstColumnOf, moveTargets, taskStatus, toggleDoneTarget,
+  allowedTargets, canTransition, categoryFromTitle, columnCategory, deleteColumnBlock, displayColumnId, entryBlock, firstColumnOf,
+  moveBlock, moveTargets, taskStatus, toggleDoneTarget,
 } from '@/lib/taskWorkflow';
+import { planTemplate, planWriteCount, WORKFLOW_TEMPLATES } from '@/lib/workflowTemplates';
 
 const columns = [
   { id: 'c3', title: 'Completate', order: 2, category: 'done' },
@@ -64,5 +66,103 @@ describe('eliminare una colonna', () => {
 
   it('le attività si spostano prima in una colonna della stessa categoria', () => {
     expect(moveTargets(columns, 'c1').map(c => c.id)).toEqual(['c4', 'c2', 'c3']);
+  });
+});
+
+describe('transizioni', () => {
+  const flow = [
+    { id: 'a', title: 'Backlog', order: 0, category: 'todo', blockedTargets: ['c'] },
+    { id: 'b', title: 'In corso', order: 1, category: 'progress' },
+    { id: 'c', title: 'Fatto', order: 2, category: 'done', entryRules: { assignee: true } },
+    { id: 'd', title: 'Altro fatto', order: 3, category: 'done' },
+  ];
+  const member = { uid: 'u1', isAdmin: false };
+
+  it('una colonna senza blocchi va ovunque; quelle bloccate no', () => {
+    expect(canTransition(flow, 'b', 'c')).toBe(true);
+    expect(canTransition(flow, 'a', 'c')).toBe(false);
+    expect(allowedTargets(flow, 'a').map(c => c.id)).toEqual(['b', 'd']);
+    // Un'attività senza colonna valida non ha vincoli di partenza.
+    expect(canTransition(flow, 'sparita', 'c')).toBe(true);
+  });
+
+  it('moveBlock: prima la transizione, poi le condizioni della colonna', () => {
+    expect(moveBlock({ columnId: 'a', assigneeUid: 'u1' }, 'c', flow, member)).toBe('transition');
+    expect(moveBlock({ columnId: 'b' }, 'c', flow, member)).toBe('assignee');
+    expect(moveBlock({ columnId: 'b', assigneeUid: 'u1' }, 'c', flow, member)).toBeNull();
+    expect(moveBlock({ columnId: 'c' }, 'c', flow, member)).toBeNull();
+  });
+
+  it('la spunta «fatto» sceglie la prima colonna «Completato» raggiungibile', () => {
+    expect(toggleDoneTarget({ columnId: 'a' }, flow)).toEqual({ columnId: 'd', done: true });
+    expect(toggleDoneTarget({ columnId: 'b' }, flow)).toEqual({ columnId: 'c', done: true });
+  });
+});
+
+describe('condizioni per entrare in una colonna', () => {
+  const col = (entryRules: object) => ({ id: 'x', entryRules });
+
+  it('assegnatario e scadenza', () => {
+    expect(entryBlock({}, col({ assignee: true }), { isAdmin: true })).toBe('assignee');
+    expect(entryBlock({ date: '  ' }, col({ dueDate: true }), { isAdmin: true })).toBe('dueDate');
+    expect(entryBlock({ date: '2026-10-20' }, col({ dueDate: true }), { isAdmin: false })).toBeNull();
+  });
+
+  it('solo admin, e solo l’assegnatario (o un admin)', () => {
+    expect(entryBlock({}, col({ adminOnly: true }), { uid: 'u1', isAdmin: false })).toBe('adminOnly');
+    expect(entryBlock({}, col({ adminOnly: true }), { uid: 'u1', isAdmin: true })).toBeNull();
+    expect(entryBlock({ assigneeUid: 'u2' }, col({ assigneeOnly: true }), { uid: 'u1', isAdmin: false })).toBe('assigneeOnly');
+    expect(entryBlock({ assigneeUid: 'u1' }, col({ assigneeOnly: true }), { uid: 'u1', isAdmin: false })).toBeNull();
+    expect(entryBlock({ assigneeUid: 'u2' }, col({ assigneeOnly: true }), { uid: 'u1', isAdmin: true })).toBeNull();
+  });
+});
+
+describe('modelli di flusso', () => {
+  const software = WORKFLOW_TEMPLATES.find(tpl => tpl.id === 'software')!;
+  const board = [
+    { id: 'todo', title: 'To Do', order: 0, category: 'todo' },
+    { id: 'doing', title: 'Doing', order: 1, category: 'progress' },
+    { id: 'done', title: 'Done', order: 2, category: 'done' },
+    { id: 'extra', title: 'Bloccate', order: 3, category: 'progress' },
+    { id: 'old', title: 'Archivio', order: 4, category: 'done' },
+  ];
+  const tasks = [
+    { id: 't1', columnId: 'todo' },
+    { id: 't2', columnId: 'old' },
+    { id: 't3', columnId: 'old' },
+    { id: 't4', columnId: 'done' },
+  ];
+  let n = 0;
+  const plan = planTemplate(software, board, tasks, 'it', () => `new${++n}`);
+
+  it('riusa le colonne per categoria, nell’ordine, e crea quelle che mancano', () => {
+    expect(plan.writes.map(w => [w.id, w.data.title])).toEqual([
+      ['todo', 'Backlog'], ['new1', 'Da fare'], ['doing', 'In corso'], ['extra', 'In revisione'], ['new2', 'Test'], ['done', 'Completato'],
+    ]);
+    expect(plan.writes.filter(w => w.isNew).map(w => w.id)).toEqual(['new1', 'new2']);
+  });
+
+  it('le colonne in più si eliminano spostando le attività, senza perderne', () => {
+    expect(plan.removals).toEqual([{ id: 'old', title: 'Archivio', moveTo: 'done', taskIds: ['t2', 't3'], startOrder: 1 }]);
+    expect(planWriteCount(plan)).toBe(6 + 3);
+  });
+
+  it('le transizioni del modello diventano colonne bloccate, con gli ID veri', () => {
+    const backlog = plan.writes.find(w => w.id === 'todo')!;
+    expect(backlog.data.blockedTargets.sort()).toEqual(['doing', 'done', 'extra', 'new2']);
+    expect(plan.writes.find(w => w.id === 'done')!.data.entryRules).toEqual({ assignee: true });
+    const kanban = planTemplate(WORKFLOW_TEMPLATES[0], board, tasks, 'en', () => 'x');
+    expect(kanban.writes.every(w => w.data.blockedTargets.length === 0)).toBe(true);
+    expect(kanban.writes.map(w => w.data.title)).toEqual(['To Do', 'In Progress', 'Done']);
+  });
+
+  it('ogni modello ha almeno una colonna «Da fare» e una «Completato», e transizioni valide', () => {
+    for (const tpl of WORKFLOW_TEMPLATES) {
+      expect(tpl.columns.some(c => c.category === 'todo')).toBe(true);
+      expect(tpl.columns.some(c => c.category === 'done')).toBe(true);
+      const keys = tpl.columns.map(c => c.key);
+      expect(new Set(keys).size).toBe(keys.length);
+      tpl.columns.forEach(c => (c.to || []).forEach(k => expect(keys).toContain(k)));
+    }
   });
 });
