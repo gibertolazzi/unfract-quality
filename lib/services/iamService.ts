@@ -1,4 +1,4 @@
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { CustomRole, ProjectMemberAccess, AccessRequest, AppModule, PermissionLevel } from '@/types/iam';
 
@@ -108,6 +108,7 @@ export async function requestModuleAccess(projectId: string, userId: string, mod
     const notifRef = doc(collection(db, 'notifications'));
     await setDoc(notifRef, {
       userId: ownerId,
+      ...(auth.currentUser ? { senderId: auth.currentUser.uid } : {}),
       title: 'Nuova Richiesta di Accesso',
       description: `Un membro ha richiesto i permessi di ${requestedLevel === 'write' ? 'Scrittura' : 'Lettura'} per il modulo ${module.toUpperCase()}`,
       type: 'access_request',

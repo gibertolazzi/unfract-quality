@@ -123,7 +123,7 @@ service cloud.firestore {
         && request.resource.data.get('ownerId', null) == request.auth.uid
         && request.resource.data.get('memberUids', []) == [request.auth.uid];
       allow update: if signedIn() && request.auth.uid in resource.data.get('memberUids', [])
-        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'memberUids', 'members', 'memberCount']);
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['ownerId', 'memberUids', 'members', 'memberCount', 'mutedUids']);
       allow delete: if false;
     }
 
@@ -311,10 +311,22 @@ service cloud.firestore {
         && request.auth.uid in get(chatPath(chatId)).data.get('members', []);
     }
 
+    // Silenziato nell'organizzazione del progetto della chat (`mutedUids`, lo
+    // scrive il server: lib/server/orgMembers.ts). Le chat senza progetto o
+    // di un workspace personale non hanno silenziati.
+    function mutedInChat(chatId) {
+      let pid = get(chatPath(chatId)).data.get('projectId', null);
+      let ws = pid is string && pid != '' && exists(projectPath(pid))
+        ? get(projectPath(pid)).data.get('workspaceId', null) : null;
+      return ws is string && ws != '' && exists(orgPath(ws))
+        && request.auth.uid in get(orgPath(ws)).data.get('mutedUids', []);
+    }
+
     match /messages/{messageId} {
       allow read: if inChat(resource.data.get('chatId', null));
       allow create: if inChat(request.resource.data.get('chatId', null))
-        && request.resource.data.get('senderId', null) == request.auth.uid;
+        && request.resource.data.get('senderId', null) == request.auth.uid
+        && !mutedInChat(request.resource.data.chatId);
       // Letture, cancellazioni "per me" e "per tutti" (ChatWindow, ChatContext).
       allow update: if inChat(resource.data.get('chatId', null))
         && request.resource.data.get('chatId', null) == resource.data.get('chatId', null)
@@ -328,7 +340,10 @@ service cloud.firestore {
     // destinatario.
     match /notifications/{notificationId} {
       allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
-      allow create: if signedIn() && request.resource.data.userId is string;
+      // Chi la manda si firma (`senderId`, per chi ne nasconde le notifiche);
+      // le vecchie senza firma restano valide.
+      allow create: if signedIn() && request.resource.data.userId is string
+        && request.resource.data.get('senderId', request.auth.uid) == request.auth.uid;
       allow update: if signedIn() && resource.data.userId == request.auth.uid
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
     }

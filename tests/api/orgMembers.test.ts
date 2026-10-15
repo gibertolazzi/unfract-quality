@@ -158,3 +158,26 @@ describe('cambiare ruolo', () => {
     expect((await call('anna', { uid: 'carla', action: 'role', role: 'boss' })).status).toBe(400);
   });
 });
+
+describe('silenziare nelle chat', () => {
+  it('gli admin silenziano e tolgono il silenzio; i membri no', async () => {
+    expect((await call('carla', { uid: 'dario', action: 'mute' })).status).toBe(403);
+    const res = await call('bruno', { uid: 'carla', action: 'mute' });
+    expect(res.status).toBe(200);
+    expect(res.body.mutedUids).toEqual(['carla']);
+    expect(data('organizations/o1').mutedUids).toEqual(['carla']);
+    expect(data('organizations/o1').memberUids).toContain('carla');
+    expect(data('chats/ch1').members).toEqual(['anna', 'carla']);
+    expect((await call('bruno', { uid: 'carla', action: 'mute' })).status).toBe(409);
+    expect((await call('bruno', { uid: 'anna', action: 'mute' })).status).toBe(403);
+
+    expect((await call('bruno', { uid: 'carla', action: 'unmute' })).status).toBe(200);
+    expect(data('organizations/o1').mutedUids).toEqual([]);
+  });
+
+  it('chi viene espulso esce anche dai silenziati', async () => {
+    await call('bruno', { uid: 'carla', action: 'mute' });
+    await call('bruno', { uid: 'carla', action: 'remove' });
+    expect(data('organizations/o1').mutedUids).toEqual([]);
+  });
+});

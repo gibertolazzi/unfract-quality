@@ -1063,7 +1063,16 @@
     "leaveConfirm": "You lose access to the organization’s projects, chats and files. Projects you created here move to the owner. You can only come back with a new invite.",
     "memberUpdated": "Done.",
     "memberActionError": "Something went wrong. Try again.",
-    "ownerBadge": "Owner"
+    "ownerBadge": "Owner",
+    "muted": "Muted",
+    "muteMember": "Mute in chats",
+    "muteMemberDesc": "They can still read, but can’t write in the organization’s project chats.",
+    "unmuteMember": "Unmute",
+    "unmuteMemberDesc": "They can write in the organization’s project chats again.",
+    "hideNotifications": "Hide their notifications",
+    "showNotifications": "Show their notifications again",
+    "hideNotificationsDesc": "Just for you: no notifications or emails caused by this person.",
+    "mutedInChat": "An organization admin has muted you in this chat."
   },
   "chat": {
     "title": "Team Chat",

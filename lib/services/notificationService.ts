@@ -1,5 +1,5 @@
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 
 export type NotificationType = 'task' | 'meeting' | 'transcript' | 'documentation' | 'organization' | 'access_request' | 'message';
 
@@ -17,6 +17,8 @@ export const createNotification = async (params: CreateNotificationParams) => {
     const notifRef = collection(db, 'notifications');
     await addDoc(notifRef, {
       ...params,
+      // Chi la manda: serve a chi ne nasconde le notifiche (impostazioni utente).
+      ...(auth.currentUser ? { senderId: auth.currentUser.uid } : {}),
       read: false,
       createdAt: serverTimestamp()
     });

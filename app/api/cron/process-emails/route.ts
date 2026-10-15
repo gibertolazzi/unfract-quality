@@ -10,6 +10,7 @@ type EmailType = 'assignment' | 'requester' | 'changes' | 'mention' | 'message';
 type QueueItem = QueuedNotification & {
   docId: string;
   recipientId: string;
+  senderId?: string;
   type: EmailType;
   createdAt: number;
   attempts: number;
@@ -147,6 +148,7 @@ async function handleCron(request: Request) {
         id: queueDoc.id,
         docId: queueDoc.id,
         recipientId: data.recipientId,
+        senderId: typeof data.senderId === 'string' ? data.senderId : undefined,
         type: data.type as EmailType,
         projectName: data.projectName || 'Unfract',
         taskTitle: data.taskTitle || '',
@@ -175,9 +177,12 @@ async function handleCron(request: Request) {
       const userData = userSnapshot.data();
       const settings = userData?.settings || {};
 
-      const skipped = items.filter(item => !preferenceEnabled(item.type, settings));
-      const exhausted = items.filter(item => preferenceEnabled(item.type, settings) && item.attempts >= MAX_ATTEMPTS);
-      const enabled = items.filter(item => preferenceEnabled(item.type, settings) && item.attempts < MAX_ATTEMPTS);
+      // Escluse dalle preferenze, o mandate da chi il destinatario ha nascosto.
+      const hidden = new Set(Array.isArray(settings.mutedUserIds) ? settings.mutedUserIds : []);
+      const wanted = (item: QueueItem) => preferenceEnabled(item.type, settings) && !(item.senderId && hidden.has(item.senderId));
+      const skipped = items.filter(item => !wanted(item));
+      const exhausted = items.filter(item => wanted(item) && item.attempts >= MAX_ATTEMPTS);
+      const enabled = items.filter(item => wanted(item) && item.attempts < MAX_ATTEMPTS);
       await updateAll(skipped.map(item => item.docId), done);
       await updateAll(exhausted.map(item => item.docId), { ...done, lastError: `Abandoned after ${MAX_ATTEMPTS} attempts` });
       processedCount += skipped.length + exhausted.length;
