@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, ChevronDown, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { parseSafeDate, safeFormatDistanceToNow } from '@/lib/dateUtils';
 import { it } from 'date-fns/locale';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -14,18 +14,22 @@ const priorityConfig = {
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { columnCategory } from '@/lib/taskWorkflow';
+import { StatusPicker } from '@/components/tasks/StatusPicker';
 
 export function TaskList({ 
   tasks, 
   columns, 
   onTaskClick, 
   onToggleDone,
+  onMove,
   membersMap 
 }: { 
   tasks: any[]; 
   columns: any[]; 
   onTaskClick: (task: any) => void; 
   onToggleDone: (task: any) => void;
+  /** «Sposta in» dal badge dello stato. */
+  onMove?: (task: any, columnId: string) => void;
   membersMap?: Map<string, { displayName: string; photoURL?: string }>;
 }) {
   const { user } = useAuth();
@@ -124,11 +128,8 @@ export function TaskList({
                   <span className={`text-[11px] font-medium ${priorityStyle.color}`}>{priorityLabels[task.priority] || t.tasks.priorityMedium}</span>
                 </div>
                 
-                {/* Status Dropdown Pill */}
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full border text-[11px] font-medium cursor-pointer transition-colors border-blue-500/50 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20">
-                  {col?.title || t.tasks.unknown}
-                  <ChevronDown size={12} />
-                </div>
+                {/* Stato, con «Sposta in» (transizioni del flusso) */}
+                <StatusPicker task={task} columns={columns} onMove={columnId => onMove?.(task, columnId)} disabled={!onMove} />
               </div>
               <div className="flex items-center gap-4 text-[11px] text-[#858585]">
                 <span>{t.tasks.created}{task.createdAt ? safeFormatDistanceToNow(task.createdAt, { addSuffix: true, locale: locale === 'it' ? it : undefined }, t.tasks.na) : t.tasks.na}</span>
