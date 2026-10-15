@@ -4,6 +4,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { activeMembers } from '@/lib/orgMembers';
 
 interface MentionDropdownProps {
   value: string;
@@ -29,7 +30,7 @@ export function MentionDropdown({ value, cursorPosition, onSelect, anchorRef, po
   useEffect(() => {
     const orgIds = activeProject?.organizationIds || [];
     const projectOrgs = organizations.filter(org => orgIds.includes(org.id));
-    const members = projectOrgs.flatMap(org => org.members || []).reduce((acc, current) => {
+    const members = projectOrgs.flatMap(org => activeMembers(org.members)).reduce((acc, current) => {
       const x = acc.find((item: any) => item.uid === current.uid);
       return !x ? acc.concat([current]) : acc;
     }, [] as any[]);

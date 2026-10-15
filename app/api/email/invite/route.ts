@@ -4,7 +4,8 @@ import { adminDb } from '@/lib/firebase-admin';
 import { getOrgInviteEmailHtml } from '@/lib/emailTemplates';
 import { requireUser } from '@/lib/server/auth';
 import { tooManyRequestsShared } from '@/lib/server/rateLimit';
-import { createOrgInvite, INVITE_TTL_MS, isOrgMember } from '@/lib/server/orgInvites';
+import { createOrgInvite, INVITE_TTL_MS } from '@/lib/server/orgInvites';
+import { isActiveOrgMember } from '@/lib/server/orgMembers';
 
 import { appUrl } from '@/lib/appUrl';
 export const runtime = 'nodejs';
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
   try {
     const orgSnapshot = await adminDb.collection('organizations').doc(orgId).get();
     const org = orgSnapshot.data();
-    if (!org || !isOrgMember(org, user.uid)) {
+    if (!org || !isActiveOrgMember(org, user.uid)) {
       return NextResponse.json({ error: 'Non fai parte di questa organizzazione.' }, { status: 403 });
     }
 

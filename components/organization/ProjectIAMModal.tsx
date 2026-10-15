@@ -10,6 +10,7 @@ import { assignUserRole, resolveAccessRequest } from '@/lib/services/iamService'
 import { Project } from '@/contexts/ProjectContext';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { Organization } from './types';
+import { activeMembers } from '@/lib/orgMembers';
 
 const MODULES: { id: AppModule; labelKey: 'crm' | 'tasks' | 'documentation' | 'settings' }[] = [
   { id: 'crm', labelKey: 'crm' },
@@ -64,7 +65,7 @@ export function ProjectIAMModal({ project, organization, onClose }: ProjectIAMMo
   }, [project.id, organization.id]);
 
   const projectUsers = useMemo(() => {
-    return organization.members || [];
+    return activeMembers(organization.members);
   }, [organization]);
 
   const handleCreateRole = async () => {

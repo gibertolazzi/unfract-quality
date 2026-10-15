@@ -25,6 +25,7 @@ import { OrgMember } from '@/types/organization';
 import { Project } from '@/contexts/ProjectContext';
 import { Folder } from 'lucide-react';
 import { TeamsSection } from './TeamsSection';
+import { activeMembers } from '@/lib/orgMembers';
 
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
   const { t } = useTranslation();
@@ -475,7 +476,7 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
 
       {/* TEAMS MODE: Show Teams / Squadre */}
       {org.structureMode === 'teams' && (
-        <TeamsSection workspaceId={org.id} workspaceMembers={org.members || []} />
+        <TeamsSection workspaceId={org.id} workspaceMembers={activeMembers(org.members)} />
       )}
 
       {/* CORPORATE MODE: Show Departments and Roles */}
@@ -522,9 +523,9 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
         </div>
 
         <div className="flex flex-wrap gap-4">
-          {org.members?.map((member, i) => (
+          {org.members?.map(member => (
             <MemberChip 
-              key={i} 
+              key={member.uid} 
               member={member} 
               orgId={org.id} 
               onClick={() => setIamMember(member)} 
@@ -636,7 +637,9 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
       
       {iamMember && (
         <MemberProfileModal 
-          member={iamMember} 
+          member={org.members?.find(m => m.uid === iamMember.uid) || iamMember} 
+          organization={org}
+          onMembersChange={update => setOrg(current => ({ ...current, ...update }))}
           onClose={() => setIamMember(null)} 
         />
       )}

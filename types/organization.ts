@@ -5,6 +5,9 @@ export interface OrgMember {
   photoURL?: string;
   initials: string;
   role: 'admin' | 'member';
+  /** Sospeso: resta nell'elenco ma non ha accesso (lib/server/orgMembers.ts). */
+  suspended?: boolean;
+  suspendedAt?: number;
 }
 
 export interface Organization {

@@ -274,7 +274,7 @@ describe('chat AI', () => {
 
 describe('collezioni del server', () => {
   it('chiuse al browser, anche a chi ha fatto il login', async () => {
-    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u', 'rate_limits/r']) {
+    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u', 'rate_limits/r', 'org_suspensions/o1_carla']) {
       await assertFails(getDoc(doc(anna(), path)));
       await assertFails(setDoc(doc(anna(), path), { x: 1 }));
     }
@@ -437,6 +437,22 @@ describe('fase 2: ogni azienda vede solo i propri dati', () => {
     await assertFails(setDoc(doc(bruno(), 'access_grants/g1_anna'), teamGrant));
     await assertFails(getDocs(query(collection(bruno(), 'workspace_groups'), where('workspaceId', '==', 'o1'))));
     await assertFails(addDoc(collection(bruno(), 'workspace_groups'), { name: 'x', workspaceId: 'o1' }));
+  });
+
+  it('un membro sospeso (in members ma non in memberUids) non vede organizzazione, progetti e chat', async () => {
+    await env.withSecurityRulesDisabled(async context => {
+      const admin = context.firestore();
+      await setDoc(doc(admin, 'organizations/o1'), {
+        name: 'Acme', ownerId: 'anna', memberUids: ['anna'],
+        members: [{ uid: 'anna', role: 'admin' }, { uid: 'carla', role: 'member', suspended: true }],
+      });
+      await setDoc(doc(admin, 'chats/ch1'), { projectId: 'po', type: 'group', members: ['anna'] });
+    });
+    await assertFails(getDoc(doc(carla(), 'organizations/o1')));
+    await assertFails(getDoc(doc(carla(), 'projects/po')));
+    await assertFails(getDoc(doc(carla(), 'workspaces/o1')));
+    await assertFails(getDoc(doc(carla(), 'chats/ch1')));
+    await assertFails(updateDoc(doc(anna(), 'organizations/o1'), { memberUids: ['anna', 'carla'] }));
   });
 
   it('le collezioni non previste sono chiuse', async () => {

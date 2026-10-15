@@ -21,6 +21,7 @@ import {
 
 import { LeadState } from '@/components/crm/constants';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { activeMembers } from '@/lib/orgMembers';
 
 const PRIVACY_POLICY_VERSION = '2026-09';
 const OPT_OUT_ADDRESS = 'privacy@unfract.com';
@@ -61,7 +62,7 @@ export default function CrmPage() {
     organizations
       .filter(org => projectOrgIds.length === 0 || projectOrgIds.includes(org.id))
       .forEach(org => {
-        (org.members || []).forEach(member => {
+        activeMembers(org.members).forEach(member => {
           map.set(member.uid, { uid: member.uid, name: member.displayName || member.email });
         });
       });

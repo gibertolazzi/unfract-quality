@@ -8,6 +8,7 @@ import { useProject } from '@/contexts/ProjectContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { activeMembers } from '@/lib/orgMembers';
 
 interface ChatSettingsModalProps {
   chat: Chat;
@@ -25,7 +26,7 @@ export function ChatSettingsModal({ chat, onClose }: ChatSettingsModalProps) {
   // Get project members
   const orgIds = activeProject?.organizationIds || [];
   const projectOrgs = organizations.filter(org => orgIds.includes(org.id));
-  const allMembers = projectOrgs.flatMap(org => org.members || []).reduce((acc, current) => {
+  const allMembers = projectOrgs.flatMap(org => activeMembers(org.members)).reduce((acc, current) => {
     const x = acc.find((item: any) => item.uid === current.uid);
     return !x ? acc.concat([current]) : acc;
   }, [] as any[]);
