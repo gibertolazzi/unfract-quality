@@ -31,6 +31,10 @@ export interface Column {
   projectId: string;
   /** Da fare, In corso, Completato (lib/taskWorkflow.ts); le colonne vecchie non l'hanno. */
   category?: 'todo' | 'progress' | 'done';
+  /** Colonne in cui non si passa da questa (lib/taskWorkflow.ts). */
+  blockedTargets?: string[];
+  /** Cosa serve per entrare in questa colonna. */
+  entryRules?: { assignee?: boolean; dueDate?: boolean; assigneeOnly?: boolean; adminOnly?: boolean };
 }
 
 export interface Epic {

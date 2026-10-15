@@ -23,7 +23,8 @@ import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { activeMembers } from '@/lib/orgMembers';
-import { firstColumnOf } from '@/lib/taskWorkflow';
+import { canTransition, firstColumnOf } from '@/lib/taskWorkflow';
+import { useWorkflowGuard } from '@/hooks/useWorkflowGuard';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200] bg-[#FF2200]/10',
@@ -51,6 +52,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
   const { organizations } = useOrganization();
   const { canWrite } = useIAM();
   const hasTasksWrite = canWrite('tasks');
+  const guard = useWorkflowGuard(columns);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -330,6 +332,16 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       }
       if (activeWorkspaceId) taskData.workspaceId = activeWorkspaceId;
 
+      // Transizioni e condizioni del flusso (lib/taskWorkflow.ts), con
+      // assegnatario e scadenza come stanno per essere salvati.
+      if (!onSaveLocal && columnId) {
+        const current = { columnId: isNew ? null : task.columnId, assigneeUid: taskData.assigneeUid, date: taskData.date };
+        if (!guard.check(current, columnId)) {
+          setIsSaving(false);
+          return;
+        }
+      }
+
       if (onSaveLocal) {
         onSaveLocal(taskData);
       } else {
@@ -485,9 +497,15 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                   className="max-w-[125px] shrink-0 appearance-none truncate rounded-full border border-blue-500/50 bg-blue-500/10 py-1.5 pl-3 pr-7 text-xs font-medium text-blue-400 outline-none cursor-pointer sm:max-w-[160px]"
                 >
                   <option value="" disabled className="bg-black text-[#858585]">{t.tasks.selectColumn}</option>
-                  {columns.map(col => (
-                    <option key={col.id} value={col.id} className="bg-black text-white">{col.title}</option>
-                  ))}
+                  {columns.map(col => {
+                    // Le colonne in cui da qui non si passa (transizioni del flusso).
+                    const blocked = !isNew && !onSaveLocal && !canTransition(columns, task.columnId, col.id);
+                    return (
+                      <option key={col.id} value={col.id} disabled={blocked} className="bg-black text-white">
+                        {col.title}{blocked ? ` · ${t.tasks.dropNotAllowed}` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>

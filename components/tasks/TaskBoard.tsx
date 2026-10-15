@@ -8,6 +8,7 @@ import { TaskList } from '@/components/tasks/TaskList';
 import { TaskTimeline } from '@/components/tasks/TaskTimeline';
 import { WorkflowModal } from '@/components/tasks/WorkflowModal';
 import { columnCategory, displayColumnId, firstColumnOf, toggleDoneTarget } from '@/lib/taskWorkflow';
+import { useWorkflowGuard } from '@/hooks/useWorkflowGuard';
 import { TaskService, ColumnService, EpicService } from '@/lib/services/taskService';
 import { useProject } from '@/contexts/ProjectContext';
 import { useSearchParams } from 'next/navigation';
@@ -127,6 +128,7 @@ export function TaskColumn({
   onNewTask,
   hasTasksWrite,
   canEditWorkflow,
+  dropBlock,
   membersMap
 }: { 
   column: any; 
@@ -140,8 +142,11 @@ export function TaskColumn({
   hasTasksWrite: boolean;
   /** Rinominare, spostare ed eliminare colonne: solo gli admin del progetto. */
   canEditWorkflow: boolean;
+  /** Mentre si trascina un'attività: perché qui non può entrare (regole del flusso). */
+  dropBlock?: string | null;
   membersMap?: Map<string, { displayName: string; photoURL?: string }>;
 }) {
+  const { t } = useTranslation();
   const category = columnCategory(column);
   return (
     <Draggable draggableId={column.id} index={index} isDragDisabled={!canEditWorkflow}>
@@ -187,15 +192,21 @@ export function TaskColumn({
             </div>
           </div>
           
-          <Droppable droppableId={column.id} type="task">
+          <Droppable droppableId={column.id} type="task" isDropDisabled={!!dropBlock}>
             {(provided, snapshot) => (
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className={`flex min-h-[500px] flex-col gap-4 rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
+                className={`relative flex min-h-[500px] flex-col gap-4 rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${dropBlock ? 'border-dashed border-red-500/30 opacity-60' : snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
+                title={dropBlock || undefined}
               >
-                {tasks.map((t, idx) => (
-                  <TaskCard key={t.id} task={t} index={idx} onClick={() => onTaskClick(t)} membersMap={membersMap} />
+                {dropBlock && (
+                  <div className="pointer-events-none sticky top-0 z-20 rounded-2xl border border-red-500/20 bg-black/80 px-3 py-2 text-center text-xs text-red-300">
+                    {t.tasks.dropNotAllowed} · {dropBlock}
+                  </div>
+                )}
+                {tasks.map((task, idx) => (
+                  <TaskCard key={task.id} task={task} index={idx} onClick={() => onTaskClick(task)} membersMap={membersMap} />
                 ))}
                 {provided.placeholder}
               </div>
@@ -221,6 +232,8 @@ export function TaskBoard() {
   const toolbarRef = useRef<HTMLDivElement>(null);
   // Finestra del flusso: aperta (null = chiusa), con l'eventuale colonna da eliminare.
   const [workflow, setWorkflow] = useState<{ deleteId: string | null } | null>(null);
+  // L'attività che si sta trascinando: le colonne dove non può entrare si spengono.
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   const { activeProjectId } = useProject();
   const { canRead, canWrite, loading: iamLoading } = useIAM();
   const searchParams = useSearchParams();
@@ -262,6 +275,13 @@ export function TaskBoard() {
   const hasTasksWrite = canWrite('tasks');
   // Il flusso di lavoro lo cambiano gli admin del progetto (permesso «Impostazioni»).
   const canEditWorkflow = canWrite('settings');
+  const guard = useWorkflowGuard(columns);
+  const draggingTask = draggingTaskId ? tasks.find(task => task.id === draggingTaskId) : null;
+  const dropBlockFor = (columnId: string) => {
+    if (!draggingTask || displayColumnId(draggingTask, columns) === columnId) return null;
+    const block = guard.blockOf(draggingTask, columnId);
+    return block ? guard.message(block, draggingTask, columnId) : null;
+  };
 
   useEffect(() => {
     const toolbar = toolbarRef.current;
@@ -325,7 +345,12 @@ export function TaskBoard() {
   // lì si sceglie dove spostare le attività (lib/taskWorkflow.ts).
   const deleteColumn = (columnId: string) => setWorkflow({ deleteId: columnId });
 
+  const onDragStart = (start: any) => {
+    if (start.type === 'task') setDraggingTaskId(start.draggableId);
+  };
+
   const onDragEnd = async (result: any) => {
+    setDraggingTaskId(null);
     const { destination, source, draggableId, type } = result;
 
     if (!destination) return;
@@ -362,6 +387,8 @@ export function TaskBoard() {
         
         await TaskService.batchUpdate(newTasks.map((task, index) => ({ id: task.id, order: index })));
       } else {
+        // Transizioni e condizioni del flusso (lib/taskWorkflow.ts).
+        if (!guard.check(draggedTask, destColId)) return;
         const sTasks = Array.from(sourceTasks);
         sTasks.splice(source.index, 1);
         
@@ -396,7 +423,7 @@ export function TaskBoard() {
   const toggleTaskDone = async (task: any) => {
     // In «Completato» o di nuovo in «Da fare», dalle categorie delle colonne.
     const target = toggleDoneTarget(task, columns);
-    if (!target) return;
+    if (!target || !guard.check(task, target.columnId)) return;
     await TaskService.update(task.id, {
       columnId: target.columnId,
       completedAt: target.done ? new Date().toISOString() : null
@@ -470,7 +497,7 @@ export function TaskBoard() {
       </div>
       
       {activeView === 'board' && (
-        <DragDropContext onDragEnd={onDragEnd}>
+        <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
           <Droppable droppableId="board" direction="horizontal" type="column">
             {(provided) => (
               <div 
@@ -492,6 +519,7 @@ export function TaskBoard() {
                       index={index} 
                       hasTasksWrite={hasTasksWrite}
                       canEditWorkflow={canEditWorkflow}
+                      dropBlock={dropBlockFor(col.id)}
                       onTaskClick={setSelectedTask}
                       onColumnTitleChange={handleColumnTitleChange}
                       onColumnTitleBlur={handleColumnTitleBlur}

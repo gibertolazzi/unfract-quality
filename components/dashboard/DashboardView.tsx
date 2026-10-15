@@ -15,6 +15,7 @@ import { subscribeToEvents } from "@/lib/calendar";
 import { authedFetch } from "@/lib/authedFetch";
 import { myDashboardTasks, taskStatus } from "@/lib/dashboardTasks";
 import { toggleDoneTarget } from "@/lib/taskWorkflow";
+import { useWorkflowGuard } from "@/hooks/useWorkflowGuard";
 
 interface DashboardEvent {
   id: string;
@@ -39,6 +40,7 @@ export function DashboardView() {
 
   const [tasks, setTasks] = useState<any[]>([]);
   const [columns, setColumns] = useState<any[]>([]);
+  const guard = useWorkflowGuard(columns);
   const [events, setEvents] = useState<DashboardEvent[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
   const [notes, setNotes] = useState("");
@@ -236,7 +238,8 @@ export function DashboardView() {
     // (lib/taskWorkflow.ts). Prima cercava le colonne per nome e, senza
     // «Done», spostava l'attività nell'ultima colonna, qualunque fosse.
     const target = toggleDoneTarget(task, columns);
-    if (target) {
+    // Transizioni e condizioni del flusso: se non si può, dice perché.
+    if (target && guard.check(task, target.columnId)) {
       try {
         await updateDoc(doc(db, "tasks", task.id), {
           columnId: target.columnId,

@@ -343,6 +343,24 @@ describe('fase 2: ogni azienda vede solo i propri dati', () => {
     await assertFails(outsider.commit());
   });
 
+  it('un modello di flusso si applica in un\'unica scrittura (ColumnService.applyTemplate)', async () => {
+    await env.withSecurityRulesDisabled(async context => {
+      const admin = context.firestore();
+      await setDoc(doc(admin, 'columns/riusata'), { title: 'To Do', order: 0, projectId: 'po', category: 'todo' });
+      await setDoc(doc(admin, 'columns/in-piu'), { title: 'Archivio', order: 1, projectId: 'po', category: 'todo' });
+      await updateDoc(doc(admin, 'tasks/t1'), { columnId: 'in-piu' });
+    });
+    const db = carla();
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'columns/riusata'), { title: 'Backlog', category: 'todo', order: 0, blockedTargets: ['nuova'], entryRules: {} });
+    batch.set(doc(db, 'columns/nuova'), { title: 'Completato', category: 'done', order: 1, blockedTargets: [], entryRules: { assignee: true }, projectId: 'po' });
+    batch.update(doc(db, 'tasks/t1'), { columnId: 'riusata', order: 0 });
+    batch.delete(doc(db, 'columns/in-piu'));
+    await assertSucceeds(batch.commit());
+    const other = bruno();
+    await assertFails(setDoc(doc(other, 'columns/intrusa'), { title: 'x', order: 9, projectId: 'po' }));
+  });
+
   it('un task non si sposta in un progetto di altri', async () => {
     await assertFails(updateDoc(doc(carla(), 'tasks/t1'), { projectId: 'p1' }));
   });
