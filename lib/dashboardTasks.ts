@@ -8,12 +8,12 @@
  * assegnate ad altri con `assigneeUid`.
  */
 
-export type TaskStatus = 'todo' | 'progress' | 'done';
+import { taskStatus, type ColumnCategory, type WorkflowColumn } from '@/lib/taskWorkflow';
 
-interface ColumnLike {
-  id: string;
-  title?: string;
-}
+/** Lo stato viene dalla categoria della colonna (lib/taskWorkflow.ts). */
+export { taskStatus };
+export type TaskStatus = ColumnCategory;
+type ColumnLike = WorkflowColumn;
 
 interface TaskLike {
   id: string;
@@ -27,14 +27,6 @@ interface TaskLike {
 interface UserLike {
   uid: string;
   displayName?: string | null;
-}
-
-/** Lo stato dipende dal nome della colonna in cui si trova la task. */
-export function taskStatus(task: Pick<TaskLike, 'columnId'>, columns: ColumnLike[]): TaskStatus {
-  const title = columns.find(c => c.id === task.columnId)?.title?.toLowerCase() || '';
-  if (title.includes('done') || title.includes('fatto') || title.includes('completato')) return 'done';
-  if (title.includes('progress') || title.includes('lavorazione') || title.includes('doing')) return 'progress';
-  return 'todo';
 }
 
 /** Assegnata all'utente: per ID, oppure (task vecchie, senza ID) per nome. */

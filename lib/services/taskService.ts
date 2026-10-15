@@ -14,6 +14,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { Task, Column, Epic } from '@/types/tasks';
+import type { ColumnCategory } from '@/lib/taskWorkflow';
 import { queueNotification, QueuedEmailType } from '@/lib/queueNotification';
 import { deleteStoredFile } from '@/lib/usage';
 
@@ -229,16 +230,26 @@ export const ColumnService = {
     });
   },
 
-  async create(projectId: string, title: string, order: number) {
-    return await addDoc(collection(db, 'columns'), { title, order, projectId });
+  async create(projectId: string, title: string, order: number, category: ColumnCategory = 'todo') {
+    return await addDoc(collection(db, 'columns'), { title, order, projectId, category });
   },
 
   async update(columnId: string, updates: Partial<Column>) {
     return await updateDoc(doc(db, 'columns', columnId), updates);
   },
 
-  async delete(columnId: string) {
-    return await deleteDoc(doc(db, 'columns', columnId));
+  /**
+   * Elimina una colonna spostando prima le sue attività in un'altra, in
+   * un'unica scrittura. Prima le attività restavano legate a una colonna che
+   * non c'era più: sparivano dalla bacheca e in Panoramica contavano come da
+   * fare.
+   */
+  async deleteAndMoveTasks(columnId: string, targetColumnId: string, taskIds: string[], startOrder: number) {
+    if (taskIds.length > 450) throw new Error('Troppe attività da spostare in una volta.');
+    const batch = writeBatch(db);
+    taskIds.forEach((id, i) => batch.update(doc(db, 'tasks', id), { columnId: targetColumnId, order: startOrder + i }));
+    batch.delete(doc(db, 'columns', columnId));
+    return await batch.commit();
   },
 
   async batchUpdateOrder(updates: { id: string; order: number }[]) {

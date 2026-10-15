@@ -6,6 +6,7 @@ import { CustomPrompt } from '@/components/shared/CustomPrompt';
 
 import { useProject } from '@/contexts/ProjectContext';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { taskStatus } from '@/lib/taskWorkflow';
 
 const priorityConfig = {
   High: { color: 'text-[#FF2200]', border: 'border-[#FF2200]', bg: 'bg-[#FF2200]/10' },
@@ -62,7 +63,7 @@ export function TaskTimeline({
         if (!isNaN(start) && start < minTime) minTime = start;
         
         let end = new Date().getTime(); // if not done, active up to today
-        const isDone = columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
+        const isDone = taskStatus(task, columns) === 'done';
         if (isDone && task.completedAt) {
           end = task.completedAt.toDate ? task.completedAt.toDate().getTime() : new Date(task.completedAt).getTime();
         }
@@ -118,7 +119,7 @@ export function TaskTimeline({
       let start = task.createdAt?.toDate ? task.createdAt.toDate().getTime() : new Date(task.createdAt).getTime();
       if (isNaN(start)) start = timelineStart;
       
-      const isDone = columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
+      const isDone = taskStatus(task, columns) === 'done';
       let end = new Date().getTime(); // if not done, active up to today
       if (isDone && task.completedAt) {
         end = task.completedAt.toDate ? task.completedAt.toDate().getTime() : new Date(task.completedAt).getTime();
@@ -181,7 +182,7 @@ export function TaskTimeline({
             const isExpanded = expandedEpics.includes(epic.id);
             const epicTasks = tasks.filter(task => task.epicId === epic.id);
             
-            const doneTasks = epicTasks.filter(task => columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done');
+            const doneTasks = epicTasks.filter(task => taskStatus(task, columns) === 'done');
             const progress = epicTasks.length > 0 ? (doneTasks.length / epicTasks.length) * 100 : 0;
             
             return (
@@ -204,7 +205,7 @@ export function TaskTimeline({
                   <div className="flex flex-col gap-2 mt-2">
                     {epicTasks.length === 0 && <span className="text-xs text-[#858585] italic px-2">{t.tasks.noTaskInEpic}</span>}
                     {epicTasks.map(task => {
-                      const isDone = columns.find(c => c.id === task.columnId)?.title.toLowerCase() === 'done';
+                      const isDone = taskStatus(task, columns) === 'done';
                       const pStyle = getPriorityStyle(task.priority);
                       
                       return (

@@ -324,6 +324,25 @@ describe('fase 2: ogni azienda vede solo i propri dati', () => {
     await assertFails(getDocs(collection(anna(), 'workspaces')));
   });
 
+  it('eliminare una colonna sposta le sue attività nella stessa scrittura (WorkflowModal)', async () => {
+    await env.withSecurityRulesDisabled(async context => {
+      const admin = context.firestore();
+      await setDoc(doc(admin, 'columns/da-togliere'), { title: 'Vecchia', order: 3, projectId: 'po' });
+      await setDoc(doc(admin, 'columns/destinazione'), { title: 'Da fare', order: 0, projectId: 'po', category: 'todo' });
+      await updateDoc(doc(admin, 'tasks/t1'), { columnId: 'da-togliere' });
+    });
+    await assertSucceeds(addDoc(collection(carla(), 'columns'), { title: 'Revisione', order: 4, projectId: 'po', category: 'progress' }));
+    const db = carla();
+    const batch = writeBatch(db);
+    batch.update(doc(db, 'tasks/t1'), { columnId: 'destinazione', order: 0 });
+    batch.delete(doc(db, 'columns/da-togliere'));
+    await assertSucceeds(batch.commit());
+    const other = bruno();
+    const outsider = writeBatch(other);
+    outsider.delete(doc(other, 'columns/destinazione'));
+    await assertFails(outsider.commit());
+  });
+
   it('un task non si sposta in un progetto di altri', async () => {
     await assertFails(updateDoc(doc(carla(), 'tasks/t1'), { projectId: 'p1' }));
   });

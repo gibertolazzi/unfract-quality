@@ -14,6 +14,7 @@ import { collection, query, where, onSnapshot } from "firebase/firestore";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useTranslation } from "@/contexts/TranslationContext";
+import { taskStatus } from '@/lib/taskWorkflow';
 
 export function AiHubView() {
   const { user } = useAuth();
@@ -79,11 +80,12 @@ export function AiHubView() {
   }, [activeProjectId]);
 
   const isTaskCompleted = (task: any) => {
-    const columnTitle = columns.find(column => column.id === task.columnId)?.title?.trim().toLowerCase();
+    // Con una colonna, decide la sua categoria (lib/taskWorkflow.ts): un
+    // `completedAt` rimasto da prima non basta.
+    if (columns.some(column => column.id === task.columnId)) return taskStatus(task, columns) === 'done';
     const status = String(task.status || '').trim().toLowerCase();
     return task.completed === true || task.isDone === true || Boolean(task.completedAt) ||
-      status === 'done' || status === 'completed' || status === 'fatto' || status === 'completato' ||
-      ['done', 'completed', 'fatto', 'completato'].includes(columnTitle || '');
+      status === 'done' || status === 'completed' || status === 'fatto' || status === 'completato';
   };
   const actionableTasks = tasks.filter(task => !isTaskCompleted(task));
   const isEn = locale === 'en';

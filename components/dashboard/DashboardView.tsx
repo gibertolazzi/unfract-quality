@@ -14,6 +14,7 @@ import { useTranslation } from "@/contexts/TranslationContext";
 import { subscribeToEvents } from "@/lib/calendar";
 import { authedFetch } from "@/lib/authedFetch";
 import { myDashboardTasks, taskStatus } from "@/lib/dashboardTasks";
+import { toggleDoneTarget } from "@/lib/taskWorkflow";
 
 interface DashboardEvent {
   id: string;
@@ -231,30 +232,15 @@ export function DashboardView() {
     e.preventDefault();
     e.stopPropagation();
     
-    const currentStatus = getTaskStatus(task);
-    
-    // Find target column
-    let targetColId = null;
-    if (currentStatus === "done") {
-      // Move to "To Do"
-      const todoCol = columns.find(c => {
-        const title = c.title?.toLowerCase() || "";
-        return title.includes("to do") || title.includes("todo") || title.includes("da fare");
-      });
-      targetColId = todoCol?.id || columns[0]?.id;
-    } else {
-      // Move to "Done"
-      const doneCol = columns.find(c => {
-        const title = c.title?.toLowerCase() || "";
-        return title.includes("done") || title.includes("fatto") || title.includes("completato");
-      });
-      targetColId = doneCol?.id || columns[columns.length - 1]?.id;
-    }
-
-    if (targetColId && targetColId !== task.columnId) {
+    // In «Completato» o di nuovo in «Da fare», dalle categorie delle colonne
+    // (lib/taskWorkflow.ts). Prima cercava le colonne per nome e, senza
+    // «Done», spostava l'attività nell'ultima colonna, qualunque fosse.
+    const target = toggleDoneTarget(task, columns);
+    if (target) {
       try {
         await updateDoc(doc(db, "tasks", task.id), {
-          columnId: targetColId
+          columnId: target.columnId,
+          completedAt: target.done ? new Date().toISOString() : null,
         });
       } catch (error) {
         console.error("Error updating task status:", error);
