@@ -90,13 +90,19 @@ const nextConfig = {
   // unfract-prod, anche dall'ambiente di prova.
   async rewrites() {
     const projectId = firebaseWeb.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    if (!projectId) return [];
-    return [
+    const rewrites = [
       {
-        source: '/__/auth/:path*',
-        destination: `https://${projectId}.firebaseapp.com/__/auth/:path*`,
+        source: '/.well-known/microsoft-identity-association',
+        destination: '/.well-known/microsoft-identity-association.json',
       },
     ];
+    if (projectId) {
+      rewrites.push({
+        source: '/__/auth/:path*',
+        destination: `https://${projectId}.firebaseapp.com/__/auth/:path*`,
+      });
+    }
+    return rewrites;
   },
 };
 
