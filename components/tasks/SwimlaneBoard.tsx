@@ -4,10 +4,11 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Droppable } from '@hello-pangea/dnd';
 import { TaskCard } from '@/components/tasks/TaskCard';
-import { STATUS_STYLE } from '@/components/tasks/StatusPicker';
+import { StatusDot } from '@/components/tasks/StatusPicker';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { cellId } from '@/lib/boardFilters';
-import { columnCategory, displayColumnId } from '@/lib/taskWorkflow';
+import { displayColumnId } from '@/lib/taskWorkflow';
+import { columnColor } from '@/lib/statusColors';
 
 /**
  * Bacheca a corsie (lib/boardFilters.ts): una riga per assegnatario, epic o
@@ -36,7 +37,7 @@ export function SwimlaneBoard({ columns, lanes, onTaskClick, onMove, dropBlockFo
       <div className="sticky top-0 z-20 flex gap-4 bg-black/90 pb-3 backdrop-blur sm:gap-8">
         {columns.map(column => (
           <div key={column.id} className={`${width} flex items-center gap-2 px-2`}>
-            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_STYLE[columnCategory(column)].dot}`} />
+            <StatusDot color={columnColor(column)} className="h-2.5 w-2.5" />
             <span className="truncate text-lg font-bold text-white">{column.title}</span>
           </div>
         ))}

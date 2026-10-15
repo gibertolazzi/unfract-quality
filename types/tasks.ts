@@ -35,6 +35,8 @@ export interface Column {
   blockedTargets?: string[];
   /** Cosa serve per entrare in questa colonna. */
   entryRules?: { assignee?: boolean; dueDate?: boolean; assigneeOnly?: boolean; adminOnly?: boolean };
+  /** Colore scelto (lib/statusColors.ts); assente = quello della categoria. */
+  color?: string | null;
 }
 
 export interface Epic {

@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { canTransition, columnCategory, sortColumns, type ColumnCategory, type WorkflowColumn } from '@/lib/taskWorkflow';
+import { canTransition, sortColumns, type WorkflowColumn } from '@/lib/taskWorkflow';
+import { columnColor } from '@/lib/statusColors';
 
 /**
  * Schema del flusso, come quello di Jira: le colonne in fila, una freccia
@@ -13,7 +14,6 @@ import { canTransition, columnCategory, sortColumns, type ColumnCategory, type W
 const NODE_W = 120;
 const NODE_H = 36;
 const GAP = 44;
-const STROKE: Record<ColumnCategory, string> = { todo: '#858585', progress: '#FFB800', done: '#10B981' };
 
 interface WorkflowDiagramProps {
   columns: (WorkflowColumn & { title: string })[];
@@ -89,7 +89,7 @@ export function WorkflowDiagram({ columns, fromAnyLabel }: WorkflowDiagramProps)
                 <line x1={pill(i)} y1={top - 12} x2={pill(i)} y2={top - 1} stroke="#4D9BFF" strokeWidth={1.5} markerEnd="url(#wf-arrow)" />
               </g>
             )}
-            <rect x={x(i)} y={top} width={NODE_W} height={NODE_H} rx={10} fill="#111" stroke={STROKE[columnCategory(column)]} strokeWidth={1.5} />
+            <rect x={x(i)} y={top} width={NODE_W} height={NODE_H} rx={10} fill="#111" stroke={columnColor(column)} strokeWidth={1.5} />
             <text x={cx(i)} y={top + NODE_H / 2 + 4} textAnchor="middle" fontSize="12" fill="#fff">
               {column.title.length > 16 ? `${column.title.slice(0, 15)}…` : column.title}
             </text>
