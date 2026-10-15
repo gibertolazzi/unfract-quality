@@ -13,6 +13,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
 import { deleteStoredFile } from '@/lib/usage';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { formatMessage } from '@/lib/i18n/formatMessage';
+import { activeMembers } from '@/lib/orgMembers';
 
 export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   const { chats, activeChatId, setActiveChatId, isLoadingChats, unreadCounts } = useChat();
@@ -24,7 +25,7 @@ export function ChatSidebar({ onCloseMobile }: { onCloseMobile?: () => void }) {
   // Get project members
   const orgIds = activeProject?.organizationIds || [];
   const projectOrgs = organizations.filter(org => orgIds.includes(org.id));
-  const members = projectOrgs.flatMap(org => org.members || []).reduce((acc, current) => {
+  const members = projectOrgs.flatMap(org => activeMembers(org.members)).reduce((acc, current) => {
     const x = acc.find((item: any) => item.uid === current.uid);
     return !x ? acc.concat([current]) : acc;
   }, [] as any[]);

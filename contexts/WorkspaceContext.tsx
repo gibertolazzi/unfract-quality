@@ -87,12 +87,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         
         // Per ogni workspaceId, fetch i dettagli del Workspace
         // Nota: se un utente ha decine di workspace, andrebbe fatto a chunk.
-        const wsPromises = workspaceIds.map(id => getDoc(doc(db, 'workspaces', id)));
+        // Uno che non si può leggere (es. organizzazione da cui si è stati
+        // tolti, finché l'accesso non sparisce) non blocca gli altri.
+        const wsPromises = workspaceIds.map(id => getDoc(doc(db, 'workspaces', id)).catch(() => null));
         const wsDocs = await Promise.all(wsPromises);
         
         const loadedWorkspaces: Workspace[] = [];
         wsDocs.forEach(d => {
-          if (d.exists()) {
+          if (d?.exists()) {
             const workspace = { id: d.id, ...d.data() } as Workspace;
             loadedWorkspaces.push(workspace);
             // Le quote mancanti le completa il server al primo consumo (lib/server/usage.ts).

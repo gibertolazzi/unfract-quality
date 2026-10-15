@@ -1,10 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ShieldAlert, Folder, ShieldCheck } from 'lucide-react';
+import { X, ShieldAlert, Folder, ShieldCheck, Loader2, UserMinus, UserCheck, UserX, LogOut, Shield } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
-import { OrgMember } from '@/types/organization';
+import { Organization, OrgMember } from '@/types/organization';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
+import { useToast } from '@/contexts/ToastContext';
+import { authedFetch } from '@/lib/authedFetch';
+import { formatMessage } from '@/lib/i18n/formatMessage';
 import { ProjectMemberAccess, CustomRole, AppModule, PermissionLevel } from '@/types/iam';
 import { useProject } from '@/contexts/ProjectContext';
 import { useTranslation } from '@/contexts/TranslationContext';
@@ -16,13 +22,74 @@ const MODULES: { id: AppModule; labelKey: 'crm' | 'tasks' | 'documentation' | 's
   { id: 'settings', labelKey: 'settings' }
 ];
 
+type MemberAction = 'remove' | 'suspend' | 'reactivate' | 'role';
+
 interface MemberProfileModalProps {
   member: OrgMember;
+  organization: Organization;
+  /** Membri aggiornati dal server dopo un'azione. */
+  onMembersChange: (update: Pick<Organization, 'members' | 'memberCount'> & { memberUids: string[] }) => void;
   onClose: () => void;
 }
 
-export function MemberProfileModal({ member, onClose }: MemberProfileModalProps) {
+export function MemberProfileModal({ member, organization, onMembersChange, onClose }: MemberProfileModalProps) {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const dialog = useDialog();
+  const toast = useToast();
+  const router = useRouter();
+  const [busy, setBusy] = useState<MemberAction | null>(null);
+
+  // Stesse regole del server (lib/server/orgMembers.ts): nessuno tocca il
+  // proprietario; gli admin gestiscono i membri, solo il proprietario gli
+  // admin e i ruoli; ognuno può uscire da solo.
+  const me = user?.uid || '';
+  const isOwner = organization.ownerId === me;
+  const iAmAdmin = isOwner || organization.members?.some(m => m.uid === me && m.role === 'admin' && !m.suspended);
+  const isTargetOwner = member.uid === organization.ownerId;
+  const isSelf = member.uid === me;
+  const canManage = !isSelf && !isTargetOwner && !!iAmAdmin && (member.role !== 'admin' || isOwner);
+  const canChangeRole = !isSelf && !isTargetOwner && isOwner;
+  const canLeave = isSelf && !isTargetOwner;
+
+  const runAction = async (action: MemberAction, role?: 'admin' | 'member') => {
+    const name = action === 'remove' && isSelf ? organization.name : member.displayName;
+    const confirm = action === 'remove'
+      ? { title: isSelf ? t.organization.leaveConfirmTitle : t.organization.removeConfirmTitle, message: isSelf ? t.organization.leaveConfirm : t.organization.removeConfirm }
+      : action === 'suspend'
+        ? { title: t.organization.suspendConfirmTitle, message: t.organization.suspendConfirm }
+        : null;
+    if (confirm) {
+      const ok = await dialog.confirm({
+        title: formatMessage(confirm.title, { name }),
+        message: confirm.message,
+        confirmText: action === 'suspend' ? t.organization.suspendMember : isSelf ? t.organization.leaveOrg : t.organization.removeMember,
+        isDestructive: true,
+      });
+      if (!ok) return;
+    }
+
+    setBusy(action);
+    try {
+      const response = await authedFetch('/api/organizations/members', {
+        method: 'POST',
+        body: JSON.stringify({ orgId: organization.id, uid: member.uid, action, role }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || t.organization.memberActionError);
+      toast.success(t.organization.memberUpdated);
+      if (action === 'remove' && isSelf) {
+        router.push('/organization');
+        return;
+      }
+      onMembersChange({ members: data.members, memberUids: data.memberUids, memberCount: data.memberCount });
+      if (action === 'remove') onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t.organization.memberActionError);
+    } finally {
+      setBusy(null);
+    }
+  };
   const { projects } = useProject();
   const [accesses, setAccesses] = useState<(ProjectMemberAccess & { projectName: string; roleName: string })[]>([]);
   const [loading, setLoading] = useState(true);
@@ -129,7 +196,10 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
             </div>
             <div>
               <h2 className="text-xl font-bold text-white">{member.displayName}</h2>
-              <p className="text-[#858585] text-sm">{member.email} • {member.role === 'admin' ? t.organization.admin : t.organization.member}</p>
+              <p className="text-[#858585] text-sm">
+                {member.email} • {isTargetOwner ? t.organization.ownerBadge : member.role === 'admin' ? t.organization.admin : t.organization.member}
+                {member.suspended && <span className="ml-2 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-xs">{t.organization.suspended}</span>}
+              </p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 bg-white/5 rounded-full text-[#858585] hover:text-white transition-colors">
@@ -273,6 +343,60 @@ export function MemberProfileModal({ member, onClose }: MemberProfileModalProps)
               </div>
             )}
           </div>
+
+          {(canManage || canChangeRole || canLeave) && (
+            <div className="mt-6 border-t border-white/10 pt-6 flex flex-col gap-2">
+              <h3 className="text-white font-medium mb-2">{t.organization.memberSettings}</h3>
+
+              {canChangeRole && !member.suspended && (
+                <button
+                  onClick={() => runAction('role', member.role === 'admin' ? 'member' : 'admin')}
+                  disabled={!!busy}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-colors disabled:opacity-50 bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  {busy === 'role' ? <Loader2 size={16} className="animate-spin" /> : <Shield size={16} className="text-[#006AFF]" />}
+                  {member.role === 'admin' ? t.organization.makeMember : t.organization.makeAdmin}
+                </button>
+              )}
+
+              {canManage && (member.suspended ? (
+                <button
+                  onClick={() => runAction('reactivate')}
+                  disabled={!!busy}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-colors disabled:opacity-50 bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  {busy === 'reactivate' ? <Loader2 size={16} className="animate-spin" /> : <UserCheck size={16} className="text-emerald-400" />}
+                  {t.organization.reactivateMember}
+                </button>
+              ) : (
+                <button
+                  onClick={() => runAction('suspend')}
+                  disabled={!!busy}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-colors disabled:opacity-50 bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  {busy === 'suspend' ? <Loader2 size={16} className="animate-spin" /> : <UserMinus size={16} className="text-amber-400" />}
+                  <span className="flex flex-col">
+                    <span>{t.organization.suspendMember}</span>
+                    <span className="text-xs text-[#858585]">{t.organization.suspendMemberDesc}</span>
+                  </span>
+                </button>
+              ))}
+
+              {(canManage || canLeave) && (
+                <button
+                  onClick={() => runAction('remove')}
+                  disabled={!!busy}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-colors disabled:opacity-50 bg-red-500/5 border-red-500/20 text-red-400 hover:bg-red-500/10"
+                >
+                  {busy === 'remove' ? <Loader2 size={16} className="animate-spin" /> : canLeave ? <LogOut size={16} /> : <UserX size={16} />}
+                  <span className="flex flex-col">
+                    <span>{canLeave ? t.organization.leaveOrg : t.organization.removeMember}</span>
+                    <span className="text-xs text-[#858585]">{canLeave ? t.organization.leaveOrgDesc : t.organization.removeMemberDesc}</span>
+                  </span>
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
       </div>

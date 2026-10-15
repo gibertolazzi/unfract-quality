@@ -22,6 +22,7 @@ import { useTranslation } from '@/contexts/TranslationContext';
 import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { activeMembers } from '@/lib/orgMembers';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200] bg-[#FF2200]/10',
@@ -101,7 +102,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
     organizations
       .filter(org => projectOrgIds.length === 0 || projectOrgIds.includes(org.id) || org.id === activeProject?.workspaceId)
       .forEach(org => {
-        (org.members || []).forEach(member => {
+        activeMembers(org.members).forEach(member => {
           map.set(member.uid, {
             uid: member.uid,
             displayName: member.displayName || member.email,
@@ -113,7 +114,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
 
     if (map.size === 0) {
       organizations.forEach(org => {
-        (org.members || []).forEach(member => {
+        activeMembers(org.members).forEach(member => {
           map.set(member.uid, {
             uid: member.uid,
             displayName: member.displayName || member.email,

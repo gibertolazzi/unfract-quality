@@ -6,6 +6,7 @@ import { UserAvatar } from '@/components/shared/UserAvatar';
 import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useProject } from '@/contexts/ProjectContext';
+import { useTranslation } from '@/contexts/TranslationContext';
 
 interface MemberChipProps {
   member: OrgMember;
@@ -15,6 +16,7 @@ interface MemberChipProps {
 
 export function MemberChip({ member, orgId, onClick }: MemberChipProps) {
   const { projects } = useProject();
+  const { t } = useTranslation();
   const [roleLabel, setRoleLabel] = useState<string>(member.role === 'admin' ? 'Admin' : 'Member');
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export function MemberChip({ member, orgId, onClick }: MemberChipProps) {
   return (
     <div 
       onClick={onClick}
-      className="flex items-center justify-between min-w-[180px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all cursor-pointer"
+      className={`flex items-center justify-between min-w-[180px] h-[64px] bg-[#0E0E0E] rounded-[24px] border border-white/10 px-4 hover:border-white/20 transition-all cursor-pointer ${member.suspended ? 'opacity-60' : ''}`}
     >
       <div className="flex items-center gap-3">
         <UserAvatar
@@ -70,7 +72,7 @@ export function MemberChip({ member, orgId, onClick }: MemberChipProps) {
         />
         <div className="flex flex-col">
           <span className="text-[14px] text-white font-medium">{member.displayName}</span>
-          <span className="text-[11px] text-[#858585] capitalize line-clamp-1">{roleLabel}</span>
+          <span className={`text-[11px] capitalize line-clamp-1 ${member.suspended ? 'text-amber-400' : 'text-[#858585]'}`}>{member.suspended ? t.organization.suspended : roleLabel}</span>
         </div>
       </div>
     </div>
