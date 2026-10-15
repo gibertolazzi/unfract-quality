@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { PlusCircle, Plus, Layout, List, CalendarDays, GripVertical, Settings2 } from 'lucide-react';
+import { PlusCircle, Plus, Layout, List, CalendarDays, GripVertical, Settings2, ChevronDown } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { TaskList } from '@/components/tasks/TaskList';
@@ -55,8 +55,8 @@ export function TaskColumn({
   tasks: any[]; 
   index: number; 
   onTaskClick: (task: any) => void; 
-  onColumnTitleChange: (id: string, newTitle: string) => void;
-  onColumnTitleBlur: (id: string, title: string) => void;
+  onColumnTitleChange: (id: string, newTitle: string) => void; 
+  onColumnTitleBlur: (id: string, title: string) => void; 
   /** Dal menu ⋯: apre il flusso di lavoro su questa colonna. */
   onColumnAction: (action: 'rules' | 'transitions' | 'delete', columnId: string) => void;
   onCategory: (columnId: string, category: ColumnCategory) => void;
@@ -78,7 +78,7 @@ export function TaskColumn({
         <div 
           ref={provided.innerRef}
           {...provided.draggableProps}
-          className={`flex h-fit w-[min(380px,calc(100vw-3rem))] min-w-[280px] shrink-0 flex-col gap-4 sm:min-w-[340px] sm:gap-6 ${snapshot.isDragging ? 'opacity-80' : ''}`}
+          className={`flex h-fit w-[calc(100vw-3.75rem)] max-w-[340px] min-w-[260px] shrink-0 flex-col gap-3 sm:w-[340px] sm:min-w-[340px] lg:w-[360px] sm:gap-6 ${snapshot.isDragging ? 'opacity-80' : ''}`}
         >
           <div className="flex flex-col gap-2 relative group px-2">
             <div className="flex items-center justify-between">
@@ -97,9 +97,9 @@ export function TaskColumn({
                   onBlur={() => onColumnTitleBlur(column.id, column.title)}
                   onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                   readOnly={!canEditWorkflow}
-                  className={`min-w-0 text-xl font-bold text-white font-sans bg-transparent outline-none w-full mr-2 ${canEditWorkflow ? 'focus:border-b focus:border-white/20' : ''}`}
+                  className={`min-w-0 text-lg sm:text-xl font-bold text-white font-sans bg-transparent outline-none w-full mr-2 ${canEditWorkflow ? 'focus:border-b focus:border-white/20' : ''}`}
                 />
-                <span className="mr-2 shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-white/60">{tasks.length}</span>
+                <span className="mr-2 shrink-0 rounded-full bg-white/10 px-2 py-0.5 text-[10px] sm:text-[11px] text-white/60">{tasks.length}</span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 {hasTasksWrite && (
@@ -128,7 +128,7 @@ export function TaskColumn({
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className={`relative flex min-h-[500px] flex-col gap-4 rounded-[32px] border bg-[#0C0C0C] p-3 transition-colors sm:p-5 ${dropBlock ? 'border-dashed border-red-500/30 opacity-60' : snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
+                className={`relative flex min-h-[360px] flex-col gap-3 rounded-2xl border bg-[#0C0C0C] p-2.5 transition-colors sm:min-h-[500px] sm:gap-4 sm:rounded-[32px] sm:p-5 ${dropBlock ? 'border-dashed border-red-500/30 opacity-60' : snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
                 title={dropBlock || undefined}
               >
                 {dropBlock && (
@@ -191,13 +191,16 @@ function AddColumnCard({ onAdd }: { onAdd: (title: string, category: ColumnCateg
         placeholder={t.tasks.newColumnTitle}
         className="rounded-lg border border-white/10 bg-transparent px-3 py-2 text-sm text-white outline-none placeholder:text-[#555] focus:border-white/25"
       />
-      <select
-        value={category}
-        onChange={e => setCategory(e.target.value as ColumnCategory)}
-        className="rounded-lg border border-white/10 bg-[#111] px-2 py-1.5 text-xs text-white outline-none"
-      >
-        {COLUMN_CATEGORIES.map(c => <option key={c} value={c}>{categoryLabel[c]}</option>)}
-      </select>
+      <div className="relative">
+        <select
+          value={category}
+          onChange={e => setCategory(e.target.value as ColumnCategory)}
+          className="w-full appearance-none rounded-lg border border-white/10 bg-[#111] pl-3 pr-8 py-1.5 text-xs text-white outline-none focus:border-white/25 cursor-pointer"
+        >
+          {COLUMN_CATEGORIES.map(c => <option key={c} value={c} className="bg-[#141414] text-white">{categoryLabel[c]}</option>)}
+        </select>
+        <ChevronDown size={12} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-white/50" />
+      </div>
       <div className="flex justify-end gap-2">
         <button type="button" onClick={close} className="rounded-full px-3 py-1.5 text-xs text-white/60 hover:bg-white/5 hover:text-white">{t.tasks.cancel}</button>
         <button
@@ -550,44 +553,57 @@ export function TaskBoard() {
     <div className="flex h-full min-h-0 flex-col font-sans">
       <div className="relative z-10 mb-4 mt-2 min-w-0 shrink-0 sm:mb-8">
         <div ref={toolbarRef} className="flex w-full min-w-0 items-center justify-between gap-1 sm:gap-3">
-        <nav className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+        <nav className="flex shrink-0 items-center gap-1 sm:gap-2">
           <button 
             onClick={() => setActiveView('board')} 
             aria-label={t.tasks.board}
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            title={t.tasks.board}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-2 md:gap-2 md:px-4 md:text-[14px] ${activeView === 'board' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
-            <Layout size={16} />
-            {!compactViews && <span className="whitespace-nowrap">{t.tasks.board}</span>}
+            <Layout size={16} className="shrink-0" />
+            {!compactViews && <span className="hidden sm:inline whitespace-nowrap">{t.tasks.board}</span>}
           </button>
           <button 
             onClick={() => setActiveView('tasklist')} 
             aria-label={t.tasks.tasklist}
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            title={t.tasks.tasklist}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-2 md:gap-2 md:px-4 md:text-[14px] ${activeView === 'tasklist' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
-            <List size={16} />
-            {!compactViews && <span className="whitespace-nowrap">{t.tasks.tasklist}</span>}
+            <List size={16} className="shrink-0" />
+            {!compactViews && <span className="hidden sm:inline whitespace-nowrap">{t.tasks.tasklist}</span>}
           </button>
           <button 
             onClick={() => setActiveView('timeline')} 
             aria-label={t.tasks.timeline}
-            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2 py-2 text-xs font-medium transition-colors md:gap-2 md:px-4 md:text-[14px] ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
+            title={t.tasks.timeline}
+            className={`flex shrink-0 items-center gap-1.5 rounded-xl px-2.5 py-2 text-xs font-medium transition-colors sm:px-3 sm:py-2 md:gap-2 md:px-4 md:text-[14px] ${activeView === 'timeline' ? 'bg-[#0D6EFD]/50 text-white' : 'text-[#858585] hover:text-white hover:bg-white/5'}`}
           >
-            <CalendarDays size={16} />
-            {!compactViews && <span className="whitespace-nowrap">{t.tasks.timeline}</span>}
+            <CalendarDays size={16} className="shrink-0" />
+            {!compactViews && <span className="hidden sm:inline whitespace-nowrap">{t.tasks.timeline}</span>}
           </button>
         </nav>
         
         <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-1.5 sm:gap-3">
           {hasTasksWrite && (
-            <>
-              <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 ${compactActions ? 'p-2' : 'px-4 py-2'}`}>
-                <PlusCircle size={16} className="text-[#00A6FF]" />{!compactActions && <span className="whitespace-nowrap">{t.tasks.newTask}</span>}
-              </button>
-            </>
+            <button 
+              onClick={() => openNewTaskModal()} 
+              aria-label={t.tasks.newTask} 
+              title={t.tasks.newTask} 
+              className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-[#003B80] bg-[#002451] text-xs sm:text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 ${compactActions ? 'p-2' : 'p-2 sm:px-4 sm:py-2'}`}
+            >
+              <PlusCircle size={16} className="shrink-0 text-[#00A6FF]" />
+              {!compactActions && <span className="hidden sm:inline whitespace-nowrap">{t.tasks.newTask}</span>}
+            </button>
           )}
           {canEditWorkflow && (
-            <button onClick={() => setWorkflow({})} aria-label={t.tasks.manageWorkflow} title={t.tasks.manageWorkflow} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white ${compactActions ? 'p-2' : 'px-4 py-2'}`}>
-              <Settings2 size={16} />{!compactActions && <span className="whitespace-nowrap">{t.tasks.workflowShort}</span>}
+            <button 
+              onClick={() => setWorkflow({})} 
+              aria-label={t.tasks.manageWorkflow} 
+              title={t.tasks.manageWorkflow} 
+              className={`flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-white/10 text-xs sm:text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white ${compactActions ? 'p-2' : 'p-2 sm:px-4 sm:py-2'}`}
+            >
+              <Settings2 size={16} className="shrink-0" />
+              {!compactActions && <span className="hidden sm:inline whitespace-nowrap">{t.tasks.workflowShort}</span>}
             </button>
           )}
         </div>
@@ -627,7 +643,7 @@ export function TaskBoard() {
               <div 
                 ref={provided.innerRef}
                 {...provided.droppableProps}
-                className="flex min-h-0 flex-1 items-start gap-4 overflow-auto pb-2 sm:gap-8 sm:pb-4"
+                className="flex min-h-0 flex-1 items-start gap-3.5 sm:gap-6 md:gap-8 overflow-x-auto overflow-y-hidden pb-3 sm:pb-4 scroll-smooth"
               >
                 {columns.map((col, index) => {
                   // Un'attività senza una colonna valida compare nella prima «Da fare».

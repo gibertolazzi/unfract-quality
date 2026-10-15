@@ -77,8 +77,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       />
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <TopBar onMenuClick={() => setIsMobileMenuOpen(true)} />
-        <main className="flex-1 min-h-0 p-3 md:p-6 pt-0 overflow-hidden relative">
-          <div className={`w-full h-full min-h-0 bg-black/20 rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-4 md:p-8 ${isChatRoute ? 'overflow-hidden' : 'overflow-y-auto'} ${isLocked ? 'filter blur-sm opacity-50 select-none' : ''}`}>
+        <main className="flex-1 min-h-0 p-2.5 sm:p-3 md:p-6 pt-0 overflow-hidden relative">
+          <div className={`w-full h-full min-h-0 bg-black/20 rounded-[18px] sm:rounded-[20px] md:rounded-[31px] border border-[#1A1A1A] p-3 sm:p-4 md:p-8 ${isChatRoute ? 'overflow-hidden' : 'overflow-y-auto overflow-x-hidden'} ${isLocked ? 'filter blur-sm opacity-50 select-none' : ''}`}>
             {children}
           </div>
 

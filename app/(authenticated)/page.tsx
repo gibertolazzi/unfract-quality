@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 export default function UnfractPage() {
   return (
-    <div className="h-full">
+    <div className="h-full w-full min-w-0">
       <TaskBoard />
     </div>
   );

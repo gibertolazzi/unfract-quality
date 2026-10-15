@@ -30,15 +30,15 @@ export function SwimlaneBoard({ columns, lanes, onTaskClick, onMove, dropBlockFo
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
-  const width = 'w-[min(380px,calc(100vw-3rem))] min-w-[280px] shrink-0 sm:min-w-[340px]';
+  const width = 'w-[calc(100vw-3.75rem)] max-w-[340px] min-w-[260px] shrink-0 sm:w-[340px] sm:min-w-[340px] lg:w-[360px]';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-auto pb-4">
-      <div className="sticky top-0 z-20 flex gap-4 bg-black/90 pb-3 backdrop-blur sm:gap-8">
+    <div className="flex min-h-0 flex-1 flex-col overflow-auto pb-4 scroll-smooth">
+      <div className="sticky top-0 z-20 flex gap-3.5 sm:gap-6 md:gap-8 bg-black/90 pb-3 backdrop-blur">
         {columns.map(column => (
           <div key={column.id} className={`${width} flex items-center gap-2 px-2`}>
             <StatusDot color={columnColor(column)} className="h-2.5 w-2.5" />
-            <span className="truncate text-lg font-bold text-white">{column.title}</span>
+            <span className="truncate text-base sm:text-lg font-bold text-white">{column.title}</span>
           </div>
         ))}
       </div>
@@ -58,7 +58,7 @@ export function SwimlaneBoard({ columns, lanes, onTaskClick, onMove, dropBlockFo
               <span className="rounded-full bg-white/10 px-2 text-[11px] text-white/60">{lane.tasks.length}</span>
             </button>
             {open && (
-              <div className="flex gap-4 sm:gap-8">
+              <div className="flex gap-3.5 sm:gap-6 md:gap-8">
                 {columns.map(column => {
                   const cellTasks = lane.tasks
                     .filter(task => displayColumnId(task, columns) === column.id)
@@ -71,7 +71,7 @@ export function SwimlaneBoard({ columns, lanes, onTaskClick, onMove, dropBlockFo
                           ref={provided.innerRef}
                           {...provided.droppableProps}
                           title={block || undefined}
-                          className={`${width} flex min-h-[120px] flex-col gap-3 rounded-[24px] border bg-[#0C0C0C] p-3 transition-colors ${block ? 'border-dashed border-red-500/30 opacity-60' : snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
+                          className={`${width} flex min-h-[120px] flex-col gap-3 rounded-2xl sm:rounded-[24px] border bg-[#0C0C0C] p-2.5 sm:p-3 transition-colors ${block ? 'border-dashed border-red-500/30 opacity-60' : snapshot.isDraggingOver ? 'border-white/10 bg-[#111]' : 'border-white/5'}`}
                         >
                           {block && (
                             <div className="pointer-events-none rounded-xl border border-red-500/20 bg-black/80 px-3 py-1.5 text-center text-[11px] text-red-300">

@@ -72,7 +72,7 @@ export function TaskList({
           <div 
             key={task.id}
             onClick={() => onTaskClick(task)}
-            className="relative overflow-hidden flex items-center justify-between p-4 bg-black border border-white/5 rounded-2xl hover:border-white/10 hover:bg-white/5 cursor-pointer transition-colors w-full group"
+            className="relative overflow-hidden flex flex-col sm:flex-row sm:items-center justify-between p-3.5 sm:p-4 bg-black border border-white/5 rounded-2xl hover:border-white/10 hover:bg-white/5 cursor-pointer transition-colors w-full group gap-3 sm:gap-4"
           >
             {/* Animated Blobs */}
             <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden rounded-2xl">
@@ -82,24 +82,24 @@ export function TaskList({
             </div>
 
             {/* Left side */}
-            <div className="relative z-10 flex flex-col gap-3">
-              <div className="flex items-center gap-3">
+            <div className="relative z-10 flex flex-col gap-2.5 sm:gap-3">
+              <div className="flex items-center gap-2.5 sm:gap-3">
                 <button 
                   onClick={(e) => { e.stopPropagation(); onToggleDone(task); }}
                   className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 transition-colors ${isDone ? 'bg-[#006AFF] border-[#006AFF]' : 'border-white/20 bg-transparent hover:border-[#006AFF]'}`}
                 >
                   {isDone && <Check size={14} className="text-white" />}
                 </button>
-                <span className="text-[#006AFF] font-medium text-sm">[{index + 1}]</span>
-                <h3 className={`text-white text-base ${isDone ? 'line-through opacity-50' : ''}`}>{task.title || t.tasks.untitled}</h3>
+                <span className="text-[#006AFF] font-medium text-xs sm:text-sm">[{index + 1}]</span>
+                <h3 className={`text-white text-sm sm:text-base font-medium ${isDone ? 'line-through opacity-50' : ''}`}>{task.title || t.tasks.untitled}</h3>
               </div>
               
-              <div className="flex items-center gap-6 ml-8">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-6 ml-7 sm:ml-8">
                 <div className="flex items-center gap-2">
                   <UserAvatar
                     src={requesterPhoto}
                     name={requesterName}
-                    className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
                     imageClassName="w-full h-full object-cover"
                   />
                   <span className="text-white/70 text-xs">{requesterName} <span className="text-[#858585]">(R)</span></span>
@@ -109,7 +109,7 @@ export function TaskList({
                   <UserAvatar
                     src={assigneePhoto}
                     name={assigneeName}
-                    className="w-6 h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-600 overflow-hidden border border-black shrink-0 flex items-center justify-center text-[10px] text-white font-bold"
                     imageClassName="w-full h-full object-cover"
                   />
                   <span className="text-white/70 text-xs">{assigneeName} <span className="text-[#858585]">(A)</span></span>
@@ -118,20 +118,20 @@ export function TaskList({
             </div>
 
             {/* Right side */}
-            <div className="relative z-10 flex flex-col items-end gap-3 shrink-0">
-              <div className="flex items-center gap-3">
+            <div className="relative z-10 flex flex-wrap sm:flex-col items-start sm:items-end justify-between sm:justify-start gap-2.5 sm:gap-3 shrink-0 pt-2 sm:pt-0 border-t border-white/5 sm:border-0">
+              <div className="flex items-center gap-2 sm:gap-3">
                 {/* Priority Pill */}
-                <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border ${priorityStyle.border} ${priorityStyle.bg}`}>
+                <div className={`flex items-center gap-1.5 px-2.5 py-0.5 sm:px-3 sm:py-1 rounded-full border ${priorityStyle.border} ${priorityStyle.bg}`}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={priorityStyle.color}>
                     <path d={priorityStyle.icon} />
                   </svg>
-                  <span className={`text-[11px] font-medium ${priorityStyle.color}`}>{priorityLabels[task.priority] || t.tasks.priorityMedium}</span>
+                  <span className={`text-[10px] sm:text-[11px] font-medium ${priorityStyle.color}`}>{priorityLabels[task.priority] || t.tasks.priorityMedium}</span>
                 </div>
                 
                 {/* Stato, con «Sposta in» (transizioni del flusso) */}
                 <StatusPicker task={task} columns={columns} onMove={columnId => onMove?.(task, columnId)} disabled={!onMove} />
               </div>
-              <div className="flex items-center gap-4 text-[11px] text-[#858585]">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-[10px] sm:text-[11px] text-[#858585]">
                 <span>{t.tasks.created}{task.createdAt ? safeFormatDistanceToNow(task.createdAt, { addSuffix: true, locale: locale === 'it' ? it : undefined }, t.tasks.na) : t.tasks.na}</span>
                 <span>{t.tasks.updated}{task.updatedAt ? safeFormatDistanceToNow(task.updatedAt, { addSuffix: true, locale: locale === 'it' ? it : undefined }, t.tasks.na) : t.tasks.na}</span>
                 <span>{t.tasks.deadline}<strong className={`font-medium ${(() => { const d = parseSafeDate(task.date); return d && d < new Date() && !isDone; })() ? 'text-red-500' : 'text-white'}`}>{task.date || t.tasks.na}</strong></span>
