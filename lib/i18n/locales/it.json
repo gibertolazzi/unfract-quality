@@ -268,7 +268,20 @@
     "lanesEpic": "Corsie: epic",
     "lanesPriority": "Corsie: priorità",
     "laneMe": "{name} (tu)",
-    "noFilteredTasks": "Nessuna attività con questi filtri."
+    "noFilteredTasks": "Nessuna attività con questi filtri.",
+    "columnColor": "Colore",
+    "columnColorAuto": "Automatico",
+    "colorNames": {
+      "red": "Rosso",
+      "orange": "Arancione",
+      "amber": "Giallo",
+      "green": "Verde",
+      "teal": "Verde acqua",
+      "blue": "Blu",
+      "purple": "Viola",
+      "pink": "Rosa",
+      "grey": "Grigio"
+    }
   },
   "calendar": {
     "untitled": "Senza titolo",

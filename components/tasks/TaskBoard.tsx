@@ -9,7 +9,8 @@ import { TaskTimeline } from '@/components/tasks/TaskTimeline';
 import { WorkflowModal, type WorkflowTab } from '@/components/tasks/WorkflowModal';
 import { TaskCard } from '@/components/tasks/TaskCard';
 import { ColumnMenu } from '@/components/tasks/ColumnMenu';
-import { STATUS_STYLE } from '@/components/tasks/StatusPicker';
+import { StatusDot } from '@/components/tasks/StatusPicker';
+import { columnColor } from '@/lib/statusColors';
 import { SwimlaneBoard } from '@/components/tasks/SwimlaneBoard';
 import { BoardFilterBar } from '@/components/tasks/BoardFilterBar';
 import {
@@ -41,6 +42,7 @@ export function TaskColumn({
   onColumnTitleBlur, 
   onColumnAction,
   onCategory,
+  onColor,
   onNewTask,
   onMove,
   hasTasksWrite,
@@ -58,6 +60,7 @@ export function TaskColumn({
   /** Dal menu ⋯: apre il flusso di lavoro su questa colonna. */
   onColumnAction: (action: 'rules' | 'transitions' | 'delete', columnId: string) => void;
   onCategory: (columnId: string, category: ColumnCategory) => void;
+  onColor: (columnId: string, color: string | null) => void;
   onNewTask: (colId: string) => void;
   onMove: (task: any, columnId: string) => void;
   hasTasksWrite: boolean;
@@ -69,7 +72,6 @@ export function TaskColumn({
 }) {
   const { t } = useTranslation();
   const titleRef = useRef<HTMLInputElement>(null);
-  const category = columnCategory(column);
   return (
     <Draggable draggableId={column.id} index={index} isDragDisabled={!canEditWorkflow}>
       {(provided, snapshot) => (
@@ -87,7 +89,7 @@ export function TaskColumn({
                 >
                   <GripVertical size={20} className="text-[#858585] hover:text-white" />
                 </div>
-                <span className={`mr-2 h-2.5 w-2.5 shrink-0 rounded-full ${STATUS_STYLE[category].dot}`} />
+                <span className="mr-2 flex"><StatusDot color={columnColor(column)} className="h-2.5 w-2.5" /></span>
                 <input 
                   ref={titleRef}
                   value={column.title}
@@ -112,6 +114,7 @@ export function TaskColumn({
                   onNewTask={() => onNewTask(column.id)}
                   onRename={() => { titleRef.current?.focus(); titleRef.current?.select(); }}
                   onCategory={(next) => onCategory(column.id, next)}
+                  onColor={(color) => onColor(column.id, color)}
                   onRules={() => onColumnAction('rules', column.id)}
                   onTransitions={() => onColumnAction('transitions', column.id)}
                   onDelete={() => onColumnAction('delete', column.id)}
@@ -393,6 +396,15 @@ export function TaskBoard() {
     }
   };
 
+  const changeColumnColor = async (columnId: string, color: string | null) => {
+    try {
+      await ColumnService.update(columnId, { color });
+    } catch (error) {
+      console.error('Color change failed:', error);
+      toast.error(t.tasks.workflowSaveError);
+    }
+  };
+
   const addColumn = async (title: string, category: ColumnCategory) => {
     if (!activeProjectId) return false;
     try {
@@ -638,6 +650,7 @@ export function TaskBoard() {
                       onColumnTitleBlur={handleColumnTitleBlur}
                       onColumnAction={columnAction}
                       onCategory={changeColumnCategory}
+                      onColor={changeColumnColor}
                       onNewTask={openNewTaskModal}
                       onMove={moveTask}
                       membersMap={membersMap}

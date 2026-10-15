@@ -44,6 +44,8 @@ export interface WorkflowColumn {
   /** Colonne in cui non si passa da questa. */
   blockedTargets?: string[];
   entryRules?: EntryRules;
+  /** Colore scelto (lib/statusColors.ts); assente = quello della categoria. */
+  color?: string | null;
 }
 
 interface WorkflowTask {

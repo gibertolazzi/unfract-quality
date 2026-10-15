@@ -268,7 +268,20 @@
     "lanesEpic": "Swimlanes: epic",
     "lanesPriority": "Swimlanes: priority",
     "laneMe": "{name} (you)",
-    "noFilteredTasks": "No tasks match these filters."
+    "noFilteredTasks": "No tasks match these filters.",
+    "columnColor": "Colour",
+    "columnColorAuto": "Automatic",
+    "colorNames": {
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "green": "Green",
+      "teal": "Teal",
+      "blue": "Blue",
+      "purple": "Purple",
+      "pink": "Pink",
+      "grey": "Grey"
+    }
   },
   "calendar": {
     "untitled": "Untitled",

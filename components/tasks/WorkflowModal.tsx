@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom';
 import { X, ArrowUp, ArrowDown, Trash2, Plus, Loader2, ShieldCheck } from 'lucide-react';
 import { ColumnService } from '@/lib/services/taskService';
 import { WorkflowDiagram } from '@/components/tasks/WorkflowDiagram';
+import { StatusDot } from '@/components/tasks/StatusPicker';
+import { CATEGORY_COLORS, columnColor } from '@/lib/statusColors';
 import { planTemplate, planWriteCount, WORKFLOW_TEMPLATES, type TemplatePlan, type WorkflowTemplate } from '@/lib/workflowTemplates';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useToast } from '@/contexts/ToastContext';
@@ -36,12 +38,6 @@ interface WorkflowModalProps {
   initialRulesId?: string | null;
   onClose: () => void;
 }
-
-const DOT: Record<ColumnCategory, string> = {
-  todo: 'bg-[#858585]',
-  progress: 'bg-[#FFB800]',
-  done: 'bg-[#10B981]',
-};
 
 export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, initialTab, initialRulesId, onClose }: WorkflowModalProps) {
   const { t, locale } = useTranslation();
@@ -234,7 +230,7 @@ export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, init
                         <ArrowDown size={14} />
                       </button>
                     </div>
-                    <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[category]}`} />
+                    <StatusDot color={columnColor(column)} className="h-2.5 w-2.5" />
                     <input
                       value={titles[column.id] ?? column.title}
                       onChange={e => setTitles(prev => ({ ...prev, [column.id]: e.target.value }))}
@@ -386,7 +382,7 @@ export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, init
                 <div key={from.id} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 text-sm font-medium text-white">
-                      <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${DOT[columnCategory(from)]}`} />
+                      <StatusDot color={columnColor(from)} className="h-2.5 w-2.5" />
                       {formatMessage(t.tasks.transitionsFrom, { name: from.title })}
                     </div>
                     {(from.blockedTargets || []).length > 0 && (
@@ -440,7 +436,7 @@ export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, init
                           <React.Fragment key={c.key}>
                             {i > 0 && <span className="text-[10px] text-[#555]">→</span>}
                             <span className="flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 text-[11px] text-white/80">
-                              <span className={`h-1.5 w-1.5 rounded-full ${DOT[c.category]}`} />
+                              <StatusDot color={CATEGORY_COLORS[c.category]} className="h-1.5 w-1.5" />
                               {c.title[locale === 'en' ? 'en' : 'it']}
                             </span>
                           </React.Fragment>

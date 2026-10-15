@@ -5,19 +5,20 @@ import { ChevronDown } from 'lucide-react';
 import { FloatingMenu, MenuItem, MenuLabel } from '@/components/tasks/FloatingMenu';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useWorkflowGuard } from '@/hooks/useWorkflowGuard';
-import { canTransition, columnCategory, displayColumnId, sortColumns, type ColumnCategory, type WorkflowColumn } from '@/lib/taskWorkflow';
+import { canTransition, displayColumnId, sortColumns, type WorkflowColumn } from '@/lib/taskWorkflow';
+import { badgeStyle, columnColor } from '@/lib/statusColors';
 
 /**
- * Lo stato di un'attività come badge colorato per categoria, con il menu
+ * Lo stato di un'attività come badge del colore della colonna
+ * (lib/statusColors.ts), con il menu
  * «Sposta in» come in Jira: solo le colonne raggiungibili; quelle dove manca
  * una condizione si vedono spente con il motivo.
  */
 
-export const STATUS_STYLE: Record<ColumnCategory, { badge: string; dot: string }> = {
-  todo: { badge: 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10', dot: 'bg-[#858585]' },
-  progress: { badge: 'border-[#FFB800]/40 bg-[#FFB800]/10 text-[#FFCC4D] hover:bg-[#FFB800]/20', dot: 'bg-[#FFB800]' },
-  done: { badge: 'border-[#10B981]/40 bg-[#10B981]/10 text-[#34D399] hover:bg-[#10B981]/20', dot: 'bg-[#10B981]' },
-};
+/** Pallino del colore di uno stato. */
+export function StatusDot({ color, className = 'h-2 w-2' }: { color: string; className?: string }) {
+  return <span className={`shrink-0 rounded-full ${className}`} style={{ backgroundColor: color }} />;
+}
 
 type PickerTask = { columnId?: string | null; assigneeUid?: string | null; date?: unknown };
 
@@ -36,7 +37,7 @@ export function StatusPicker({ task, columns, value, onMove, disabled, compact }
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const currentId = value ?? displayColumnId(task, columns);
   const current = columns.find(c => c.id === currentId);
-  const style = STATUS_STYLE[columnCategory(current)];
+  const color = columnColor(current);
   const options = sortColumns(columns).filter(c => c.id !== currentId && (c.id === task.columnId || canTransition(columns, task.columnId, c.id)));
 
   return (
@@ -48,9 +49,10 @@ export function StatusPicker({ task, columns, value, onMove, disabled, compact }
         aria-haspopup="menu"
         aria-expanded={!!anchor}
         title={t.tasks.moveTo}
-        className={`flex max-w-[180px] shrink-0 items-center gap-1.5 rounded-full border font-medium transition-colors disabled:cursor-default ${compact ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]'} ${style.badge}`}
+        style={badgeStyle(color)}
+        className={`flex max-w-[180px] shrink-0 items-center gap-1.5 rounded-full border font-medium transition-[filter] hover:brightness-125 disabled:cursor-default disabled:hover:brightness-100 ${compact ? 'px-2 py-0.5 text-[10px]' : 'px-3 py-1 text-[11px]'}`}
       >
-        <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${style.dot}`} />
+        <StatusDot color={color} className="h-1.5 w-1.5" />
         <span className="truncate">{current?.title || t.tasks.unknown}</span>
         {!disabled && <ChevronDown size={12} className="shrink-0" />}
       </button>
@@ -68,7 +70,7 @@ export function StatusPicker({ task, columns, value, onMove, disabled, compact }
                 title={reason}
                 onClick={() => { setAnchor(null); onMove(column.id); }}
               >
-                <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_STYLE[columnCategory(column)].dot}`} />
+                <StatusDot color={columnColor(column)} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate">{column.title}</span>
                   {reason && <span className="block text-[10px] leading-tight text-amber-400/90">{reason}</span>}
