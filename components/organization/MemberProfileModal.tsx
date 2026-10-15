@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, ShieldAlert, Folder, ShieldCheck, Loader2, UserMinus, UserCheck, UserX, LogOut, Shield } from 'lucide-react';
+import { X, ShieldAlert, Folder, ShieldCheck, Loader2, UserMinus, UserCheck, UserX, LogOut, Shield, MessageSquareOff, MessageSquare, BellOff, Bell } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { collection, query, where, onSnapshot, getDoc, doc, setDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
@@ -22,19 +22,19 @@ const MODULES: { id: AppModule; labelKey: 'crm' | 'tasks' | 'documentation' | 's
   { id: 'settings', labelKey: 'settings' }
 ];
 
-type MemberAction = 'remove' | 'suspend' | 'reactivate' | 'role';
+type MemberAction = 'remove' | 'suspend' | 'reactivate' | 'role' | 'mute' | 'unmute';
 
 interface MemberProfileModalProps {
   member: OrgMember;
   organization: Organization;
   /** Membri aggiornati dal server dopo un'azione. */
-  onMembersChange: (update: Pick<Organization, 'members' | 'memberCount'> & { memberUids: string[] }) => void;
+  onMembersChange: (update: Pick<Organization, 'members' | 'memberCount' | 'mutedUids'> & { memberUids: string[] }) => void;
   onClose: () => void;
 }
 
 export function MemberProfileModal({ member, organization, onMembersChange, onClose }: MemberProfileModalProps) {
   const { t } = useTranslation();
-  const { user } = useAuth();
+  const { user, settings, updateSettings } = useAuth();
   const dialog = useDialog();
   const toast = useToast();
   const router = useRouter();
@@ -51,6 +51,25 @@ export function MemberProfileModal({ member, organization, onMembersChange, onCl
   const canManage = !isSelf && !isTargetOwner && !!iAmAdmin && (member.role !== 'admin' || isOwner);
   const canChangeRole = !isSelf && !isTargetOwner && isOwner;
   const canLeave = isSelf && !isTargetOwner;
+  const isMuted = !!organization.mutedUids?.includes(member.uid);
+  // Personale: vale solo per chi lo attiva (AuthContext, `settings.mutedUserIds`).
+  const hiddenSenders = settings?.mutedUserIds || [];
+  const notificationsHidden = hiddenSenders.includes(member.uid);
+  const [savingHidden, setSavingHidden] = useState(false);
+
+  const toggleHiddenNotifications = async () => {
+    setSavingHidden(true);
+    try {
+      await updateSettings({
+        mutedUserIds: notificationsHidden ? hiddenSenders.filter(uid => uid !== member.uid) : [...hiddenSenders, member.uid],
+      });
+      toast.success(t.organization.memberUpdated);
+    } catch {
+      toast.error(t.organization.memberActionError);
+    } finally {
+      setSavingHidden(false);
+    }
+  };
 
   const runAction = async (action: MemberAction, role?: 'admin' | 'member') => {
     const name = action === 'remove' && isSelf ? organization.name : member.displayName;
@@ -82,7 +101,7 @@ export function MemberProfileModal({ member, organization, onMembersChange, onCl
         router.push('/organization');
         return;
       }
-      onMembersChange({ members: data.members, memberUids: data.memberUids, memberCount: data.memberCount });
+      onMembersChange({ members: data.members, memberUids: data.memberUids, memberCount: data.memberCount, mutedUids: data.mutedUids });
       if (action === 'remove') onClose();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : t.organization.memberActionError);
@@ -199,6 +218,7 @@ export function MemberProfileModal({ member, organization, onMembersChange, onCl
               <p className="text-[#858585] text-sm">
                 {member.email} • {isTargetOwner ? t.organization.ownerBadge : member.role === 'admin' ? t.organization.admin : t.organization.member}
                 {member.suspended && <span className="ml-2 px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-400 text-xs">{t.organization.suspended}</span>}
+                {isMuted && <span className="ml-2 px-2 py-0.5 rounded-md bg-white/10 text-[#BBBBBB] text-xs">{t.organization.muted}</span>}
               </p>
             </div>
           </div>
@@ -344,7 +364,7 @@ export function MemberProfileModal({ member, organization, onMembersChange, onCl
             )}
           </div>
 
-          {(canManage || canChangeRole || canLeave) && (
+          {(canManage || canChangeRole || canLeave || !isSelf) && (
             <div className="mt-6 border-t border-white/10 pt-6 flex flex-col gap-2">
               <h3 className="text-white font-medium mb-2">{t.organization.memberSettings}</h3>
 
@@ -381,6 +401,38 @@ export function MemberProfileModal({ member, organization, onMembersChange, onCl
                   </span>
                 </button>
               ))}
+
+              {canManage && !member.suspended && (
+                <button
+                  onClick={() => runAction(isMuted ? 'unmute' : 'mute')}
+                  disabled={!!busy}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-colors disabled:opacity-50 bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  {busy === 'mute' || busy === 'unmute'
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : isMuted ? <MessageSquare size={16} className="text-emerald-400" /> : <MessageSquareOff size={16} className="text-amber-400" />}
+                  <span className="flex flex-col">
+                    <span>{isMuted ? t.organization.unmuteMember : t.organization.muteMember}</span>
+                    <span className="text-xs text-[#858585]">{isMuted ? t.organization.unmuteMemberDesc : t.organization.muteMemberDesc}</span>
+                  </span>
+                </button>
+              )}
+
+              {!isSelf && (
+                <button
+                  onClick={toggleHiddenNotifications}
+                  disabled={savingHidden}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-sm text-left transition-colors disabled:opacity-50 bg-white/5 border-white/10 text-white hover:bg-white/10"
+                >
+                  {savingHidden
+                    ? <Loader2 size={16} className="animate-spin" />
+                    : notificationsHidden ? <Bell size={16} className="text-emerald-400" /> : <BellOff size={16} className="text-[#858585]" />}
+                  <span className="flex flex-col">
+                    <span>{notificationsHidden ? t.organization.showNotifications : t.organization.hideNotifications}</span>
+                    <span className="text-xs text-[#858585]">{t.organization.hideNotificationsDesc}</span>
+                  </span>
+                </button>
+              )}
 
               {(canManage || canLeave) && (
                 <button

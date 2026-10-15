@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Menu, Search, Bell, Clock, Timer, Hourglass, Play, Pause, RotateCcw, Calendar, CheckSquare, Video, FileText, Loader2, Users, Circle, Settings, Mic, Square, ExternalLink, Activity } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useClock } from '@/contexts/ClockContext';
@@ -32,6 +32,7 @@ type Notification = {
   createdAt: any;
   link?: string;
   userId?: string;
+  senderId?: string;
 };
 
 const UsagePreviewIcon = ({ aiPercentage = 0, storagePercentage = 0 }: { aiPercentage?: number, storagePercentage?: number }) => {
@@ -210,7 +211,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     return () => unsubscribe();
   }, [user]);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  // Senza quelle mandate da chi l'utente ha nascosto (impostazioni utente).
+  const hiddenSenders = settings?.mutedUserIds;
+  const visibleNotifications = useMemo(
+    () => notifications.filter(n => !n.senderId || !hiddenSenders?.includes(n.senderId)),
+    [notifications, hiddenSenders],
+  );
+  const unreadCount = visibleNotifications.filter(n => !n.read).length;
 
   const handleNotificationClick = async (id: string, link?: string) => {
     try {
@@ -740,7 +747,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                 <div className="p-4 border-b border-white/5 flex items-center justify-between">
                   <span className="text-sm font-semibold text-white">{t.topbar.notifications}</span>
                   <div className="flex items-center gap-3">
-                    {notifications.length > 0 && (
+                    {visibleNotifications.length > 0 && (
                       <button onClick={deleteAllNotifications} className="text-[11px] text-red-500 hover:text-red-400 font-medium transition-colors">
                         {t.topbar.clear}
                       </button>
@@ -754,10 +761,10 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
                 </div>
                 
                 <div className="max-h-[360px] overflow-y-auto p-2 flex flex-col gap-1">
-                  {notifications.length === 0 ? (
+                  {visibleNotifications.length === 0 ? (
                     <div className="p-6 text-center text-[#858585] text-sm">{t.topbar.noNotifications}</div>
                   ) : (
-                    notifications.map((notif) => {
+                    visibleNotifications.map((notif) => {
                       let Icon = Bell;
                       let colorClass = "text-white/70";
                       let bgClass = "bg-white/5";

@@ -7,8 +7,9 @@ import { manageOrgMember, type MemberAction, type MemberRole } from '@/lib/serve
 export const runtime = 'nodejs';
 
 /**
- * Espelli, esci, sospendi, riattiva, cambia ruolo (vedi lib/server/orgMembers.ts).
- * Body: `{ orgId, uid, action: 'remove' | 'suspend' | 'reactivate' | 'role', role? }`.
+ * Espelli, esci, sospendi, riattiva, cambia ruolo, silenzia nelle chat (vedi
+ * lib/server/orgMembers.ts).
+ * Body: `{ orgId, uid, action: 'remove' | 'suspend' | 'reactivate' | 'role' | 'mute' | 'unmute', role? }`.
  * Per uscire da soli: `action: 'remove'` con il proprio `uid`.
  */
 export async function POST(request: Request) {

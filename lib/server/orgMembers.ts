@@ -17,16 +17,20 @@ import { adminDb } from '@/lib/firebase-admin';
  *   storage.rules);
  * - le chat dei progetti dell'organizzazione, che si leggono per `members`.
  *
+ * Chi è silenziato (`mutedUids`) resta membro ma non scrive nelle chat dei
+ * progetti dell'organizzazione: lo bloccano le regole di Firestore.
+ *
  * Chi è sospeso resta in `members` con `suspended: true` e i suoi ruoli nei
  * progetti restano: riattivandolo torna come prima. Le chat da cui è uscito
  * si segnano in `org_suspensions`, chiusa al browser.
  */
 
-export type MemberAction = 'remove' | 'suspend' | 'reactivate' | 'role';
+export type MemberAction = 'remove' | 'suspend' | 'reactivate' | 'role' | 'mute' | 'unmute';
+const ACTIONS: MemberAction[] = ['remove', 'suspend', 'reactivate', 'role', 'mute', 'unmute'];
 export type MemberRole = 'admin' | 'member';
 
 export type MemberResult =
-  | { ok: true; members: OrgMemberEntry[]; memberUids: string[]; memberCount: number }
+  | { ok: true; members: OrgMemberEntry[]; memberUids: string[]; memberCount: number; mutedUids: string[] }
   | { ok: false; status: 400 | 403 | 404 | 409; error: string };
 
 export interface OrgMemberEntry {
@@ -41,6 +45,8 @@ interface OrgData {
   ownerId?: string;
   members?: OrgMemberEntry[];
   memberUids?: string[];
+  /** Silenziati nelle chat dei progetti: le regole rifiutano i loro messaggi. */
+  mutedUids?: string[];
 }
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -64,6 +70,7 @@ function isAdmin(org: OrgData, uid: string): boolean {
  * - Espellere, sospendere e riattivare: gli admin; un admin solo il
  *   proprietario.
  * - Cambiare ruolo: solo il proprietario.
+ * - Silenziare nelle chat: come sospendere.
  */
 export function memberActionError(
   org: OrgData, actor: string, target: string, action: MemberAction,
@@ -85,6 +92,9 @@ export function memberActionError(
   if (entry.role === 'admin' && actor !== org.ownerId) return { status: 403, error: 'Solo il proprietario può farlo su un admin.' };
   if (action === 'suspend' && entry.suspended) return { status: 409, error: 'L’utente è già sospeso.' };
   if (action === 'reactivate' && !entry.suspended) return { status: 409, error: 'L’utente non è sospeso.' };
+  const muted = (org.mutedUids || []).includes(target);
+  if (action === 'mute' && muted) return { status: 409, error: 'L’utente è già silenziato.' };
+  if (action === 'unmute' && !muted) return { status: 409, error: 'L’utente non è silenziato.' };
   return null;
 }
 
@@ -110,6 +120,9 @@ export function applyMemberAction(
       };
     case 'role':
       return { members: members.map(m => m?.uid === target ? { ...m, role } : m), memberUids: org.memberUids || [] };
+    case 'mute':
+    case 'unmute':
+      return { members, memberUids: org.memberUids || [] };
   }
 }
 
@@ -162,7 +175,7 @@ export async function manageOrgMember(actor: string, input: {
 }): Promise<MemberResult> {
   const { orgId, uid: target, action, role } = input;
   if (!ID.test(orgId) || !ID.test(target)) return { ok: false, status: 400, error: 'Richiesta non valida.' };
-  if (!['remove', 'suspend', 'reactivate', 'role'].includes(action)) return { ok: false, status: 400, error: 'Azione non valida.' };
+  if (!ACTIONS.includes(action)) return { ok: false, status: 400, error: 'Azione non valida.' };
   if (action === 'role' && role !== 'admin' && role !== 'member') return { ok: false, status: 400, error: 'Ruolo non valido.' };
 
   const orgRef = adminDb.collection('organizations').doc(orgId);
@@ -175,12 +188,14 @@ export async function manageOrgMember(actor: string, input: {
 
     const next = applyMemberAction(org, target, action, role);
     const previous = (org.members || []).find(m => m?.uid === target);
-    tx.update(orgRef, { members: next.members, memberUids: next.memberUids, memberCount: next.memberUids.length });
-    return { ok: true as const, next, ownerId: org.ownerId || '', previousRole: previous?.role === 'admin' ? 'admin' : 'member' };
+    const others = (org.mutedUids || []).filter(uid => uid !== target);
+    const mutedUids = action === 'mute' ? [...others, target] : action === 'unmute' || action === 'remove' ? others : org.mutedUids || [];
+    tx.update(orgRef, { members: next.members, memberUids: next.memberUids, memberCount: next.memberUids.length, mutedUids });
+    return { ok: true as const, next, mutedUids, ownerId: org.ownerId || '', previousRole: previous?.role === 'admin' ? 'admin' : 'member' };
   });
   if (!outcome.ok) return outcome;
 
-  const { next, ownerId, previousRole } = outcome;
+  const { next, mutedUids, ownerId, previousRole } = outcome;
   const suspensionRef = adminDb.collection(SUSPENSIONS).doc(`${orgId}_${target}`);
 
   if (action === 'role') {
@@ -206,7 +221,7 @@ export async function manageOrgMember(actor: string, input: {
         orgId, uid: target, chatIds: Array.from(new Set([...earlier, ...chatIds])), suspendedAt: Date.now(), suspendedBy: actor,
       });
     }
-  } else {
+  } else if (action === 'reactivate') {
     // Riattivazione: accesso al workspace con il suo ruolo, e le chat da cui era uscito.
     await adminDb.collection('access_grants').doc(`${orgId}_${target}`).set({
       workspaceId: orgId, subjectType: 'user', subjectId: target,
@@ -220,5 +235,5 @@ export async function manageOrgMember(actor: string, input: {
     await suspensionRef.delete();
   }
 
-  return { ok: true, members: next.members, memberUids: next.memberUids, memberCount: next.memberUids.length };
+  return { ok: true, members: next.members, memberUids: next.memberUids, memberCount: next.memberUids.length, mutedUids };
 }

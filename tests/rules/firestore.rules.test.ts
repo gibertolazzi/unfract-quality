@@ -248,6 +248,11 @@ describe('notifiche', () => {
     }));
   });
 
+  it('chi manda una notifica si firma con il proprio ID, non con quello di altri', async () => {
+    await assertSucceeds(addDoc(collection(bruno(), 'notifications'), { userId: 'anna', title: 'Task', type: 'task', senderId: 'bruno', read: false }));
+    await assertFails(addDoc(collection(bruno(), 'notifications'), { userId: 'anna', title: 'Task', type: 'task', senderId: 'carla', read: false }));
+  });
+
   it('le notifiche altrui non si leggono né si modificano', async () => {
     await assertFails(getDoc(doc(bruno(), 'notifications/n1')));
     await assertFails(getDocs(collection(bruno(), 'notifications')));
@@ -404,6 +409,27 @@ describe('fase 2: ogni azienda vede solo i propri dati', () => {
     await assertFails(addDoc(collection(bruno(), 'messages'), { chatId: 'ch1', senderId: 'bruno', text: 'x' }));
     await assertFails(addDoc(collection(carla(), 'messages'), { chatId: 'ch1', senderId: 'anna', text: 'a nome di anna' }));
     await assertFails(addDoc(collection(bruno(), 'chats'), { projectId: 'po', type: 'direct', members: ['bruno', 'anna'] }));
+  });
+
+  it('silenziato: legge ma non scrive nelle chat dei progetti dell’organizzazione', async () => {
+    await env.withSecurityRulesDisabled(async context => {
+      const admin = context.firestore();
+      await updateDoc(doc(admin, 'organizations/o1'), { mutedUids: ['carla'] });
+      await setDoc(doc(admin, 'chats/libera'), { type: 'direct', members: ['anna', 'carla'] });
+      await setDoc(doc(admin, 'workspaces/wc'), { name: 'Di Carla', ownerId: 'carla' });
+      await setDoc(doc(admin, 'projects/pc'), { name: 'Personale', workspaceId: 'wc', userId: 'carla', creatorId: 'carla' });
+      await setDoc(doc(admin, 'chats/personale'), { projectId: 'pc', type: 'group', members: ['carla'] });
+    });
+    await assertSucceeds(getDocs(query(collection(carla(), 'messages'), where('chatId', '==', 'ch1'))));
+    await assertSucceeds(updateDoc(doc(carla(), 'messages/m1'), { readBy: ['anna', 'carla'] }));
+    await assertFails(addDoc(collection(carla(), 'messages'), { chatId: 'ch1', senderId: 'carla', text: 'Ok' }));
+    await assertSucceeds(addDoc(collection(anna(), 'messages'), { chatId: 'ch1', senderId: 'anna', text: 'Ok' }));
+    // Chat senza progetto o di un workspace personale: nessun silenzio.
+    await assertSucceeds(addDoc(collection(carla(), 'messages'), { chatId: 'libera', senderId: 'carla', text: 'Ok' }));
+    await assertSucceeds(addDoc(collection(carla(), 'messages'), { chatId: 'personale', senderId: 'carla', text: 'Ok' }));
+    // Il silenzio lo decide il server, non i membri.
+    await assertFails(updateDoc(doc(carla(), 'organizations/o1'), { mutedUids: [] }));
+    await assertFails(updateDoc(doc(anna(), 'organizations/o1'), { mutedUids: ['carla', 'anna'] }));
   });
 
   it('accessi: i propri e quelli del proprio workspace; non ci si dà accesso da soli', async () => {

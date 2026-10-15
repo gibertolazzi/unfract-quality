@@ -19,6 +19,8 @@ export interface Organization {
   bannerGradient?: string;
   bannerUrl?: string;
   logoUrl?: string;
-  structureMode?: 'flat' | 'teams' | 'corporate'; // Added for Workspace migration
+  structureMode?: 'flat' | 'teams' | 'corporate';
+  /** Silenziati nelle chat dei progetti (lib/server/orgMembers.ts). */
+  mutedUids?: string[]; // Added for Workspace migration
   createdAt?: any;
 }

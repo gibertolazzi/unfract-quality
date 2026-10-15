@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { useProject } from "@/contexts/ProjectContext";
 import { useAuth } from '@/contexts/AuthContext';
 import { useChat } from '@/contexts/ChatContext';
+import { useOrganization } from '@/contexts/OrganizationContext';
 import { trackUpload, deleteStoredFile, StorageLimitError } from '@/lib/usage';
 import { sendMessage, Mention, Attachment } from '@/lib/chat';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
@@ -49,11 +50,16 @@ export function ChatInput({ chatId }: { chatId: string }) {
   const { t } = useTranslation();
   const { user } = useAuth();
   // Spazio e crediti vanno al workspace del progetto aperto, non a quello attivo.
-  const { activeProjectWorkspaceId: activeWorkspaceId } = useProject();
+  const { activeProjectWorkspaceId: activeWorkspaceId, projects } = useProject();
+  const { organizations } = useOrganization();
   const { chats } = useChat();
   const chat = chats.find(c => c.id === chatId);
   const myPermissions = chat?.permissions?.[user?.uid || ''] || { canWrite: true };
-  const canWrite = myPermissions.canWrite || chat?.creatorId === user?.uid || chat?.type === 'direct';
+  // Silenziato dagli admin dell'organizzazione del progetto: le regole di
+  // Firestore rifiutano comunque i suoi messaggi (lib/server/orgMembers.ts).
+  const chatWorkspaceId = projects.find(p => p.id === chat?.projectId)?.workspaceId;
+  const mutedHere = !!user && !!organizations.find(o => o.id === chatWorkspaceId)?.mutedUids?.includes(user.uid);
+  const canWrite = !mutedHere && (myPermissions.canWrite || chat?.creatorId === user?.uid || chat?.type === 'direct');
   const [text, setText] = useState('');
   const [cursorPos, setCursorPos] = useState(0);
   const [mentions, setMentions] = useState<Mention[]>([]);
@@ -378,7 +384,7 @@ export function ChatInput({ chatId }: { chatId: string }) {
                 }}
                 onKeyUp={(e) => setCursorPos(e.currentTarget.selectionStart || 0)}
                 onClick={(e) => setCursorPos(e.currentTarget.selectionStart || 0)}
-                placeholder={canWrite ? t.chat.askAnythingPlaceholder : t.chat.noPermissionToWrite}
+                placeholder={canWrite ? t.chat.askAnythingPlaceholder : mutedHere ? t.organization.mutedInChat : t.chat.noPermissionToWrite}
                 className="w-full bg-white/5 rounded-full pl-6 pr-6 py-3.5 text-[15px] text-white placeholder:text-[#555555] outline-none focus:bg-white/10 transition-all shadow-[inset_0_1px_4px_rgba(255,255,255,0.15)] border border-white/5 backdrop-blur-md disabled:opacity-50 disabled:cursor-not-allowed"
               />
               

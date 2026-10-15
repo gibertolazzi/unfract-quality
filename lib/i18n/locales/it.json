@@ -1063,7 +1063,16 @@
     "leaveConfirm": "Perdi l’accesso a progetti, chat e file dell’organizzazione. I progetti che hai creato qui passano al proprietario. Potrai rientrare solo con un nuovo invito.",
     "memberUpdated": "Fatto.",
     "memberActionError": "Operazione non riuscita. Riprova.",
-    "ownerBadge": "Proprietario"
+    "ownerBadge": "Proprietario",
+    "muted": "Silenziato",
+    "muteMember": "Silenzia nelle chat",
+    "muteMemberDesc": "Legge ancora, ma non può scrivere nelle chat dei progetti dell’organizzazione.",
+    "unmuteMember": "Togli il silenzio",
+    "unmuteMemberDesc": "Torna a scrivere nelle chat dei progetti dell’organizzazione.",
+    "hideNotifications": "Nascondi le sue notifiche",
+    "showNotifications": "Mostra di nuovo le sue notifiche",
+    "hideNotificationsDesc": "Solo per te: niente notifiche né email causate da questa persona.",
+    "mutedInChat": "Sei stato silenziato in questa chat da un admin dell’organizzazione."
   },
   "chat": {
     "title": "Team Chat",

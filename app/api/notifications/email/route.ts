@@ -85,6 +85,7 @@ export async function POST(request: Request) {
     const authorName = identity.name || identity.email || 'Utente';
     await adminDb.collection('notifications_queue').add({
       recipientId,
+      senderId: identity.uid,
       type,
       projectName: typeof input.projectName === 'string' ? input.projectName.slice(0, 120) : 'Unfract',
       taskTitle: typeof input.taskTitle === 'string' ? input.taskTitle.slice(0, 200) : '',

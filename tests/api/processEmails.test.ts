@@ -61,6 +61,20 @@ describe('cron delle email di notifica', () => {
     expect(queue('fallita')).toMatchObject({ processed: true, lastError: 'Abandoned after 5 attempts' });
   });
 
+  it('non manda le email causate da chi il destinatario ha nascosto', async () => {
+    mocks.db.store.set('users/anna', { email: 'anna@example.com', displayName: 'Anna', settings: { mutedUserIds: ['bruno'] } });
+    mocks.db.store.set('notifications_queue/da-bruno', queued('anna', { senderId: 'bruno' }));
+    mocks.db.store.set('notifications_queue/da-carla', queued('anna', { senderId: 'carla' }));
+    const result = await runCron();
+
+    expect(mocks.send).toHaveBeenCalledTimes(1);
+    expect(mocks.send.mock.calls[0][0].subject).not.toMatch(/2 nuove/);
+    expect(queue('da-bruno')).toMatchObject({ processed: true });
+    expect(queue('da-bruno').resendId).toBeUndefined();
+    expect(queue('da-carla')).toMatchObject({ processed: true, resendId: 'resend-1' });
+    expect(result).toMatchObject({ sentCount: 1, processedCount: 2 });
+  });
+
   it('lascia in coda quelle non ancora scadute', async () => {
     mocks.db.store.set('notifications_queue/fresca', queued('anna', { createdAt: Timestamp.now() }));
     await runCron();

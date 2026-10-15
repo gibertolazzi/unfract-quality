@@ -16,6 +16,8 @@ export interface UserSettings {
   emailMessages: boolean;
   groupFrequency: string;
   defaultMeetingLink?: string;
+  /** Utenti di cui non mostrare notifiche né mandare email (impostazioni utente). */
+  mutedUserIds?: string[];
 }
 
 interface AuthContextType {
