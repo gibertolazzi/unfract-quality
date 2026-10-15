@@ -23,7 +23,8 @@ import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { activeMembers } from '@/lib/orgMembers';
-import { canTransition, firstColumnOf } from '@/lib/taskWorkflow';
+import { firstColumnOf } from '@/lib/taskWorkflow';
+import { StatusPicker } from '@/components/tasks/StatusPicker';
 import { useWorkflowGuard } from '@/hooks/useWorkflowGuard';
 
 const priorityStyles = {
@@ -490,27 +491,13 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
                 className="w-24 shrink-0 rounded-full border border-transparent bg-white/10 px-3 py-1.5 font-sans text-xs text-white/80 outline-none focus:border-white/20 sm:w-[120px]"
               />
 
-              <div className="relative shrink-0">
-                <select
-                  value={columnId}
-                  onChange={(e) => setColumnId(e.target.value)}
-                  className="max-w-[125px] shrink-0 appearance-none truncate rounded-full border border-blue-500/50 bg-blue-500/10 py-1.5 pl-3 pr-7 text-xs font-medium text-blue-400 outline-none cursor-pointer sm:max-w-[160px]"
-                >
-                  <option value="" disabled className="bg-black text-[#858585]">{t.tasks.selectColumn}</option>
-                  {columns.map(col => {
-                    // Le colonne in cui da qui non si passa (transizioni del flusso).
-                    const blocked = !isNew && !onSaveLocal && !canTransition(columns, task.columnId, col.id);
-                    return (
-                      <option key={col.id} value={col.id} disabled={blocked} className="bg-black text-white">
-                        {col.title}{blocked ? ` · ${t.tasks.dropNotAllowed}` : ''}
-                      </option>
-                    );
-                  })}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-blue-400">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                </div>
-              </div>
+              {/* Stato con «Sposta in»: le colonne raggiungibili da quella salvata (transizioni del flusso). */}
+              <StatusPicker
+                task={{ columnId: isNew || onSaveLocal ? null : task.columnId, assigneeUid, date }}
+                columns={columns}
+                value={columnId}
+                onMove={setColumnId}
+              />
               <div className="relative shrink-0">
                 <select
                   value={epicId}

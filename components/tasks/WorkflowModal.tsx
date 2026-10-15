@@ -23,14 +23,17 @@ import {
  * - Modelli: flussi pronti (lib/workflowTemplates.ts).
  */
 
-type Tab = 'columns' | 'transitions' | 'templates';
+export type WorkflowTab = 'columns' | 'transitions' | 'templates';
 
 interface WorkflowModalProps {
   projectId: string;
   columns: (WorkflowColumn & { title: string })[];
   tasks: { id: string; columnId?: string | null }[];
-  /** Apre subito l'eliminazione di questa colonna (cestino sulla bacheca). */
+  /** Apre subito l'eliminazione di questa colonna (menu ⋯ sulla bacheca). */
   initialDeleteId?: string | null;
+  /** Scheda da aprire, ed eventuale colonna di cui aprire le condizioni. */
+  initialTab?: WorkflowTab;
+  initialRulesId?: string | null;
   onClose: () => void;
 }
 
@@ -40,10 +43,10 @@ const DOT: Record<ColumnCategory, string> = {
   done: 'bg-[#10B981]',
 };
 
-export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, onClose }: WorkflowModalProps) {
+export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, initialTab, initialRulesId, onClose }: WorkflowModalProps) {
   const { t, locale } = useTranslation();
-  const [tab, setTab] = useState<Tab>('columns');
-  const [rulesOpen, setRulesOpen] = useState<string | null>(null);
+  const [tab, setTab] = useState<WorkflowTab>(initialTab || 'columns');
+  const [rulesOpen, setRulesOpen] = useState<string | null>(initialRulesId || null);
   const [template, setTemplate] = useState<{ template: WorkflowTemplate; plan: TemplatePlan } | null>(null);
   const toast = useToast();
   const sorted = sortColumns(columns);
@@ -191,7 +194,7 @@ export function WorkflowModal({ projectId, columns, tasks, initialDeleteId, onCl
         </div>
 
         <div className="flex gap-1 border-b border-white/5 px-5 pt-3">
-          {([['columns', t.tasks.tabColumns], ['transitions', t.tasks.tabTransitions], ['templates', t.tasks.tabTemplates]] as [Tab, string][]).map(([id, label]) => (
+          {([['columns', t.tasks.tabColumns], ['transitions', t.tasks.tabTransitions], ['templates', t.tasks.tabTemplates]] as [WorkflowTab, string][]).map(([id, label]) => (
             <button
               key={id}
               onClick={() => setTab(id)}

@@ -175,3 +175,14 @@ export function moveTargets<C extends WorkflowColumn>(columns: C[], columnId: st
   const rest = sortColumns(columns.filter(c => c.id !== columnId));
   return [...rest.filter(c => columnCategory(c) === category), ...rest.filter(c => columnCategory(c) !== category)];
 }
+
+/**
+ * `completedAt` quando un'attività cambia colonna: si fissa entrando in una
+ * colonna «Completato», si toglie uscendone, altrimenti resta com'è.
+ */
+export function completedAtUpdate(task: WorkflowTask, toId: string, columns: WorkflowColumn[], now: () => string = () => new Date().toISOString()): { completedAt?: string | null } {
+  const wasDone = taskStatus(task, columns) === 'done';
+  const isDone = columnCategory(columns.find(c => c.id === toId)) === 'done';
+  if (wasDone === isDone) return {};
+  return { completedAt: isDone ? now() : null };
+}
