@@ -1,18 +1,18 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Calendar, PlusCircle, Trash2, Layout, List, CalendarDays, GripVertical } from 'lucide-react';
+import { Calendar, PlusCircle, Trash2, Layout, List, CalendarDays, GripVertical, Settings2 } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { TaskModal } from '@/components/tasks/TaskModal';
 import { TaskList } from '@/components/tasks/TaskList';
 import { TaskTimeline } from '@/components/tasks/TaskTimeline';
-import { CustomPrompt } from '@/components/shared/CustomPrompt';
+import { WorkflowModal } from '@/components/tasks/WorkflowModal';
+import { columnCategory, displayColumnId, firstColumnOf, toggleDoneTarget } from '@/lib/taskWorkflow';
 import { TaskService, ColumnService, EpicService } from '@/lib/services/taskService';
 import { useProject } from '@/contexts/ProjectContext';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/contexts/OrganizationContext';
-import { useDialog } from '@/contexts/DialogContext';
 import { useIAM } from '@/contexts/IamContext';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
@@ -126,6 +126,7 @@ export function TaskColumn({
   onDeleteColumn,
   onNewTask,
   hasTasksWrite,
+  canEditWorkflow,
   membersMap
 }: { 
   column: any; 
@@ -137,10 +138,13 @@ export function TaskColumn({
   onDeleteColumn: (id: string) => void;
   onNewTask: (colId: string) => void;
   hasTasksWrite: boolean;
+  /** Rinominare, spostare ed eliminare colonne: solo gli admin del progetto. */
+  canEditWorkflow: boolean;
   membersMap?: Map<string, { displayName: string; photoURL?: string }>;
 }) {
+  const category = columnCategory(column);
   return (
-    <Draggable draggableId={column.id} index={index}>
+    <Draggable draggableId={column.id} index={index} isDragDisabled={!canEditWorkflow}>
       {(provided, snapshot) => (
         <div 
           ref={provided.innerRef}
@@ -152,16 +156,20 @@ export function TaskColumn({
               <div className="flex items-center w-full">
                 <div 
                   {...provided.dragHandleProps} 
-                  className="opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing flex items-center justify-center pr-2 shrink-0"
+                  className={`${canEditWorkflow ? 'opacity-0 group-hover:opacity-100' : 'hidden'} transition-opacity cursor-grab active:cursor-grabbing flex items-center justify-center pr-2 shrink-0`}
                 >
                   <GripVertical size={20} className="text-[#858585] hover:text-white" />
                 </div>
+                <span
+                  title={category}
+                  className={`mr-2 h-2.5 w-2.5 shrink-0 rounded-full ${category === 'done' ? 'bg-[#10B981]' : category === 'progress' ? 'bg-[#FFB800]' : 'bg-[#858585]'}`}
+                />
                 <input 
                   value={column.title}
                   onChange={(e) => onColumnTitleChange(column.id, e.target.value)}
                   onBlur={() => onColumnTitleBlur(column.id, column.title)}
-                  readOnly={!hasTasksWrite}
-                  className={`text-xl font-bold text-white font-sans bg-transparent outline-none w-full mr-4 ${hasTasksWrite ? 'focus:border-b focus:border-white/20' : ''}`}
+                  readOnly={!canEditWorkflow}
+                  className={`text-xl font-bold text-white font-sans bg-transparent outline-none w-full mr-4 ${canEditWorkflow ? 'focus:border-b focus:border-white/20' : ''}`}
                 />
               </div>
               {hasTasksWrite && (
@@ -169,9 +177,11 @@ export function TaskColumn({
                   <button onClick={() => onNewTask(column.id)} className="flex items-center gap-2 text-[#858585] hover:text-white transition-colors shrink-0">
                     <PlusCircle size={16} />
                   </button>
-                  <button onClick={() => onDeleteColumn(column.id)} className="text-[#858585] hover:text-red-500 transition-colors">
-                    <Trash2 size={16} />
-                  </button>
+                  {canEditWorkflow && (
+                    <button onClick={() => onDeleteColumn(column.id)} className="text-[#858585] hover:text-red-500 transition-colors">
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -209,9 +219,9 @@ export function TaskBoard() {
   const [compactViews, setCompactViews] = useState(false);
   const [compactActions, setCompactActions] = useState(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const [showColumnPrompt, setShowColumnPrompt] = useState(false);
+  // Finestra del flusso: aperta (null = chiusa), con l'eventuale colonna da eliminare.
+  const [workflow, setWorkflow] = useState<{ deleteId: string | null } | null>(null);
   const { activeProjectId } = useProject();
-  const dialog = useDialog();
   const { canRead, canWrite, loading: iamLoading } = useIAM();
   const searchParams = useSearchParams();
   const highlightTask = searchParams?.get('highlightTask');
@@ -250,6 +260,8 @@ export function TaskBoard() {
 
   const hasTasksRead = canRead('tasks');
   const hasTasksWrite = canWrite('tasks');
+  // Il flusso di lavoro lo cambiano gli admin del progetto (permesso «Impostazioni»).
+  const canEditWorkflow = canWrite('settings');
 
   useEffect(() => {
     const toolbar = toolbarRef.current;
@@ -281,9 +293,9 @@ export function TaskBoard() {
         isInitialColLoad = false;
         try {
           await Promise.all([
-            ColumnService.create(activeProjectId, 'To Do', 0),
-            ColumnService.create(activeProjectId, 'Doing', 1),
-            ColumnService.create(activeProjectId, 'Done', 2)
+            ColumnService.create(activeProjectId, 'To Do', 0, 'todo'),
+            ColumnService.create(activeProjectId, 'Doing', 1, 'progress'),
+            ColumnService.create(activeProjectId, 'Done', 2, 'done')
           ]);
         } catch (e) {
           console.error("Error creating default columns:", e);
@@ -309,28 +321,9 @@ export function TaskBoard() {
     };
   }, [activeProjectId, hasTasksRead, hasTasksWrite]);
 
-  const addColumn = async (title: string) => {
-    if (!activeProjectId) return;
-    try {
-      await ColumnService.create(activeProjectId, title, columns.length);
-    } catch (e) {
-      console.error("Error creating column:", e);
-    }
-    setShowColumnPrompt(false);
-  };
-
-  const deleteColumn = async (columnId: string) => {
-    const isConfirmed = await dialog.confirm({
-      title: t.tasks.deleteColumn,
-      message: t.tasks.deleteColumnConfirm,
-      isDestructive: true,
-      confirmText: t.tasks.delete
-    });
-    
-    if (isConfirmed) {
-      await ColumnService.delete(columnId);
-    }
-  };
+  // Il cestino sulla colonna apre il flusso di lavoro sull'eliminazione:
+  // lì si sceglie dove spostare le attività (lib/taskWorkflow.ts).
+  const deleteColumn = (columnId: string) => setWorkflow({ deleteId: columnId });
 
   const onDragEnd = async (result: any) => {
     const { destination, source, draggableId, type } = result;
@@ -356,15 +349,15 @@ export function TaskBoard() {
       const draggedTask = tasks.find(t => t.id === draggableId);
       if (!draggedTask) return;
 
-      const sourceTasks = tasks.filter(t => t.columnId === sourceColId).sort((a, b) => (a.order || 0) - (b.order || 0));
-      const destTasks = sourceColId === destColId ? sourceTasks : tasks.filter(t => t.columnId === destColId).sort((a, b) => (a.order || 0) - (b.order || 0));
+      const sourceTasks = tasks.filter(t => displayColumnId(t, columns) === sourceColId).sort((a, b) => (a.order || 0) - (b.order || 0));
+      const destTasks = sourceColId === destColId ? sourceTasks : tasks.filter(t => displayColumnId(t, columns) === destColId).sort((a, b) => (a.order || 0) - (b.order || 0));
 
       if (sourceColId === destColId) {
         const newTasks = Array.from(sourceTasks);
         newTasks.splice(source.index, 1);
         newTasks.splice(destination.index, 0, draggedTask);
         
-        const otherTasks = tasks.filter(t => t.columnId !== sourceColId);
+        const otherTasks = tasks.filter(t => displayColumnId(t, columns) !== sourceColId);
         setTasks([...otherTasks, ...newTasks]);
         
         await TaskService.batchUpdate(newTasks.map((task, index) => ({ id: task.id, order: index })));
@@ -376,7 +369,7 @@ export function TaskBoard() {
         draggedTask.columnId = destColId;
         dTasks.splice(destination.index, 0, draggedTask);
         
-        const otherTasks = tasks.filter(t => t.columnId !== sourceColId && t.columnId !== destColId);
+        const otherTasks = tasks.filter(t => displayColumnId(t, columns) !== sourceColId && displayColumnId(t, columns) !== destColId);
         setTasks([...otherTasks, ...sTasks, ...dTasks]);
         
         await TaskService.batchUpdate([
@@ -392,25 +385,21 @@ export function TaskBoard() {
   };
 
   const handleColumnTitleBlur = async (id: string, title: string) => {
-    await ColumnService.update(id, { title });
+    // Con il nome si fissa la categoria: una colonna vecchia la ricavava dal nome.
+    await ColumnService.update(id, { title, category: columnCategory(columns.find(c => c.id === id)) });
   };
 
   const openNewTaskModal = (columnId?: string) => {
-    setSelectedTask({ isNew: true, columnId: columnId || columns[0]?.id || '' });
+    setSelectedTask({ isNew: true, columnId: columnId || (firstColumnOf(columns, 'todo') || columns[0])?.id || '' });
   };
 
   const toggleTaskDone = async (task: any) => {
-    const doneCol = columns.find(c => c.title.toLowerCase() === 'done');
-    const todoCol = columns.find(c => c.title.toLowerCase().includes('to do') || c.title.toLowerCase() === 'todo') || columns[0];
-    
-    if (!doneCol || !todoCol) return;
-    
-    const isDone = task.columnId === doneCol.id;
-    const newColId = isDone ? todoCol.id : doneCol.id;
-    
-    await TaskService.update(task.id, { 
-      columnId: newColId,
-      completedAt: isDone ? null : new Date().toISOString()
+    // In «Completato» o di nuovo in «Da fare», dalle categorie delle colonne.
+    const target = toggleDoneTarget(task, columns);
+    if (!target) return;
+    await TaskService.update(task.id, {
+      columnId: target.columnId,
+      completedAt: target.done ? new Date().toISOString() : null
     });
   };
 
@@ -469,12 +458,12 @@ export function TaskBoard() {
               <button onClick={() => openNewTaskModal()} aria-label={t.tasks.newTask} title={t.tasks.newTask} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-[#003B80] bg-[#002451] text-sm font-medium text-[#00A6FF] transition-colors hover:bg-[#003B80]/80 ${compactActions ? 'p-2' : 'px-4 py-2'}`}>
                 <PlusCircle size={16} className="text-[#00A6FF]" />{!compactActions && <span className="whitespace-nowrap">{t.tasks.newTask}</span>}
               </button>
-              {activeView === 'board' && (
-                <button onClick={() => setShowColumnPrompt(true)} aria-label={t.tasks.addColumn} title={t.tasks.addColumn} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white ${compactActions ? 'p-2' : 'px-4 py-2'}`}>
-                  <PlusCircle size={16} />{!compactActions && <span className="whitespace-nowrap">{t.tasks.addColumn}</span>}
-                </button>
-              )}
             </>
+          )}
+          {canEditWorkflow && (
+            <button onClick={() => setWorkflow({ deleteId: null })} aria-label={t.tasks.manageWorkflow} title={t.tasks.manageWorkflow} className={`flex shrink-0 items-center justify-center gap-2 rounded-full border border-white/10 text-sm font-medium text-white/70 transition-colors hover:border-white/20 hover:text-white ${compactActions ? 'p-2' : 'px-4 py-2'}`}>
+              <Settings2 size={16} />{!compactActions && <span className="whitespace-nowrap">{t.tasks.workflowShort}</span>}
+            </button>
           )}
         </div>
         </div>
@@ -490,8 +479,9 @@ export function TaskBoard() {
                 className="flex min-h-0 flex-1 items-start gap-4 overflow-auto pb-2 sm:gap-8 sm:pb-4"
               >
                 {columns.map((col, index) => {
+                  // Un'attività senza una colonna valida compare nella prima «Da fare».
                   const columnTasks = tasks
-                    .filter(t => t.columnId === col.id)
+                    .filter(t => displayColumnId(t, columns) === col.id)
                     .sort((a, b) => (a.order || 0) - (b.order || 0));
                     
                   return (
@@ -501,6 +491,7 @@ export function TaskBoard() {
                       tasks={columnTasks} 
                       index={index} 
                       hasTasksWrite={hasTasksWrite}
+                      canEditWorkflow={canEditWorkflow}
                       onTaskClick={setSelectedTask}
                       onColumnTitleChange={handleColumnTitleChange}
                       onColumnTitleBlur={handleColumnTitleBlur}
@@ -535,12 +526,13 @@ export function TaskBoard() {
         </div>
       )}
 
-      {showColumnPrompt && (
-        <CustomPrompt 
-          title={t.tasks.addNewColumn} 
-          placeholder={t.tasks.newColumnPlaceholder} 
-          onConfirm={addColumn} 
-          onClose={() => setShowColumnPrompt(false)} 
+      {workflow && activeProjectId && (
+        <WorkflowModal
+          projectId={activeProjectId}
+          columns={columns}
+          tasks={tasks}
+          initialDeleteId={workflow.deleteId}
+          onClose={() => setWorkflow(null)}
         />
       )}
 

@@ -19,7 +19,11 @@ export class ProjectCreateError extends Error {
   }
 }
 
-export const DEFAULT_COLUMNS = ['To Do', 'Doing', 'Done'] as const;
+export const DEFAULT_COLUMNS = [
+  { title: 'To Do', category: 'todo' },
+  { title: 'Doing', category: 'progress' },
+  { title: 'Done', category: 'done' },
+] as const;
 
 export async function createProjectWithBoard(db: Firestore, input: {
   uid: string | null | undefined;
@@ -42,10 +46,11 @@ export async function createProjectWithBoard(db: Firestore, input: {
     ...(input.organizationIds?.length ? { organizationIds: input.organizationIds } : {}),
     createdAt: serverTimestamp(),
   });
-  DEFAULT_COLUMNS.forEach((title, order) => {
+  DEFAULT_COLUMNS.forEach(({ title, category }, order) => {
     batch.set(doc(collection(db, 'columns')), {
       projectId: projectRef.id,
       title,
+      category,
       order,
       createdAt: serverTimestamp(),
     });

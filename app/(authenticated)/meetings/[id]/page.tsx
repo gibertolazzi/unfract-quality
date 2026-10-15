@@ -20,6 +20,7 @@ import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { TranscriptModal } from '@/components/meetings/TranscriptModal';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { useTranslation } from '@/contexts/TranslationContext';
+import { firstColumnOf, sortColumns, type WorkflowColumn } from '@/lib/taskWorkflow';
 
 
 
@@ -185,15 +186,10 @@ export default function MeetingDetailPage({ params: paramsPromise }: { params: P
   const handleAssignToBoard = async (task: any, idx: number) => {
     try {
       if (!activeProjectId) return;
-      // Find "To Do" column
+      // La prima colonna «Da fare» del flusso (lib/taskWorkflow.ts).
       const colsSnapshot = await getDocs(query(collection(db, "columns"), where("projectId", "==", activeProjectId)));
-      let todoColId = colsSnapshot.docs[0]?.id; // fallback to first column
-      colsSnapshot.docs.forEach(d => {
-        const title = d.data().title.toLowerCase();
-        if (title.includes("to do") || title.includes("todo")) {
-          todoColId = d.id;
-        }
-      });
+      const projectColumns = colsSnapshot.docs.map(d => ({ id: d.id, ...d.data() }) as WorkflowColumn);
+      const todoColId = (firstColumnOf(projectColumns, 'todo') || sortColumns(projectColumns)[0])?.id;
 
       // Add to tasks collection
       const docRef = await addDoc(collection(db, "tasks"), {
@@ -271,7 +267,7 @@ export default function MeetingDetailPage({ params: paramsPromise }: { params: P
 
   const startEditing = (task: any, idx: number) => {
     setEditingTaskIdx(idx);
-    setEditingTask({ ...task, isNew: false, columnId: task.columnId || columns[0]?.id });
+    setEditingTask({ ...task, isNew: false, columnId: task.columnId || (firstColumnOf(columns, 'todo') || columns[0])?.id });
   };
 
   const saveEditingLocal = async (taskData: any) => {

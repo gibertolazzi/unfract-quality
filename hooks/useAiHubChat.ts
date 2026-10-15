@@ -5,6 +5,7 @@ import { findAiTaskBlock } from '@/lib/aiTaskBlock';
 import { collection, doc, addDoc, updateDoc, onSnapshot, query, where, serverTimestamp, deleteDoc, getDocs, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { deleteStoredFile } from '@/lib/usage';
+import { firstColumnOf, sortColumns, type WorkflowColumn } from '@/lib/taskWorkflow';
 
 // Le chiamate a Gemini passano da /api/ai/*: la chiave resta sul server.
 
@@ -184,9 +185,9 @@ export function useAiHubChat(projectContextText: string, projectId?: string, use
           const colsSnap = await getDocs(colsQuery);
           let columnId = 'backlog'; // fallback
           if (!colsSnap.empty) {
-            // Sort by order and pick first
-            const cols = colsSnap.docs.map(d => ({id: d.id, ...d.data()})).sort((a:any, b:any) => (a.order || 0) - (b.order || 0));
-            columnId = cols[0].id;
+            // La prima colonna «Da fare» del flusso (lib/taskWorkflow.ts).
+            const cols = colsSnap.docs.map(d => ({ id: d.id, ...d.data() }) as WorkflowColumn);
+            columnId = (firstColumnOf(cols, 'todo') || sortColumns(cols)[0]).id;
           }
 
           // 2. Create the task in Firestore

@@ -13,6 +13,7 @@ const priorityConfig = {
 
 import { useAuth } from '@/contexts/AuthContext';
 import { UserAvatar } from '@/components/shared/UserAvatar';
+import { columnCategory } from '@/lib/taskWorkflow';
 
 export function TaskList({ 
   tasks, 
@@ -42,7 +43,7 @@ export function TaskList({
       {tasks.map((task, index) => {
         const priorityStyle = getPriorityStyle(task.priority);
         const col = columns.find(c => c.id === task.columnId);
-        const isDone = col?.title.toLowerCase() === 'done';
+        const isDone = columnCategory(col) === 'done';
 
         const requester = task.requesterUid && membersMap ? membersMap.get(task.requesterUid) : null;
         const isRequesterMe = task.requesterUid === user?.uid;

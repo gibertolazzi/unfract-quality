@@ -29,6 +29,8 @@ export interface Column {
   title: string;
   order: number;
   projectId: string;
+  /** Da fare, In corso, Completato (lib/taskWorkflow.ts); le colonne vecchie non l'hanno. */
+  category?: 'todo' | 'progress' | 'done';
 }
 
 export interface Epic {

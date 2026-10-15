@@ -23,6 +23,7 @@ import { parseMentions } from '@/components/shared/parseMentions';
 import { MentionDropdown } from '@/components/shared/MentionDropdown';
 import { UserAvatar } from '@/components/shared/UserAvatar';
 import { activeMembers } from '@/lib/orgMembers';
+import { firstColumnOf } from '@/lib/taskWorkflow';
 
 const priorityStyles = {
   High: 'text-[#FF2200] border-[#FF2200] bg-[#FF2200]/10',
@@ -85,7 +86,7 @@ export function TaskModal({ task, onClose, columns, epics = [], onSaveLocal }: {
       setDescriptionMentions(task.mentions || []);
       setPriority(task.priority || 'Medium');
       setCategory(task.category || 'General');
-      setColumnId(task.columnId || (columns[0]?.id || ''));
+      setColumnId(task.columnId || ((firstColumnOf(columns, 'todo') || columns[0])?.id || ''));
       setEpicId(task.epicId || '');
       setDate(parseSafeDate(task.date) || undefined);
       setComments(task.comments || []);
