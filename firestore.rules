@@ -375,5 +375,6 @@ service cloud.firestore {
     match /mcp_grants/{document=**} { allow read, write: if false; }
     match /mcp_tokens/{document=**} { allow read, write: if false; }
     match /mcp_audit/{document=**} { allow read, write: if false; }
+    match /mcp_settings/{document=**} { allow read, write: if false; }
   }
 }

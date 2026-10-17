@@ -53,7 +53,8 @@ function Consent() {
           return setError(data.error || t.mcp.errorTitle);
         }
         setDetails(data.details);
-        if (data.details.workspaces.length === 1) setWorkspaceId(data.details.workspaces[0].id);
+        const selectable = data.details.workspaces.filter((ws: Details['workspaces'][number]) => !ws.disabled);
+        if (selectable.length === 1) setWorkspaceId(selectable[0].id);
       } catch {
         setError(t.mcp.errorTitle);
       }

@@ -1,6 +1,7 @@
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { inWorkspace } from '@/lib/server/mcp/access';
+import { mcpAllowed } from '@/lib/server/mcp/workspaceSettings';
 import {
   ACCESS_TOKEN_TTL_MS, AUTH_CODE_TTL_MS, REFRESH_TOKEN_TTL_MS, fingerprint, mcpResource, parseScopes, pkceMatches,
   randomSecret, resourceMatches, type Scope,
@@ -99,6 +100,7 @@ export async function exchangeCode(input: {
   }
   const data = outcome.data;
   if (!(await inWorkspace(data.uid, data.workspaceId))) throw new OAuthError('invalid_grant', 'L’utente non fa più parte del workspace.');
+  if (!(await mcpAllowed(data.workspaceId))) throw new OAuthError('invalid_grant', 'Gli assistenti AI sono disattivati per questo workspace.');
 
   const grantRef = grants().doc();
   await grantRef.set({
@@ -139,6 +141,16 @@ export async function refreshTokens(input: { refreshToken: unknown; clientId: un
   if (typeof input.refreshToken !== 'string' || !input.refreshToken) throw new OAuthError('invalid_request', 'Manca refresh_token.');
   if (!resourceMatches(input.resource)) throw new OAuthError('invalid_target', 'Risorsa sconosciuta.');
   const ref = tokens().doc(fingerprint(input.refreshToken));
+
+  // Spento dall'amministratore: si rifiuta prima di consumare il token, così
+  // riaccendendo l'assistente riprende senza doversi ricollegare.
+  const pending = (await ref.get()).data();
+  if (pending?.kind === 'refresh' && !pending.usedAt) {
+    const pendingGrant = (await grants().doc(String(pending.grantId)).get()).data();
+    if (pendingGrant && !(await mcpAllowed(pendingGrant.workspaceId))) {
+      throw new OAuthError('invalid_grant', 'Gli assistenti AI sono disattivati per questo workspace.');
+    }
+  }
 
   const outcome = await adminDb.runTransaction(async tx => {
     const snap = await tx.get(ref);

@@ -12,7 +12,7 @@ export interface ConsentDetails {
   redirectHost: string;
   localRedirect: boolean;
   scopes: string[];
-  workspaces: { id: string; name: string }[];
+  workspaces: { id: string; name: string; disabled?: boolean }[];
 }
 
 export const CONSENT_CARD = 'w-full max-w-lg rounded-3xl border border-white/10 bg-[#111] p-6 sm:p-8 shadow-2xl';
@@ -68,7 +68,11 @@ export function McpConsentCard({ details, workspaceId, onWorkspace, busy, error,
               className="rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-white outline-none focus:border-[#006AFF]"
             >
               <option value="" className="bg-[#1A1A1A]">—</option>
-              {details.workspaces.map(ws => <option key={ws.id} value={ws.id} className="bg-[#1A1A1A]">{ws.name}</option>)}
+              {details.workspaces.map(ws => (
+                <option key={ws.id} value={ws.id} disabled={ws.disabled} className="bg-[#1A1A1A]">
+                  {ws.disabled ? `${ws.name} (${t.mcp.workspaceDisabled})` : ws.name}
+                </option>
+              ))}
             </select>
           </label>
         )}

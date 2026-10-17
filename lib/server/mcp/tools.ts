@@ -7,6 +7,7 @@ import { columnCategory, sortColumns, taskStatus } from '@/lib/taskWorkflow';
 import { McpAccess, validId, type McpProject } from '@/lib/server/mcp/access';
 import type { VerifiedToken } from '@/lib/server/mcp/tokens';
 import { dayInZone, userTimeZone } from '@/lib/server/timeZone';
+import { mcpAllowed } from '@/lib/server/mcp/workspaceSettings';
 
 /**
  * Gli strumenti che Unfract offre agli assistenti collegati (solo lettura).
@@ -158,6 +159,10 @@ export function buildMcpServer(token: VerifiedToken): McpServer {
         if (!(await ctx.access.member())) {
           await audit(ctx, name, false);
           return failure('Non fai più parte di questo workspace: il collegamento non vale più.');
+        }
+        if (!(await mcpAllowed(token.workspaceId))) {
+          await audit(ctx, name, false);
+          return failure('Un amministratore ha disattivato gli assistenti AI per questo workspace.');
         }
         const outcome = await run(args);
         await audit(ctx, name, !outcome.error, outcome.projectId);
