@@ -485,6 +485,24 @@ describe('client', () => {
     const url = 'https://app.example.com/oauth/secret.json';
     await expect(resolveClient(url, async () => ({ client_id: url, client_name: 'X', redirect_uris: [REDIRECT], token_endpoint_auth_method: 'client_secret_basic' })))
       .rejects.toBeInstanceOf(ClientError);
+    const onlySigned = 'https://app.example.com/oauth/signed.json';
+    await expect(resolveClient(onlySigned, async () => ({ client_id: onlySigned, client_name: 'X', redirect_uris: [REDIRECT], token_endpoint_auth_method: 'private_key_jwt', token_endpoint_auth_methods_supported: ['private_key_jwt'] })))
+      .rejects.toBeInstanceOf(ClientError);
+  });
+
+  it('documento di metadati: preferisce un altro metodo ma sa usare none (come ChatGPT)', async () => {
+    const url = 'https://chat.example.com/oauth/client.json';
+    const client = await resolveClient(url, async () => ({
+      client_id: url,
+      client_name: 'Chat',
+      redirect_uris: ['https://chat.example.com/connector_platform_oauth_redirect'],
+      token_endpoint_auth_method: 'private_key_jwt',
+      token_endpoint_auth_methods_supported: ['none', 'private_key_jwt'],
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      jwks_uri: 'https://chat.example.com/oauth/jwks.json',
+    }));
+    expect(client).toMatchObject({ kind: 'metadata', name: 'Chat', domain: 'chat.example.com' });
   });
 });
 
