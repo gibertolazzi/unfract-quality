@@ -109,7 +109,7 @@ export async function POST(request: Request) {
   } catch (err: any) {
     console.error('Errore imprevisto in /api/crm/vat/lookup:', err);
     return NextResponse.json(
-      { error: 'Errore interno del server durante la verifica.', details: err?.message || String(err) },
+      { error: 'Errore interno del server durante la verifica.' },
       { status: 500 }
     );
   }

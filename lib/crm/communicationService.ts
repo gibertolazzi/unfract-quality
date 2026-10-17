@@ -273,6 +273,7 @@ export interface SendEmailResult {
   communicationId: string;
   sent: boolean;
   duplicate: boolean;
+  skipped?: boolean;
   error: string;
 }
 
@@ -287,7 +288,7 @@ export async function sendCrmEmail(
   input: SendEmailInput
 ): Promise<SendEmailResult> {
   const result: SendEmailResult = {
-    communicationId: '', sent: false, duplicate: false, error: '',
+    communicationId: '', sent: false, duplicate: false, skipped: false, error: '',
   };
 
   const communicationId = await createDraft(ctx, {
@@ -313,7 +314,7 @@ export async function sendCrmEmail(
   // La macchina a stati della specifica non ammette DRAFT → SENT: si passa da
   // QUEUED, che è il momento in cui l'email esce dalle nostre mani. Ci si
   // mette PRIMA di spedire, così qualunque fallimento successivo ha uno stato
-  // da cui arrivare a FAILED.
+  // da cui arrivare a FAILED o CANCELLED.
   try {
     await changeCommunicationState(ctx, communicationId, 'QUEUED');
   } catch (error) {
@@ -356,6 +357,11 @@ export async function sendCrmEmail(
 
     if (!response.ok) {
       result.error = data?.error || `Invio non riuscito (${response.status}).`;
+      if (data?.skipped || data?.unsubscribed) {
+        result.skipped = true;
+        await cancelDraft(ctx, communicationId, result.error);
+        return result;
+      }
       await failDraft(ctx, communicationId, result.error);
       return result;
     }
@@ -379,6 +385,15 @@ export async function sendCrmEmail(
     await failDraft(ctx, communicationId, result.error);
     return result;
   }
+}
+
+async function cancelDraft(ctx: CrmContextRef, id: string, message: string) {
+  try {
+    await changeCommunicationState(ctx, id, 'CANCELLED', { errorMessage: message });
+  } catch (error) {
+    console.error('Error marking CRM email as cancelled:', error);
+  }
+  await writeAudit(ctx, 'email.skipped', 'communication', id, null, { message, reason: 'unsubscribed' });
 }
 
 async function failDraft(ctx: CrmContextRef, id: string, message: string) {

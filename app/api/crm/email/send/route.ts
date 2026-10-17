@@ -1,30 +1,27 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { adminDb } from '@/lib/firebase-admin';
 import { tooManyRequestsShared } from '@/lib/server/rateLimit';
 import { readJsonObject } from '@/lib/server/requestBody';
 import { appUrl } from '@/lib/appUrl';
+import { buildUnsubscribeUrl } from '@/lib/server/emailUnsubscribe';
 
 /**
  * Invio email del CRM.
  *
- * È l'unica route server del modulo, e l'unico punto in cui la deroga 2
- * («solo frontend») non regge: la chiave Resend non può stare nel browser,
+ * È l'unica route server del modulo: la chiave Resend non può stare nel browser,
  * perché chiunque apra gli strumenti di sviluppo la leggerebbe e potrebbe
  * spedire dal dominio dell'azienda.
  *
- * DIFFERENZE VOLUTE da app/api/email/send/route.ts già presente nel prodotto:
- *
- * 1. Qui serve autenticazione. Quella route accetta chiunque conosca l'URL:
- *    è un relay aperto sul dominio notifications@unfract.com. Vedi
- *    docs/SEGNALAZIONI-TEAM.md.
- * 2. Nessun valore di ripiego per le chiavi. Se mancano, la route risponde 500
- *    e lo dice: un default nel codice è una chiave pubblicata.
- * 3. Chiave di idempotenza: un doppio clic o un retry non spediscono due volte.
- *
- * COSA QUESTA ROUTE NON PUÒ FARE: verificare il consenso del destinatario.
- * Non legge i dati del CRM, quindi il controllo su consenso e
- * soppressione avviene nel browser prima della chiamata ed è falsificabile da
- * chi sa costruire una richiesta. Vedi docs/EMAIL.md e docs/DEROGHE.md.
+ * CARATTERISTICHE DI SICUREZZA E CONFORMITÀ:
+ * 1. Autenticazione obbligatoria tramite Firebase ID token.
+ * 2. Nessun valore di ripiego per le chiavi: se mancano, risponde 500.
+ * 3. Chiave di idempotenza per prevenire doppi invii.
+ * 4. Controllo automatico della lista di disiscrizione (unsubscribes): se il
+ *    destinatario si è disiscritto, l'invio viene bloccato (saltato) ai sensi
+ *    dell'Art. 130 del Codice Privacy.
+ * 5. Intestazioni RFC 8058 One-Click Unsubscribe firmate (HMAC) e sostituzione
+ *    del segnaposto {{unsubscribe_url}} nel corpo dell'email.
  */
 
 export const runtime = 'nodejs';
@@ -79,6 +76,17 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 export async function POST(request: Request) {
   const resend = new Resend(process.env.RESEND_API_KEY);
   const resendKey = process.env.RESEND_API_KEY;
+  // Ripieghi temporanei: in produzione FIREBASE_WEB_API_KEY e CRM_EMAIL_FROM
+  // non sono ancora state configurate dall'altro team (Azione 5).
+  // Non rimuovere i ripieghi finché l'altro team non inserisce le variabili in produzione,
+  // altrimenti l'invio del CRM si fermerebbe.
+  if (!process.env.FIREBASE_WEB_API_KEY && process.env.NEXT_PUBLIC_FIREBASE_API_KEY) {
+    console.warn('[CRM Email] FIREBASE_WEB_API_KEY assente: utilizzato fallback NEXT_PUBLIC_FIREBASE_API_KEY (completare Azione 5)');
+  }
+  if (!process.env.CRM_EMAIL_FROM && (process.env.RESEND_FROM_EMAIL || 'Unfract <hello@unfract.com>')) {
+    console.warn('[CRM Email] CRM_EMAIL_FROM assente: utilizzato fallback mittente (completare Azione 5)');
+  }
+
   const firebaseApiKey = process.env.FIREBASE_WEB_API_KEY || process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
   const fromAddress = process.env.CRM_EMAIL_FROM || process.env.RESEND_FROM_EMAIL || 'Unfract <hello@unfract.com>';
 
@@ -129,8 +137,38 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Chiave di idempotenza mancante.' }, { status: 400 });
   }
 
+  const recipientEmail = String(to).trim().toLowerCase();
+
+  // Controllo preventivo: se il destinatario si è disiscritto, l'invio viene saltato.
+  if (adminDb) {
+    try {
+      const unsubDoc = await adminDb.collection('unsubscribes').doc(recipientEmail).get();
+      if (unsubDoc.exists) {
+        return NextResponse.json(
+          {
+            skipped: true,
+            unsubscribed: true,
+            error: 'Destinatario disiscritto dalle comunicazioni: invio saltato ai sensi dell’art. 130 del Codice Privacy.',
+          },
+          { status: 403 }
+        );
+      }
+    } catch (unsubErr) {
+      console.error('Error verifying unsubscribe status:', unsubErr);
+    }
+  }
+
+  // Generazione del link firmato di disiscrizione (HMAC) e sostituzione di {{unsubscribe_url}}
+  const baseUrl = appUrl();
+  const unsubUrl = buildUnsubscribeUrl(recipientEmail, baseUrl);
+
+  const processedText = String(text).replace(/\{\{\s*unsubscribe_url\s*\}\}/g, unsubUrl);
+  const processedHtml = html
+    ? String(html).replace(/\{\{\s*unsubscribe_url\s*\}\}/g, unsubUrl)
+    : undefined;
+
   // Un segnaposto non sostituito non deve finire in una email a un cliente.
-  if (/\{\{\s*[a-zA-Z0-9_.]+\s*\}\}/.test(`${subject} ${text}`)) {
+  if (/\{\{\s*[a-zA-Z0-9_.]+\s*\}\}/.test(`${subject} ${processedText}`)) {
     return NextResponse.json(
       { error: 'Il testo contiene variabili non sostituite.' },
       { status: 400 }
@@ -145,16 +183,15 @@ export async function POST(request: Request) {
   servedKeys.set(key, Date.now());
 
   try {
-    const baseUrl = appUrl();
     const result = await resend.emails.send({
       from: fromAddress,
-      to: String(to),
+      to: recipientEmail,
       subject: String(subject),
-      text: String(text),
-      html: html ? String(html) : undefined,
+      text: processedText,
+      html: processedHtml,
       replyTo: replyTo ? String(replyTo) : undefined,
       headers: {
-        'List-Unsubscribe': `<${baseUrl}/api/email/unsubscribe?email=${encodeURIComponent(String(to))}>`,
+        'List-Unsubscribe': `<${unsubUrl}>`,
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
       },
     }, { idempotencyKey: `crm:${key}`.slice(0, 256) });

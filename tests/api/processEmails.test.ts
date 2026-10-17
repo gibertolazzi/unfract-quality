@@ -91,21 +91,33 @@ describe('cron delle email di notifica', () => {
     expect(result.errors).toEqual(['anna: rate limited']);
   });
 
-  it('accetta autenticazione tramite query param ?key= e metodo POST', async () => {
+  it('rifiuta autenticazione tramite query param ?key= (401 Unauthorized)', async () => {
     const { POST } = await import('@/app/api/cron/process-emails/route');
     mocks.db.store.set('notifications_queue/q1', queued('anna'));
     const response = await POST(new Request('http://localhost/api/cron/process-emails?key=cron'));
+    expect(response.status).toBe(401);
+  });
+
+  it('accetta autenticazione tramite intestazioni (Authorization o x-cron-secret)', async () => {
+    const { POST } = await import('@/app/api/cron/process-emails/route');
+    mocks.db.store.set('notifications_queue/q1', queued('anna'));
+    const response = await POST(new Request('http://localhost/api/cron/process-emails', {
+      headers: { 'x-cron-secret': 'cron' },
+    }));
     const result = await response.json();
     expect(response.status).toBe(200);
     expect(result.sentCount).toBe(1);
   });
 
-  it('bypassa l’attesa se force=true è presente nei parametri', async () => {
+  it('ignora ?force=true: le notifiche non ancora scadute restano in coda', async () => {
     const { GET } = await import('@/app/api/cron/process-emails/route');
     mocks.db.store.set('notifications_queue/fresca', queued('anna', { createdAt: Timestamp.now() }));
-    const response = await GET(new Request('http://localhost/api/cron/process-emails?key=cron&force=true'));
+    const response = await GET(new Request('http://localhost/api/cron/process-emails?force=true', {
+      headers: { authorization: 'Bearer cron' },
+    }));
     const result = await response.json();
-    expect(result.sentCount).toBe(1);
-    expect(queue('fresca').processed).toBe(true);
+    expect(response.status).toBe(200);
+    expect(result.sentCount).toBe(0);
+    expect(queue('fresca').processed).toBe(false);
   });
 });

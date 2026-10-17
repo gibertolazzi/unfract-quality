@@ -85,6 +85,10 @@ function subjectFor(item: QueueItem): string {
   }
 }
 
+/**
+ * Estrae il token cron esclusivamente dalle intestazioni HTTP per evitare
+ * che chiavi segrete compaiano nei parametri URL e finiscano nei log di accesso.
+ */
 function extractCronToken(request: Request): string | null {
   const authHeader = request.headers.get('authorization') || '';
   if (authHeader.startsWith('Bearer ')) {
@@ -96,15 +100,6 @@ function extractCronToken(request: Request): string | null {
   const customHeader = request.headers.get('x-cron-secret') || request.headers.get('x-cron-key');
   if (customHeader) {
     return customHeader.trim();
-  }
-  try {
-    const url = new URL(request.url);
-    const queryKey = url.searchParams.get('key') || url.searchParams.get('secret');
-    if (queryKey) {
-      return queryKey.trim();
-    }
-  } catch {
-    // fallback se url parsing fallisce
   }
   return null;
 }
@@ -123,14 +118,6 @@ async function handleCron(request: Request) {
 
   if (!process.env.RESEND_API_KEY) {
     return NextResponse.json({ error: 'RESEND_API_KEY non configurata' }, { status: 503 });
-  }
-
-  let forceImmediate = false;
-  try {
-    const url = new URL(request.url);
-    forceImmediate = url.searchParams.get('force') === 'true';
-  } catch {
-    // ignore
   }
 
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -194,7 +181,7 @@ async function handleCron(request: Request) {
       }
 
       const waitMs = intervalMs(settings.groupFrequency || '3min');
-      const due = enabled.filter(item => forceImmediate || (Date.now() - item.createdAt >= waitMs));
+      const due = enabled.filter(item => Date.now() - item.createdAt >= waitMs);
       if (!due.length) continue;
       const claimedIds = await claim(due.map(item => item.docId), Date.now());
       const claimed = due.filter(item => claimedIds.has(item.docId));

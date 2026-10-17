@@ -51,35 +51,34 @@ const DocTreeItem = ({ doc, activePath, depth, onAddChild }: { doc: DocNode, act
   return (
     <div className="flex flex-col">
       <div 
-        className={`group flex items-center gap-1.5 py-1.5 pr-2 rounded-lg transition-colors cursor-pointer ${
+        className={`group flex items-center gap-1.5 py-1.5 pr-2 rounded-lg transition-colors ${
           isActive ? "text-white bg-white/10 font-medium" : "text-[#858585] hover:text-white hover:bg-white/5"
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
       >
-        <div 
-          className="shrink-0 w-4 h-4 flex items-center justify-center cursor-pointer hover:bg-white/10 rounded"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
+        <button 
+          type="button"
+          className="shrink-0 w-4 h-4 flex items-center justify-center hover:bg-white/10 rounded"
+          onClick={() => {
             if (doc.children.length > 0) setIsExpanded(!isExpanded);
           }}
+          aria-label={isExpanded ? 'Comprimi' : 'Espandi'}
         >
           {doc.children.length > 0 ? (
             <ChevronDown size={14} className={`transition-transform duration-200 ${!isExpanded ? '-rotate-90' : ''}`} />
           ) : (
             <div className="w-1 h-1 rounded-full bg-white/20" />
           )}
-        </div>
+        </button>
         <Link
           href={`/documentation/${doc.id}`}
-          className="truncate flex-1 text-xs"
+          className="truncate flex-1 text-xs hover:underline"
         >
           {doc.title}
         </Link>
         <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
+          type="button"
+          onClick={() => {
             onAddChild(doc.id);
             setIsExpanded(true); 
           }}
@@ -412,6 +411,41 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
           const isActive = !item.disabled && (pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href)));
           const isDocMenu = item.id === "documentation";
 
+          const rowClasses = `flex items-center justify-between px-3 py-1.5 rounded-xl transition-all overflow-hidden ${
+            dragOverItemId === item.id && draggedItemId !== item.id
+              ? 'ring-2 ring-[#006AFF] bg-[#006AFF]/10'
+              : isActive
+              ? "bg-[#006AFF]/40 text-white shadow-sm"
+              : "text-[#808080] hover:text-white hover:bg-white/5"
+          }`;
+
+          const itemContent = (
+            <div className="flex items-center gap-3 flex-1 overflow-hidden">
+              <div className="shrink-0">
+                <item.Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+              </div>
+              <div className="flex flex-1 items-center justify-between overflow-hidden">
+                <span className="text-[13px] truncate font-normal">
+                  {item.label}
+                </span>
+                {item.id === 'chat' && unreadCount > 0 && (
+                  <span
+                    aria-label={`${unreadCount} messaggi non letti`}
+                    className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white"
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+                {item.disabled && (
+                  <span className="text-[10px] bg-white/10 text-white/70 px-2 py-0.5 rounded flex items-center gap-1 shrink-0 ml-2">
+                    <Lock size={10} />
+                    {t.sidebar.soon}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+
           return (
             <div 
               key={item.id} 
@@ -423,69 +457,48 @@ export function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () =>
               onDrop={(e) => !item.disabled && handleDrop(e, item.id)}
               onDragEnd={handleDragEnd}
             >
-              <div
-                className={`flex items-center justify-between px-3 py-1.5 cursor-pointer rounded-xl transition-all overflow-hidden ${
-                  dragOverItemId === item.id && draggedItemId !== item.id
-                    ? 'ring-2 ring-[#006AFF] bg-[#006AFF]/10'
-                    : isActive
-                    ? "bg-[#006AFF]/40 text-white shadow-sm"
-                    : "text-[#808080] hover:text-white hover:bg-white/5"
-                }`}
-                onClick={() => {
-                  if (!item.disabled) {
-                    if (isDocMenu && !isDocsExpanded) setIsDocsExpanded(true);
-                    router.push(item.href);
-                  }
-                }}
-              >
-                <Link
-                  href={item.disabled ? "#" : item.href}
-                  className={`flex items-center gap-3 flex-1 overflow-hidden ${item.disabled ? 'cursor-not-allowed' : ''}`}
-                  onClick={(e) => {
-                    if (item.disabled) {
-                      e.preventDefault();
-                      return;
-                    }
-                    if (isDocMenu && !isDocsExpanded) setIsDocsExpanded(true);
-                  }}
-                >
-                  <div className="shrink-0">
-                    <item.Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
-                  </div>
-                  <div className="flex flex-1 items-center justify-between overflow-hidden">
-                    <span className={`text-[13px] truncate font-normal`}>
-                      {item.label}
-                    </span>
-                    {item.id === 'chat' && unreadCount > 0 && (
-                      <span
-                        aria-label={`${unreadCount} messaggi non letti`}
-                        className="ml-2 inline-flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[#006AFF] px-1.5 text-[10px] font-bold leading-none text-white"
-                      >
-                        {unreadCount > 99 ? '99+' : unreadCount}
+              {item.disabled ? (
+                <div className={`${rowClasses} cursor-not-allowed`}>
+                  {itemContent}
+                </div>
+              ) : isDocMenu ? (
+                <div className={rowClasses}>
+                  <Link
+                    href={item.href}
+                    onClick={() => {
+                      if (!isDocsExpanded) setIsDocsExpanded(true);
+                    }}
+                    className="flex items-center gap-3 flex-1 overflow-hidden"
+                  >
+                    <div className="shrink-0">
+                      <item.Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
+                    </div>
+                    <div className="flex flex-1 items-center justify-between overflow-hidden">
+                      <span className="text-[13px] truncate font-normal">
+                        {item.label}
                       </span>
-                    )}
-                    {item.disabled && (
-                      <span className="text-[10px] bg-white/10 text-white/70 px-2 py-0.5 rounded flex items-center gap-1 shrink-0 ml-2">
-                        <Lock size={10} />
-                        {t.sidebar.soon}
-                      </span>
-                    )}
-                  </div>
-                </Link>
+                    </div>
+                  </Link>
 
-                {isDocMenu && (
                   <button 
+                    type="button"
                     onClick={(e) => {
                       e.preventDefault();
-                      e.stopPropagation();
                       setIsDocsExpanded(!isDocsExpanded);
                     }}
                     className="shrink-0 ml-2 p-1 rounded-full hover:bg-white/10 text-[#858585] transition-colors"
                   >
                     <ChevronDown size={14} className={`transition-transform duration-200 ${isDocsExpanded ? 'rotate-180' : ''}`} />
                   </button>
-                )}
-              </div>
+                </div>
+              ) : (
+                <Link
+                  href={item.href}
+                  className={rowClasses}
+                >
+                  {itemContent}
+                </Link>
+              )}
 
               {/* Sub-menu for Documentation */}
               {isDocMenu && isDocsExpanded && (

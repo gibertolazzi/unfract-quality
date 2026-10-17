@@ -48,4 +48,29 @@ describe('Route /api/crm/vat/lookup', () => {
     const res = await POST(req);
     expect(res.status).toBe(401);
   });
+
+  it('in caso di errore interno (500) non espone details o messaggi interni al browser (S22)', async () => {
+    const { POST } = await import('@/app/api/crm/vat/lookup/route');
+    const requestBody = await import('@/lib/server/requestBody');
+    vi.spyOn(requestBody, 'readJsonObject').mockRejectedValueOnce(
+      new Error('Internal database/credential leak error')
+    );
+
+    // Mock guardRequest bypass per arrivare al blocco try/catch dell'elaborazione
+    const serverAuth = await import('@/lib/crm/prospect/serverAuth');
+    vi.spyOn(serverAuth, 'guardRequest').mockResolvedValueOnce({ ok: true, uid: 'u1' });
+
+    const req = new Request('http://localhost:3000/api/crm/vat/lookup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token' },
+      body: JSON.stringify({ vatNumber: '00743110157' }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.error).toBe('Errore interno del server durante la verifica.');
+    expect(data.details).toBeUndefined();
+    expect(JSON.stringify(data)).not.toContain('Internal database/credential leak');
+  });
 });
