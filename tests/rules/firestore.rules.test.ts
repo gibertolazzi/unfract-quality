@@ -279,11 +279,14 @@ describe('chat AI', () => {
 
 describe('collezioni del server', () => {
   it('chiuse al browser, anche a chi ha fatto il login', async () => {
-    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u', 'rate_limits/r', 'org_suspensions/o1_carla']) {
+    for (const path of ['org_invites/hash', 'oauth_states/s', 'calendar_channels/c', 'booking_locks/l', 'notifications_queue/q', 'storage_usage/u', 'rate_limits/r', 'org_suspensions/o1_carla', 'mcp_clients/c', 'mcp_codes/k', 'mcp_grants/g', 'mcp_tokens/t', 'mcp_audit/a', 'mcp_settings/o1']) {
       await assertFails(getDoc(doc(anna(), path)));
       await assertFails(setDoc(doc(anna(), path), { x: 1 }));
     }
     await assertFails(getDocs(collection(anna(), 'org_invites')));
+    // Token e collegamenti degli assistenti: nemmeno l'elenco dei propri.
+    await assertFails(getDocs(query(collection(anna(), 'mcp_grants'), where('uid', '==', 'anna'))));
+    await assertFails(getDocs(collection(anna(), 'mcp_tokens')));
   });
 });
 

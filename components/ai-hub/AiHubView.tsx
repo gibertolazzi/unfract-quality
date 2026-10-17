@@ -31,31 +31,13 @@ export function AiHubView() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showMCPModal, setShowMCPModal] = useState(false);
-  const [activeMcpTab, setActiveMcpTab] = useState<"host" | "server">("host");
-  const [mcpUrl, setMcpUrl] = useState("");
-  const [isConnectingMcp, setIsConnectingMcp] = useState(false);
-  const [isMcpConnected, setIsMcpConnected] = useState(false);
+  const [mcpCopied, setMcpCopied] = useState(false);
+  // Il server MCP può essere spento (in prod finché non si attiva): lo si chiede ai suoi metadati.
+  const [mcpAvailable, setMcpAvailable] = useState<boolean | null>(null);
+  const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const handleConnectMcp = async () => {
-    if (!mcpUrl) return;
-    setIsConnectingMcp(true);
-    // Simulate connection to an external MCP server
-    setTimeout(() => {
-      setIsConnectingMcp(false);
-      setIsMcpConnected(true);
-      setTimeout(() => setShowMCPModal(false), 1000);
-    }, 1500);
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   // Keep task completion and columns live so completed work is never offered as an action.
   useEffect(() => {
@@ -306,7 +288,10 @@ export function AiHubView() {
         </div>
         
         {/* Connect Button */}
-        <button onClick={() => setShowMCPModal(true)} className="relative w-full h-[60px] rounded-[30px] overflow-hidden group hover:opacity-90 transition-opacity">
+        <button onClick={() => {
+          setShowMCPModal(true);
+          if (mcpAvailable === null) fetch("/api/oauth/protected-resource").then(r => setMcpAvailable(r.ok)).catch(() => setMcpAvailable(false));
+        }} className="relative w-full h-[60px] rounded-[30px] overflow-hidden group hover:opacity-90 transition-opacity">
           <img src="/connectagent.svg" alt="Connect agent with MCP" className="w-full h-full object-cover" />
         </button>
 
@@ -560,72 +545,30 @@ export function AiHubView() {
             >
               <X size={20} />
             </button>
-            <h3 className="text-xl font-medium text-white mb-6">{t.aiHub.manageMcp}</h3>
+            <h3 className="text-xl font-medium text-white mb-4">{t.mcp.hubTitle}</h3>
 
-            {/* Custom Tabs */}
-            <div className="flex w-full mb-6 bg-white/5 rounded-xl p-1 border border-white/10">
-              <button
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  activeMcpTab === "host" ? "bg-[#006AFF] text-white" : "text-[#858585] hover:text-white"
-                }`}
-                onClick={() => setActiveMcpTab("host")}
-              >
-                {t.aiHub.externalTools}
-              </button>
-              <button
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  activeMcpTab === "server" ? "bg-[#006AFF] text-white" : "text-[#858585] hover:text-white"
-                }`}
-                onClick={() => setActiveMcpTab("server")}
-              >
-                {t.aiHub.useUnfractElsewhere}
-              </button>
-            </div>
-
-            {activeMcpTab === "host" && (
-              <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[#858585] text-sm mb-4">{t.aiHub.mcpDescription}</p>
-                <input 
-                  type="text" 
-                  value={mcpUrl}
-                  onChange={(e) => setMcpUrl(e.target.value)}
-                  placeholder="https://..." 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#006AFF] mb-4" 
-                />
-                <button 
-                  onClick={handleConnectMcp}
-                  disabled={!mcpUrl || isConnectingMcp || isMcpConnected}
-                  className="w-full flex justify-center items-center gap-2 bg-[#006AFF] hover:bg-[#0055CC] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors"
-                >
-                  {isConnectingMcp ? (
-                    <><Loader2 className="animate-spin" size={18} /> {t.aiHub.connecting}</>
-                  ) : isMcpConnected ? (
-                    <><Check size={18} /> {t.aiHub.connected}</>
-                  ) : (
-                    t.aiHub.connect
-                  )}
-                </button>
-              </div>
-            )}
-
-            {activeMcpTab === "server" && (
-              <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[#858585] text-sm mb-4">{t.aiHub.mcpServerDescription}</p>
-                
-                <div className="bg-black border border-white/10 rounded-xl p-4 mb-4 flex items-center justify-between">
-                  <code className="text-[#006AFF] text-sm truncate mr-4">
-                    npx @unfract/mcp-server --token=sk_YOUR_TOKEN
-                  </code>
-                  <button 
-                    onClick={() => copyToClipboard("npx @unfract/mcp-server --token=sk_YOUR_TOKEN")}
-                    className="text-[#858585] hover:text-white transition-colors"
+            {/* Unfract come server MCP (app/api/mcp): l'indirizzo da aggiungere
+                come connettore. Il login e il consenso li gestisce /oauth/authorize. */}
+            {mcpAvailable === null ? (
+              <Loader2 className="animate-spin text-[#858585]" size={18} />
+            ) : !mcpAvailable ? (
+              <p className="text-sm text-[#858585]">{t.mcp.disabled}</p>
+            ) : (
+              <>
+                <p className="text-sm text-[#858585] mb-4">{t.mcp.hubDesc}</p>
+                <div className="bg-black border border-white/10 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
+                  <code className="text-[#006AFF] text-sm truncate">{mcpUrl}</code>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(mcpUrl).then(() => { setMcpCopied(true); setTimeout(() => setMcpCopied(false), 2000); }).catch(() => undefined); }}
+                    className="shrink-0 flex items-center gap-1 text-xs text-[#858585] hover:text-white transition-colors"
                   >
-                    {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
+                    {mcpCopied ? <><Check size={16} className="text-green-500" />{t.mcp.copied}</> : <><Copy size={16} />{t.mcp.copy}</>}
                   </button>
                 </div>
-                
-                <p className="text-[#858585] text-xs">{t.aiHub.copyCommand} (e.g. <code>claude_desktop_config.json</code>)</p>
-              </div>
+                <p className="text-xs text-white/70 mb-2">{t.mcp.hubSafety}</p>
+                <p className="text-xs text-[#858585]">{t.mcp.hubManage}</p>
+              </>
             )}
           </div>
         </div>

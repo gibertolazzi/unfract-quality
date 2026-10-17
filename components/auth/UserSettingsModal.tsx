@@ -3,6 +3,7 @@ import { X, Globe, Clock, Mail, BellRing } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from '@/contexts/TranslationContext';
 import { useRouter } from 'next/navigation';
+import { ConnectedAssistants } from '@/components/auth/ConnectedAssistants';
 
 export function UserSettingsModal({ onClose }: { onClose: () => void }) {
   const { settings, updateSettings } = useAuth();
@@ -213,6 +214,10 @@ export function UserSettingsModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
           </div>
+
+          <div className="w-full h-px bg-white/5" />
+
+          <ConnectedAssistants />
           
         </div>
 
