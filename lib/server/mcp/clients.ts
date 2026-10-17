@@ -209,12 +209,25 @@ export const fetchClientDocument: DocumentFetcher = url => new Promise((resolve,
   request.on('error', reject);
 });
 
+/**
+ * Il client sa usare il metodo pubblico (`none`), il solo che accettiamo.
+ * Un documento può preferire un altro metodo (`token_endpoint_auth_method`)
+ * ed elencare in `token_endpoint_auth_methods_supported` anche `none`: è il
+ * caso di ChatGPT, che preferisce `private_key_jwt` e sceglie fra i metodi
+ * in comune con il nostro server, che dichiara solo `none`.
+ */
+function supportsPublicAuth(meta: Record<string, unknown>): boolean {
+  const preferred = meta.token_endpoint_auth_method ?? 'none';
+  if (preferred === 'none') return true;
+  const supported = meta.token_endpoint_auth_methods_supported;
+  return Array.isArray(supported) && supported.includes('none');
+}
+
 function clientFromDocument(clientId: string, doc: unknown): McpClient {
   if (!doc || typeof doc !== 'object' || Array.isArray(doc)) throw new ClientError('invalid_client', 'Documento del client non valido.');
   const meta = doc as Record<string, unknown>;
   if (meta.client_id !== clientId) throw new ClientError('invalid_client', 'Il client_id del documento non corrisponde al suo indirizzo.');
-  const method = meta.token_endpoint_auth_method ?? 'none';
-  if (method !== 'none') throw new ClientError('invalid_client', 'Sono ammessi solo client pubblici (token_endpoint_auth_method: none).');
+  if (!supportsPublicAuth(meta)) throw new ClientError('invalid_client', 'Sono ammessi solo client pubblici (token_endpoint_auth_method: none).');
   checkGrantMetadata(meta);
   const domain = new URL(clientId).hostname;
   return { clientId, name: cleanName(meta.client_name, domain), redirectUris: validRedirectList(meta.redirect_uris), kind: 'metadata', domain };
