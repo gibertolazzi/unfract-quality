@@ -40,8 +40,18 @@ export function disabled(): NextResponse | null {
   return mcpEnabled() ? null : NextResponse.json({ error: 'Not found' }, { status: 404 });
 }
 
-/** L'IP dichiarato dal client: serve solo a dividere i limiti, non a fidarsi. */
+/**
+ * L'IP del client, per dividere i limiti di richieste.
+ *
+ * Su App Hosting lo scrive la piattaforma in `x-fah-client-ip`. Il primo
+ * valore di `X-Forwarded-For` invece lo sceglie chi fa la richiesta (ogni
+ * proxy aggiunge in coda), e cambiandolo a ogni richiesta un limite per IP
+ * non scatterebbe mai; l'ultimo è un proxy di Google, uguale per molti
+ * utenti. `X-Forwarded-For` resta solo per lo sviluppo in locale.
+ */
 export function clientIp(request: Request): string {
+  const platform = request.headers.get('x-fah-client-ip')?.trim();
+  if (platform) return platform.slice(0, 64);
   return (request.headers.get('x-forwarded-for') || '').split(',')[0].trim().slice(0, 64) || 'unknown';
 }
 
