@@ -19,6 +19,18 @@ vi.mock('@/lib/firebase-admin', async () => {
   };
 });
 
+// arrayUnion finto, come lo capisce il Firestore in memoria (tests/helpers/fakeFirestore.ts).
+vi.mock('firebase-admin/firestore', async importOriginal => {
+  const real = await importOriginal<typeof import('firebase-admin/firestore')>();
+  return {
+    ...real,
+    FieldValue: {
+      serverTimestamp: () => real.FieldValue.serverTimestamp(),
+      arrayUnion: (...values: unknown[]) => ({ __arrayUnion: values }),
+    },
+  };
+});
+
 import { POST as mcpPost } from '@/app/api/mcp/route';
 import { GET as protectedResource } from '@/app/api/oauth/protected-resource/route';
 import { GET as authorizationServer } from '@/app/api/oauth/authorization-server/route';
@@ -108,10 +120,11 @@ async function authorize(uid: string, body: Record<string, unknown>) {
 }
 
 /** Collega un assistente per `uid` sul workspace: login, consenso, token. */
-async function connect(uid: string, workspaceId: string) {
+async function connect(uid: string, workspaceId: string, options: { scope?: string; allowWrite?: boolean } = {}) {
   const clientId = await register();
   const { verifier, challenge } = pkce();
-  const approve = await authorize(uid, { action: 'approve', params: authorizeParams(clientId, challenge), workspaceId });
+  const params = authorizeParams(clientId, challenge, options.scope ? { scope: options.scope } : {});
+  const approve = await authorize(uid, { action: 'approve', params, workspaceId, allowWrite: options.allowWrite });
   expect(approve.status).toBe(200);
   const redirect = new URL((await approve.json()).redirect);
   expect(redirect.origin + redirect.pathname).toBe(REDIRECT);
@@ -154,7 +167,7 @@ async function callTool(accessToken: string, name: string, args: Record<string, 
 describe('metadati OAuth', () => {
   it('la risorsa indica il server di autorizzazione', async () => {
     const body = await (await protectedResource()).json();
-    expect(body).toMatchObject({ resource: `${BASE}/api/mcp`, authorization_servers: [BASE], scopes_supported: ['read'] });
+    expect(body).toMatchObject({ resource: `${BASE}/api/mcp`, authorization_servers: [BASE], scopes_supported: ['read', 'write'] });
   });
 
   it('il server di autorizzazione dichiara PKCE S256, CIMD e iss', async () => {
@@ -192,7 +205,7 @@ describe('collegamento e strumenti', () => {
     const tools = JSON.parse(text.startsWith('{') ? text : text.split('\n').find(l => l.startsWith('data: '))!.slice(6)).result.tools;
     expect(tools.map((t: any) => t.name).sort()).toEqual([
       'get_board', 'get_document', 'get_meeting', 'get_task', 'list_calendar_events', 'list_meetings', 'list_my_tasks',
-      'list_projects', 'search_documents', 'search_tasks',
+      'list_people', 'list_projects', 'search_documents', 'search_tasks',
     ]);
     expect(tools.every((t: any) => t.annotations?.readOnlyHint === true && t.annotations?.destructiveHint === false)).toBe(true);
   });
@@ -476,6 +489,7 @@ describe('utilità', () => {
   it('permessi, risorsa e PKCE', () => {
     expect(parseScopes(undefined)).toEqual(['read']);
     expect(parseScopes('read')).toEqual(['read']);
+    expect(parseScopes('read write')).toEqual(['read', 'write']);
     expect(parseScopes('read admin')).toBeNull();
     expect(resourceMatches(`${BASE}/api/mcp`)).toBe(true);
     expect(resourceMatches(`${BASE}/api/mcp/`)).toBe(true);
@@ -526,5 +540,118 @@ describe('interruttore per workspace', () => {
     // Il rinnovo rifiutato da spento non ha consumato il token.
     const later = await tokenPost(formPost(`${BASE}/api/oauth/token`, { grant_type: 'refresh_token', refresh_token: bruno.refresh_token, client_id: bruno.clientId }));
     expect(later.status).toBe(200);
+  });
+});
+
+describe('scritture (permesso «write»)', () => {
+  const store = () => mocks.db.store as Map<string, any>;
+  const docsIn = (collection: string) => Array.from(store().entries()).filter(([path]) => path.startsWith(`${collection}/`)).map(([path, data]) => ({ id: path.split('/')[1], ...data }));
+  const writer = (uid = 'anna') => connect(uid, 'o1', { scope: 'read write', allowWrite: true });
+  const toolNames = async (token: string) => {
+    const text = await (await mcp(token, 'tools/list')).text();
+    return JSON.parse(text.startsWith('{') ? text : text.split('\n').find(l => l.startsWith('data: '))!.slice(6)).result.tools.map((t: any) => t.name);
+  };
+
+  it('senza la spunta nel consenso resta in sola lettura, anche se l’app chiede di scrivere', async () => {
+    const reader = await connect('anna', 'o1', { scope: 'read write', allowWrite: false });
+    expect(reader.scope).toBe('read');
+    expect(await toolNames(reader.access_token)).not.toContain('create_task');
+    const full = await writer();
+    expect(full.scope).toBe('read write');
+    expect(await toolNames(full.access_token)).toEqual(expect.arrayContaining(['create_task', 'update_task', 'move_task', 'add_comment']));
+  });
+
+  it('gli strumenti che scrivono non sono di sola lettura; update_task è marcato come sovrascrittura', async () => {
+    const { access_token } = await writer();
+    const text = await (await mcp(access_token, 'tools/list')).text();
+    const tools = JSON.parse(text.startsWith('{') ? text : text.split('\n').find(l => l.startsWith('data: '))!.slice(6)).result.tools;
+    const byName = Object.fromEntries(tools.map((t: any) => [t.name, t.annotations]));
+    expect(byName.create_task.readOnlyHint).toBe(false);
+    expect(byName.update_task.destructiveHint).toBe(true);
+    expect(tools.some((t: any) => /delete/.test(t.name))).toBe(false);
+  });
+
+  it('crea una task come l’app, avvisa l’assegnatario e segna l’assistente', async () => {
+    const { access_token } = await writer();
+    const created = await callTool(access_token, 'create_task', { projectId: 'p1', title: 'Preparare offerta', assigneeUid: 'bruno', due: '2026-11-01', priority: 'High' });
+    expect(created.isError).toBe(false);
+    const task = store().get(`tasks/${created.data.taskId}`);
+    expect(task).toMatchObject({
+      projectId: 'p1', workspaceId: 'o1', columnId: 'c1', title: 'Preparare offerta', assigneeUid: 'bruno', assignee: 'Bruno Bianchi',
+      date: '2026-11-01', priority: 'High', requesterUid: 'anna', createdBy: 'anna', lastModifiedBy: 'anna',
+      createdVia: expect.objectContaining({ type: 'mcp', client: 'Assistente di prova' }),
+    });
+    expect(docsIn('notifications')).toEqual([expect.objectContaining({ userId: 'bruno', type: 'task', senderId: 'anna' })]);
+    expect(docsIn('notifications_queue')).toEqual([expect.objectContaining({
+      recipientId: 'bruno', type: 'assignment', authorName: 'Anna Rossi tramite Assistente di prova', actionUrl: `/?highlightTask=${created.data.taskId}`,
+    })]);
+  });
+
+  it('non scrive fuori dal workspace né assegna a chi non ne fa parte', async () => {
+    const { access_token } = await writer();
+    expect((await callTool(access_token, 'create_task', { projectId: 'p2', title: 'X' })).isError).toBe(true);
+    expect((await callTool(access_token, 'update_task', { taskId: 't3', title: 'X' })).isError).toBe(true);
+    const outsider = await callTool(access_token, 'create_task', { projectId: 'p1', title: 'X', assigneeUid: 'carla' });
+    expect(outsider.text).toContain('membro del workspace');
+    expect(store().get('tasks/t3').title).toBe('Piano riservato');
+  });
+
+  it('senza permesso «Task» in scrittura non modifica, anche con il permesso «write»', async () => {
+    const { access_token } = await writer('bruno');
+    const result = await callTool(access_token, 'move_task', { taskId: 't1', columnId: 'c2' });
+    expect(result.text).toContain('permesso di modificare');
+    expect(store().get('tasks/t1').columnId).toBe('c1');
+  });
+
+  it('spostare rispetta transizioni e condizioni, e segna il completamento', async () => {
+    const { access_token } = await writer('bruno');
+    store().get('project_roles/r1').permissions.tasks = 'write';
+    store().get('columns/c1').blockedTargets = ['c2'];
+    const blocked = await callTool(access_token, 'move_task', { taskId: 't1', columnId: 'c2' });
+    expect(blocked.text).toContain('regola del flusso');
+
+    store().get('columns/c1').blockedTargets = [];
+    store().get('columns/c2').entryRules = { adminOnly: true };
+    expect((await callTool(access_token, 'move_task', { taskId: 't1', columnId: 'c2' })).isError).toBe(true);
+
+    store().get('columns/c2').entryRules = {};
+    const moved = await callTool(access_token, 'move_task', { taskId: 't1', columnId: 'c2' });
+    expect(moved.data).toMatchObject({ moved: true, status: 'done' });
+    expect(store().get('tasks/t1')).toMatchObject({ columnId: 'c2', lastModifiedBy: 'bruno', completedAt: expect.any(String) });
+  });
+
+  it('modifica i campi indicati e avvisa il nuovo assegnatario', async () => {
+    const { access_token } = await writer();
+    const updated = await callTool(access_token, 'update_task', { taskId: 't1', assigneeUid: 'me', due: null, priority: 'Low' });
+    expect(updated.data.fields.sort()).toEqual(['assigneeUid', 'date', 'priority']);
+    expect(store().get('tasks/t1')).toMatchObject({ assigneeUid: 'anna', date: null, priority: 'Low', title: 'Fare il logo' });
+    // Assegnata a sé stessa: nessuna notifica.
+    expect(docsIn('notifications')).toEqual([]);
+    await callTool(access_token, 'update_task', { taskId: 't1', assigneeUid: 'bruno' });
+    expect(docsIn('notifications')).toEqual([expect.objectContaining({ userId: 'bruno' })]);
+  });
+
+  it('commenta a nome dell’utente e avvisa il richiedente', async () => {
+    store().get('tasks/t1').requesterUid = 'bruno';
+    const { access_token } = await writer();
+    expect((await callTool(access_token, 'add_comment', { taskId: 't1', text: 'Fatto il primo giro' })).isError).toBe(false);
+    const comments = store().get('tasks/t1').comments;
+    expect(comments.at(-1)).toMatchObject({ text: 'Fatto il primo giro', authorUid: 'anna', author: 'Anna Rossi', via: expect.objectContaining({ type: 'mcp' }) });
+    expect(docsIn('notifications_queue')).toEqual([expect.objectContaining({ recipientId: 'bruno', type: 'requester' })]);
+  });
+
+  it('le persone del workspace, con l’utente collegato segnato', async () => {
+    const { access_token } = await connect('bruno', 'o1');
+    const people = (await callTool(access_token, 'list_people')).data.people;
+    expect(people).toEqual([
+      { uid: 'anna', name: 'Anna Rossi', you: false },
+      { uid: 'bruno', name: 'Bruno Bianchi', you: true },
+    ]);
+  });
+
+  it('nelle impostazioni il collegamento risulta con la scrittura', async () => {
+    await writer();
+    const list = await (await connectionsGet(new Request(`${BASE}/api/oauth/connections`, { headers: { Authorization: 'Bearer id-anna' } }))).json();
+    expect(list.connections[0].scopes).toEqual(['read', 'write']);
   });
 });

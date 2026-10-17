@@ -75,7 +75,7 @@ export function ConnectedAssistants() {
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-white/90">{connection.clientName}</p>
                 <p className="truncate text-xs text-[#858585]">
-                  {[connection.workspaceName, t.mcp.readOnly, connection.lastUsedAt
+                  {[connection.workspaceName, connection.scopes.includes('write') ? t.mcp.readWrite : t.mcp.readOnly, connection.lastUsedAt
                     ? formatMessage(t.mcp.lastUsed, { date: new Date(connection.lastUsedAt).toLocaleString(locale) })
                     : t.mcp.neverUsed].filter(Boolean).join(' · ')}
                 </p>

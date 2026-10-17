@@ -153,6 +153,7 @@ Checklist interna per preparare un Workspace e verificare che le sezioni princip
 - [ ] MCP: un assistente (es. Claude) si collega con l'indirizzo mostrato nell'AI Hub, chiede login e scelta del workspace, e vede solo i progetti di quel workspace.
 - [ ] MCP: un membro senza permesso «Task» o «Documenti» non li vede nemmeno dall'assistente.
 - [ ] MCP: «Scollega» in Impostazioni ferma subito l'assistente.
+- [ ] MCP scritture: senza la spunta nel consenso l'assistente non ha gli strumenti di modifica; con la spunta crea e sposta task rispettando le regole del flusso, e l'assegnatario riceve la notifica.
 - [ ] MCP: l'amministratore spegne gli assistenti dalla pagina dell'organizzazione e quelli collegati si fermano; un membro normale non vede l'interruttore.
 - [ ] MCP in prod: acceso solo dopo l'OK, con `MCP_ENABLED=true`.
 

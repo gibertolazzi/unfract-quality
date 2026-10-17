@@ -38,7 +38,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ details: result.details });
     }
     if (body.action === 'approve' || body.action === 'deny') {
-      const result = await authorizeDecision(params, auth.user.uid, { approve: body.action === 'approve', workspaceId: body.workspaceId });
+      const result = await authorizeDecision(params, auth.user.uid, { approve: body.action === 'approve', workspaceId: body.workspaceId, allowWrite: body.allowWrite });
       if (!result.ok) return NextResponse.json({ error: result.message, redirect: result.redirect ?? null }, { status: 400 });
       return NextResponse.json({ redirect: result.redirect });
     }
