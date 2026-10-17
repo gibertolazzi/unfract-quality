@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
+import { Timestamp } from 'firebase-admin/firestore';
 import { adminDb } from '@/lib/firebase-admin';
 import { parseSafeDate } from '@/lib/dateUtils';
 import { canReadModule } from '@/lib/iamPermissions';
@@ -98,6 +99,9 @@ export class ToolContext {
   }
 }
 
+/** Quanto si tiene il registro delle chiamate (con la policy TTL attiva). */
+export const AUDIT_RETENTION_DAYS = 365;
+
 async function audit(ctx: ToolContext, tool: string, ok: boolean, projectId?: string) {
   try {
     await adminDb.collection('mcp_audit').add({
@@ -110,6 +114,9 @@ async function audit(ctx: ToolContext, tool: string, ok: boolean, projectId?: st
       projectId: projectId || null,
       ok,
       atMs: Date.now(),
+      // Conservazione del registro: con la policy TTL di Firestore su
+      // `expireAt` (docs/MCP_IT.md) le voci spariscono dopo AUDIT_RETENTION_DAYS.
+      expireAt: Timestamp.fromMillis(Date.now() + AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000),
     });
   } catch (error) {
     console.error('MCP audit not recorded:', error instanceof Error ? error.message : error);
