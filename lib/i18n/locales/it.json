@@ -1230,15 +1230,20 @@
     "hubDesc": "Aggiungi Unfract come connettore in Claude, ChatGPT o Cursor con questo indirizzo. Ti verrà chiesto di accedere e di scegliere il workspace.",
     "copy": "Copia",
     "copied": "Copiato",
-    "hubSafety": "L’assistente vede solo quello che vedi tu, in sola lettura e senza CRM.",
+    "hubSafety": "L’assistente vede solo quello che vedi tu, senza CRM. Può modificare le task solo se glielo permetti quando lo colleghi, e non cancella mai nulla.",
     "hubManage": "Gestisci gli assistenti collegati nelle impostazioni del profilo.",
     "workspaceDisabled": "assistenti disattivati dall’amministratore",
     "orgTitle": "Assistenti AI (MCP)",
-    "orgDesc": "I membri possono collegare Claude, ChatGPT o Cursor a questo workspace, in sola lettura e con i propri permessi. Spegnendo, tutti gli assistenti collegati smettono subito di funzionare; riaccendendo, riprendono.",
+    "orgDesc": "I membri possono collegare Claude, ChatGPT o Cursor a questo workspace, con i propri permessi: in lettura e, se lo concedono, per creare e modificare task (mai cancellare). Spegnendo, tutti gli assistenti collegati smettono subito di funzionare; riaccendendo, riprendono.",
     "orgOn": "Attivi",
     "orgOff": "Disattivati",
     "orgConnections": "Collegamenti attivi: {count}",
     "orgUpdated": "Impostazione salvata.",
-    "orgError": "Impossibile salvare l’impostazione."
+    "orgError": "Impossibile salvare l’impostazione.",
+    "allowWrite": "Permetti anche di creare, modificare, spostare e commentare task",
+    "allowWriteHint": "Facoltativo. Senza la spunta l’assistente può solo leggere. Anche con la spunta non potrà mai cancellare nulla, e segue i tuoi permessi e le regole del flusso di lavoro.",
+    "canWrite": "creare, modificare, spostare e commentare task, a tuo nome",
+    "cannotDelete": "cancellare nulla",
+    "readWrite": "Lettura e modifica task"
   }
 }

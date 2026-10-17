@@ -21,7 +21,9 @@ export const dynamic = 'force-dynamic';
 const handler = createMcpHandler(({ authInfo }) => buildMcpServer(authInfo?.extra?.verified as VerifiedToken));
 
 function challenge(status: 401 | 403, extra = '') {
-  const header = `Bearer resource_metadata="${protectedResourceMetadataUrl()}", scope="read"${extra}`;
+  // Si chiedono lettura e scrittura: la scrittura la concede l'utente nel
+  // consenso, con una spunta che parte spenta.
+  const header = `Bearer resource_metadata="${protectedResourceMetadataUrl()}", scope="read write"${extra}`;
   return new Response(JSON.stringify({ error: status === 401 ? 'invalid_token' : 'insufficient_scope' }), {
     status,
     headers: { ...CORS_HEADERS, 'Content-Type': 'application/json', 'WWW-Authenticate': header },

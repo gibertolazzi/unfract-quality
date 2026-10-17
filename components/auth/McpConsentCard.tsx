@@ -18,10 +18,12 @@ export interface ConsentDetails {
 export const CONSENT_CARD = 'w-full max-w-lg rounded-3xl border border-white/10 bg-[#111] p-6 sm:p-8 shadow-2xl';
 
 /** La scheda di consenso di `/oauth/authorize`: solo presentazione. */
-export function McpConsentCard({ details, workspaceId, onWorkspace, busy, error, email, onAnswer, onSwitchAccount }: {
+export function McpConsentCard({ details, workspaceId, onWorkspace, allowWrite, onAllowWrite, busy, error, email, onAnswer, onSwitchAccount }: {
   details: ConsentDetails;
   workspaceId: string;
   onWorkspace: (id: string) => void;
+  allowWrite: boolean;
+  onAllowWrite: (allow: boolean) => void;
   busy: boolean;
   error: string | null;
   email: string;
@@ -78,14 +80,31 @@ export function McpConsentCard({ details, workspaceId, onWorkspace, busy, error,
         )}
       </div>
 
+      {details.scopes.includes('write') && (
+        <label className="mb-5 flex cursor-pointer gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3">
+          <input
+            type="checkbox"
+            checked={allowWrite}
+            onChange={e => onAllowWrite(e.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 accent-[#006AFF]"
+          />
+          <span>
+            <span className="block text-sm text-white/90">{t.mcp.allowWrite}</span>
+            <span className="mt-1 block text-xs text-[#858585]">{t.mcp.allowWriteHint}</span>
+          </span>
+        </label>
+      )}
+
       <div className="mb-5 grid gap-4 text-sm sm:grid-cols-2">
         <div>
           <p className="mb-2 font-medium text-white/90">{t.mcp.canTitle}</p>
-          <p className="flex gap-2 text-white/70"><Check size={15} className="mt-0.5 shrink-0 text-emerald-400" />{t.mcp.canRead}</p>
+          {[t.mcp.canRead, ...(allowWrite ? [t.mcp.canWrite] : [])].map(text => (
+            <p key={text} className="mb-1 flex gap-2 text-white/70"><Check size={15} className="mt-0.5 shrink-0 text-emerald-400" />{text}</p>
+          ))}
         </div>
         <div>
           <p className="mb-2 font-medium text-white/90">{t.mcp.cannotTitle}</p>
-          {[t.mcp.cannotWrite, t.mcp.cannotCrm, t.mcp.cannotOther].map(text => (
+          {[allowWrite ? t.mcp.cannotDelete : t.mcp.cannotWrite, t.mcp.cannotCrm, t.mcp.cannotOther].map(text => (
             <p key={text} className="mb-1 flex gap-2 text-white/70"><X size={15} className="mt-0.5 shrink-0 text-red-400" />{text}</p>
           ))}
         </div>

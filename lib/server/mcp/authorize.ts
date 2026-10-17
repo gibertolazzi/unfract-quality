@@ -95,7 +95,15 @@ export async function authorizeConsent(params: AuthorizeParams, uid: string) {
 }
 
 /** Risposta dell'utente: l'indirizzo a cui mandare il browser. */
-export async function authorizeDecision(params: AuthorizeParams, uid: string, decision: { approve: boolean; workspaceId: unknown }) {
+/**
+ * I permessi concessi: sempre la lettura, la scrittura solo se l'app l'ha
+ * chiesta e l'utente ha messo la spunta.
+ */
+export function grantedScopes(requested: Scope[], allowWrite: boolean): Scope[] {
+  return requested.includes('write') && allowWrite ? ['read', 'write'] : ['read'];
+}
+
+export async function authorizeDecision(params: AuthorizeParams, uid: string, decision: { approve: boolean; workspaceId: unknown; allowWrite?: unknown }) {
   const check = await checkAuthorizeRequest(params);
   if (!check.ok) return check;
   if (!decision.approve) {
@@ -114,7 +122,7 @@ export async function authorizeDecision(params: AuthorizeParams, uid: string, de
     clientName: check.client.name,
     redirectUri: check.redirectUri,
     codeChallenge: check.codeChallenge,
-    scopes: check.scopes,
+    scopes: grantedScopes(check.scopes, decision.allowWrite === true),
   });
   return { ok: true as const, redirect: redirectWith(check.redirectUri, { code, state: check.state }) };
 }

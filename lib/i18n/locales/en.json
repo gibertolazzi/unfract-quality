@@ -1230,15 +1230,20 @@
     "hubDesc": "Add Unfract as a connector in Claude, ChatGPT or Cursor with this address. You will be asked to sign in and choose the workspace.",
     "copy": "Copy",
     "copied": "Copied",
-    "hubSafety": "The assistant sees only what you can see, read only and without the CRM.",
+    "hubSafety": "The assistant sees only what you can see, without the CRM. It can edit tasks only if you allow it when connecting, and it never deletes anything.",
     "hubManage": "Manage connected assistants in your profile settings.",
     "workspaceDisabled": "assistants turned off by an admin",
     "orgTitle": "AI assistants (MCP)",
-    "orgDesc": "Members can connect Claude, ChatGPT or Cursor to this workspace, read only and with their own permissions. Turning this off stops every connected assistant immediately; turning it back on resumes them.",
+    "orgDesc": "Members can connect Claude, ChatGPT or Cursor to this workspace with their own permissions: to read and, if they allow it, to create and edit tasks (never delete). Turning this off stops every connected assistant immediately; turning it back on resumes them.",
     "orgOn": "On",
     "orgOff": "Off",
     "orgConnections": "Active connections: {count}",
     "orgUpdated": "Setting saved.",
-    "orgError": "Could not save the setting."
+    "orgError": "Could not save the setting.",
+    "allowWrite": "Also allow it to create, edit, move and comment on tasks",
+    "allowWriteHint": "Optional. Without it the assistant can only read. Even with it, it can never delete anything, and it follows your permissions and the workflow rules.",
+    "canWrite": "create, edit, move and comment on tasks, on your behalf",
+    "cannotDelete": "delete anything",
+    "readWrite": "Read and edit tasks"
   }
 }

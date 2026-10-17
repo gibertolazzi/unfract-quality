@@ -27,10 +27,14 @@ export const registrationEndpoint = () => `${appUrl()}/api/oauth/register`;
 export const revocationEndpoint = () => `${appUrl()}/api/oauth/revoke`;
 
 /**
- * Permessi che un assistente può chiedere. `read`: leggere progetti, task,
- * bacheca, documenti, riunioni e il proprio calendario (niente CRM).
+ * Permessi che un assistente può chiedere:
+ * - `read`: leggere progetti, task, bacheca, documenti, riunioni e il proprio
+ *   calendario (niente CRM);
+ * - `write`: creare, modificare, spostare e commentare task (niente
+ *   cancellazioni). Lo concede l'utente con una spunta nel consenso, che
+ *   parte spenta: chiederlo non basta.
  */
-export const SCOPES = ['read'] as const;
+export const SCOPES = ['read', 'write'] as const;
 export type Scope = (typeof SCOPES)[number];
 export const DEFAULT_SCOPES: Scope[] = ['read'];
 

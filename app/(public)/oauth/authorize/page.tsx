@@ -30,6 +30,8 @@ function Consent() {
   const [details, setDetails] = useState<Details | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [workspaceId, setWorkspaceId] = useState('');
+  // La scrittura parte spenta: la concede l'utente.
+  const [allowWrite, setAllowWrite] = useState(false);
   const [busy, setBusy] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const checkedFor = useRef<string | null>(null);
@@ -65,7 +67,7 @@ function Consent() {
     setBusy(true);
     setError(null);
     try {
-      const response = await authedFetch('/api/oauth/authorize', { method: 'POST', body: JSON.stringify({ action, params, workspaceId }) });
+      const response = await authedFetch('/api/oauth/authorize', { method: 'POST', body: JSON.stringify({ action, params, workspaceId, allowWrite }) });
       const data = await response.json().catch(() => ({}));
       if (data.redirect) return go(data.redirect);
       setError(data.error || t.mcp.errorTitle);
@@ -106,6 +108,8 @@ function Consent() {
         details={details}
         workspaceId={workspaceId}
         onWorkspace={setWorkspaceId}
+        allowWrite={allowWrite}
+        onAllowWrite={setAllowWrite}
         busy={busy}
         error={error}
         email={user?.email || ''}
