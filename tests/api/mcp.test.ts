@@ -284,6 +284,9 @@ describe('collegamento e strumenti', () => {
     await callTool(access_token, 'get_task', { taskId: 't1' });
     const entries = Array.from((mocks.db.store as Map<string, any>).entries()).filter(([path]) => path.startsWith('mcp_audit/')).map(([, d]) => d);
     expect(entries).toEqual([expect.objectContaining({ uid: 'anna', workspaceId: 'o1', tool: 'get_task', projectId: 'p1', ok: true })]);
+    // Scade dopo un anno (policy TTL su expireAt).
+    const days = (entries[0].expireAt.toMillis() - entries[0].atMs) / 86_400_000;
+    expect(Math.round(days)).toBe(365);
   });
 });
 
