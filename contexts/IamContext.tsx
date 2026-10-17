@@ -5,6 +5,7 @@ import { useAuth } from './AuthContext';
 import { useProject } from './ProjectContext';
 import { useWorkspace } from './WorkspaceContext';
 import { CustomRole, ProjectMemberAccess, AppModule, PermissionLevel } from '@/types/iam';
+import { OWNER_PERMISSIONS, mergeRolePermissions, canReadModule, canWriteModule } from '@/lib/iamPermissions';
 import { doc, getDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { requestModuleAccess } from '@/lib/services/iamService';
@@ -25,13 +26,7 @@ const IamContext = createContext<IamContextType>({
   requestAccess: async () => {},
 });
 
-// DEFAULT OWNER ROLE (Hardcoded fallback if the user is the project creator, to prevent locking out)
-const OWNER_PERMISSIONS: Record<AppModule, PermissionLevel> = {
-  crm: 'write',
-  tasks: 'write',
-  documentation: 'write',
-  settings: 'write'
-};
+// Calcolo dei permessi condiviso con il server MCP (lib/iamPermissions.ts).
 
 export function IamProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -92,9 +87,7 @@ export function IamProvider({ children }: { children: React.ReactNode }) {
         const pmSnap = await getDocs(pmQ);
         const membersAccess = pmSnap.docs.map(d => d.data() as ProjectMemberAccess);
 
-        let highestPerms: Record<AppModule, PermissionLevel> = {
-          crm: 'none', tasks: 'none', documentation: 'none', settings: 'none'
-        };
+        const rolePermissions: Array<Partial<Record<AppModule, PermissionLevel>>> = [];
         let foundAnyRole = false;
 
         const evaluateRole = async (roleId: string) => {
@@ -102,11 +95,7 @@ export function IamProvider({ children }: { children: React.ReactNode }) {
           if (roleSnap.exists()) {
             const roleData = roleSnap.data() as CustomRole;
             foundAnyRole = true;
-            (Object.keys(highestPerms) as AppModule[]).forEach(mod => {
-              const perm = roleData.permissions[mod];
-              if (perm === 'write') highestPerms[mod] = 'write';
-              if (perm === 'read' && highestPerms[mod] === 'none') highestPerms[mod] = 'read';
-            });
+            rolePermissions.push(roleData.permissions || {});
           }
         };
 
@@ -135,7 +124,7 @@ export function IamProvider({ children }: { children: React.ReactNode }) {
             id: 'inherited_role',
             projectId: activeProject.id,
             name: 'Inherited Role',
-            permissions: highestPerms
+            permissions: mergeRolePermissions(rolePermissions)
           });
         } else {
           setActiveRole(null);
@@ -151,17 +140,9 @@ export function IamProvider({ children }: { children: React.ReactNode }) {
     checkAccess();
   }, [user, activeProject, activeWorkspaceId]);
 
-  const canRead = (module: AppModule): boolean => {
-    if (!activeRole) return false;
-    const perm = activeRole.permissions[module];
-    return perm === 'read' || perm === 'write';
-  };
+  const canRead = (module: AppModule): boolean => canReadModule(activeRole?.permissions, module);
 
-  const canWrite = (module: AppModule): boolean => {
-    if (!activeRole) return false;
-    const perm = activeRole.permissions[module];
-    return perm === 'write';
-  };
+  const canWrite = (module: AppModule): boolean => canWriteModule(activeRole?.permissions, module);
 
   const requestAccess = async (module: AppModule, level: 'read' | 'write') => {
     if (!user || !activeProject) return;

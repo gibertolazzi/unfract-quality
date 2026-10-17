@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu } from "lucide-react";
+import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu, Copy, Check } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject } from "@/contexts/ProjectContext";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -31,6 +31,10 @@ export function AiHubView() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showMCPModal, setShowMCPModal] = useState(false);
+  const [mcpCopied, setMcpCopied] = useState(false);
+  // Il server MCP può essere spento (in prod finché non si attiva): lo si chiede ai suoi metadati.
+  const [mcpAvailable, setMcpAvailable] = useState<boolean | null>(null);
+  const mcpUrl = typeof window !== "undefined" ? `${window.location.origin}/api/mcp` : "/api/mcp";
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
@@ -284,7 +288,10 @@ export function AiHubView() {
         </div>
         
         {/* Connect Button */}
-        <button onClick={() => setShowMCPModal(true)} className="relative w-full h-[60px] rounded-[30px] overflow-hidden group hover:opacity-90 transition-opacity">
+        <button onClick={() => {
+          setShowMCPModal(true);
+          if (mcpAvailable === null) fetch("/api/oauth/protected-resource").then(r => setMcpAvailable(r.ok)).catch(() => setMcpAvailable(false));
+        }} className="relative w-full h-[60px] rounded-[30px] overflow-hidden group hover:opacity-90 transition-opacity">
           <img src="/connectagent.svg" alt="Connect agent with MCP" className="w-full h-full object-cover" />
         </button>
 
@@ -538,12 +545,31 @@ export function AiHubView() {
             >
               <X size={20} />
             </button>
-            <h3 className="text-xl font-medium text-white mb-6">{t.aiHub.manageMcp}</h3>
+            <h3 className="text-xl font-medium text-white mb-4">{t.mcp.hubTitle}</h3>
 
-            {/* Unfract come server MCP: in arrivo. Il collegamento simulato e il
-                comando npx (pacchetto inesistente) sono stati tolti. */}
-            <p className="text-sm text-white/80 mb-3">{t.aiHub.mcpComingSoon}</p>
-            <p className="text-sm text-[#858585]">{t.aiHub.mcpComingSoonDesc}</p>
+            {/* Unfract come server MCP (app/api/mcp): l'indirizzo da aggiungere
+                come connettore. Il login e il consenso li gestisce /oauth/authorize. */}
+            {mcpAvailable === null ? (
+              <Loader2 className="animate-spin text-[#858585]" size={18} />
+            ) : !mcpAvailable ? (
+              <p className="text-sm text-[#858585]">{t.mcp.disabled}</p>
+            ) : (
+              <>
+                <p className="text-sm text-[#858585] mb-4">{t.mcp.hubDesc}</p>
+                <div className="bg-black border border-white/10 rounded-xl p-3 mb-4 flex items-center justify-between gap-3">
+                  <code className="text-[#006AFF] text-sm truncate">{mcpUrl}</code>
+                  <button
+                    type="button"
+                    onClick={() => { navigator.clipboard.writeText(mcpUrl).then(() => { setMcpCopied(true); setTimeout(() => setMcpCopied(false), 2000); }).catch(() => undefined); }}
+                    className="shrink-0 flex items-center gap-1 text-xs text-[#858585] hover:text-white transition-colors"
+                  >
+                    {mcpCopied ? <><Check size={16} className="text-green-500" />{t.mcp.copied}</> : <><Copy size={16} />{t.mcp.copy}</>}
+                  </button>
+                </div>
+                <p className="text-xs text-white/70 mb-2">{t.mcp.hubSafety}</p>
+                <p className="text-xs text-[#858585]">{t.mcp.hubManage}</p>
+              </>
+            )}
           </div>
         </div>
       )}

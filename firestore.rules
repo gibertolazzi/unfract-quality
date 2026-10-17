@@ -369,5 +369,11 @@ service cloud.firestore {
     match /notifications_queue/{document=**} { allow read, write: if false; }
     match /storage_usage/{document=**} { allow read, write: if false; }
     match /rate_limits/{document=**} { allow read, write: if false; }
+    // Server MCP e suo server di autorizzazione (lib/server/mcp): solo il server.
+    match /mcp_clients/{document=**} { allow read, write: if false; }
+    match /mcp_codes/{document=**} { allow read, write: if false; }
+    match /mcp_grants/{document=**} { allow read, write: if false; }
+    match /mcp_tokens/{document=**} { allow read, write: if false; }
+    match /mcp_audit/{document=**} { allow read, write: if false; }
   }
 }
