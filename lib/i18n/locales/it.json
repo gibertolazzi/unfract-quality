@@ -1231,6 +1231,14 @@
     "copy": "Copia",
     "copied": "Copiato",
     "hubSafety": "L’assistente vede solo quello che vedi tu, in sola lettura e senza CRM.",
-    "hubManage": "Gestisci gli assistenti collegati nelle impostazioni del profilo."
+    "hubManage": "Gestisci gli assistenti collegati nelle impostazioni del profilo.",
+    "workspaceDisabled": "assistenti disattivati dall’amministratore",
+    "orgTitle": "Assistenti AI (MCP)",
+    "orgDesc": "I membri possono collegare Claude, ChatGPT o Cursor a questo workspace, in sola lettura e con i propri permessi. Spegnendo, tutti gli assistenti collegati smettono subito di funzionare; riaccendendo, riprendono.",
+    "orgOn": "Attivi",
+    "orgOff": "Disattivati",
+    "orgConnections": "Collegamenti attivi: {count}",
+    "orgUpdated": "Impostazione salvata.",
+    "orgError": "Impossibile salvare l’impostazione."
   }
 }

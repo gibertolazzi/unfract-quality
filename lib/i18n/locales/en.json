@@ -1231,6 +1231,14 @@
     "copy": "Copy",
     "copied": "Copied",
     "hubSafety": "The assistant sees only what you can see, read only and without the CRM.",
-    "hubManage": "Manage connected assistants in your profile settings."
+    "hubManage": "Manage connected assistants in your profile settings.",
+    "workspaceDisabled": "assistants turned off by an admin",
+    "orgTitle": "AI assistants (MCP)",
+    "orgDesc": "Members can connect Claude, ChatGPT or Cursor to this workspace, read only and with their own permissions. Turning this off stops every connected assistant immediately; turning it back on resumes them.",
+    "orgOn": "On",
+    "orgOff": "Off",
+    "orgConnections": "Active connections: {count}",
+    "orgUpdated": "Setting saved.",
+    "orgError": "Could not save the setting."
   }
 }

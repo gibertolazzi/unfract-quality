@@ -2,6 +2,7 @@ import { ClientError, redirectAllowed, redirectKind, resolveClient, type Documen
 import { issuer, parseScopes, resourceMatches, type Scope } from '@/lib/server/mcp/config';
 import { inWorkspace, userWorkspaces, type WorkspaceSummary } from '@/lib/server/mcp/access';
 import { createAuthorizationCode } from '@/lib/server/mcp/tokens';
+import { disabledWorkspaces, mcpAllowed } from '@/lib/server/mcp/workspaceSettings';
 
 /**
  * La richiesta di autorizzazione (`/oauth/authorize?...`), controllata dal
@@ -68,7 +69,7 @@ export async function checkAuthorizeRequest(params: AuthorizeParams, fetcher?: D
 }
 
 /** Cosa mostra la pagina di consenso. */
-export function consentDetails(check: Extract<AuthorizeCheck, { ok: true }>, workspaces: WorkspaceSummary[]) {
+export function consentDetails(check: Extract<AuthorizeCheck, { ok: true }>, workspaces: Array<WorkspaceSummary & { disabled?: boolean }>) {
   const kind = redirectKind(check.redirectUri);
   const url = new URL(check.redirectUri);
   return {
@@ -87,7 +88,10 @@ export function consentDetails(check: Extract<AuthorizeCheck, { ok: true }>, wor
 export async function authorizeConsent(params: AuthorizeParams, uid: string) {
   const check = await checkAuthorizeRequest(params);
   if (!check.ok) return check;
-  return { ...check, details: consentDetails(check, await userWorkspaces(uid)) };
+  const workspaces = await userWorkspaces(uid);
+  // Quelli spenti dall'amministratore si mostrano, ma non si possono scegliere.
+  const disabled = await disabledWorkspaces(workspaces.map(ws => ws.id));
+  return { ...check, details: consentDetails(check, workspaces.map(ws => ({ ...ws, disabled: disabled.has(ws.id) }))) };
 }
 
 /** Risposta dell'utente: l'indirizzo a cui mandare il browser. */
@@ -99,6 +103,9 @@ export async function authorizeDecision(params: AuthorizeParams, uid: string, de
   }
   if (typeof decision.workspaceId !== 'string' || !(await inWorkspace(uid, decision.workspaceId))) {
     return { ok: false as const, message: 'Scegli un workspace di cui fai parte.' };
+  }
+  if (!(await mcpAllowed(decision.workspaceId))) {
+    return { ok: false as const, message: 'Gli assistenti AI sono disattivati per questo workspace.' };
   }
   const code = await createAuthorizationCode({
     uid,

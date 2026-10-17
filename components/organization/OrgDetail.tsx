@@ -25,6 +25,7 @@ import { OrgMember } from '@/types/organization';
 import { Project } from '@/contexts/ProjectContext';
 import { Folder } from 'lucide-react';
 import { TeamsSection } from './TeamsSection';
+import { McpWorkspaceSection } from './McpWorkspaceSection';
 import { activeMembers } from '@/lib/orgMembers';
 
 export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
@@ -405,6 +406,8 @@ export function OrgDetail({ initialOrg }: { initialOrg: Organization }) {
           })}
         </div>
       </section>
+
+      <McpWorkspaceSection workspaceId={org.id} />
 
       {/* Conditional Sections based on Structure Mode */}
 

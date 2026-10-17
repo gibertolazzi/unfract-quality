@@ -27,6 +27,7 @@ import { POST as authorizePost } from '@/app/api/oauth/authorize/route';
 import { POST as tokenPost } from '@/app/api/oauth/token/route';
 import { POST as revokePost } from '@/app/api/oauth/revoke/route';
 import { GET as connectionsGet, POST as connectionsPost } from '@/app/api/oauth/connections/route';
+import { GET as orgMcpGet, POST as orgMcpPost } from '@/app/api/organizations/mcp/route';
 import { ClientError, isMetadataClientId, redirectAllowed, redirectKind, resolveClient } from '@/lib/server/mcp/clients';
 import { parseScopes, pkceMatches, resourceMatches } from '@/lib/server/mcp/config';
 import { plainText } from '@/lib/server/mcp/tools';
@@ -486,5 +487,44 @@ describe('utilità', () => {
 
   it('testo da HTML', () => {
     expect(plainText('<p>Uno</p><p>Due &amp; tre</p><script>alert(1)</script>')).toBe('Uno\nDue & tre');
+  });
+});
+
+describe('interruttore per workspace', () => {
+  const toggle = (uid: string, allowed: boolean) =>
+    orgMcpPost(jsonPost(`${BASE}/api/organizations/mcp`, { workspaceId: 'o1', allowed }, { Authorization: `Bearer id-${uid}` }));
+  const state = async (uid: string) =>
+    (await orgMcpGet(new Request(`${BASE}/api/organizations/mcp?workspaceId=o1`, { headers: { Authorization: `Bearer id-${uid}` } }))).json();
+
+  it('solo proprietario o amministratore lo cambiano', async () => {
+    expect((await toggle('bruno', false)).status).toBe(403);
+    expect(await state('bruno')).toEqual({ allowed: true, canManage: false, activeConnections: null });
+    const res = await orgMcpGet(new Request(`${BASE}/api/organizations/mcp?workspaceId=o1`, { headers: { Authorization: 'Bearer id-carla' } }));
+    expect(res.status).toBe(404);
+  });
+
+  it('spento: gli assistenti si fermano subito, niente rinnovi né nuovi collegamenti; riacceso riprendono', async () => {
+    const bruno = await connect('bruno', 'o1');
+    expect((await state('anna')).activeConnections).toBe(1);
+    expect((await toggle('anna', false)).status).toBe(200);
+
+    const blocked = await callTool(bruno.access_token, 'list_projects');
+    expect(blocked.isError).toBe(true);
+    expect(blocked.text).toContain('amministratore');
+
+    const refresh = await tokenPost(formPost(`${BASE}/api/oauth/token`, { grant_type: 'refresh_token', refresh_token: bruno.refresh_token, client_id: bruno.clientId }));
+    expect(refresh.status).toBe(400);
+
+    const clientId = await register();
+    const { challenge } = pkce();
+    const check = await (await authorize('bruno', { action: 'check', params: authorizeParams(clientId, challenge) })).json();
+    expect(check.details.workspaces).toEqual([{ id: 'o1', name: 'Acme', disabled: true }]);
+    expect((await authorize('bruno', { action: 'approve', params: authorizeParams(clientId, challenge), workspaceId: 'o1' })).status).toBe(400);
+
+    expect((await toggle('anna', true)).status).toBe(200);
+    expect((await callTool(bruno.access_token, 'list_projects')).isError).toBe(false);
+    // Il rinnovo rifiutato da spento non ha consumato il token.
+    const later = await tokenPost(formPost(`${BASE}/api/oauth/token`, { grant_type: 'refresh_token', refresh_token: bruno.refresh_token, client_id: bruno.clientId }));
+    expect(later.status).toBe(200);
   });
 });
