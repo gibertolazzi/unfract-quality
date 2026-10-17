@@ -88,6 +88,20 @@ const nextConfig = {
   // Login con Google dallo stesso dominio del sito (vedi lib/authDomain.ts),
   // verso il progetto Firebase di questo deploy: prima puntava sempre a
   // unfract-prod, anche dall'ambiente di prova.
+  // La pagina di consenso degli assistenti non si può mettere dentro un altro
+  // sito: un iframe trasparente potrebbe far cliccare «Consenti» (clickjacking).
+  async headers() {
+    return [
+      {
+        source: '/oauth/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     const projectId = firebaseWeb.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
     const rewrites = [
@@ -95,6 +109,12 @@ const nextConfig = {
         source: '/.well-known/microsoft-identity-association',
         destination: '/.well-known/microsoft-identity-association.json',
       },
+      // Server MCP: dove l'assistente scopre come fare il login (RFC 9728 e
+      // RFC 8414). Le route stanno in app/api/oauth.
+      { source: '/.well-known/oauth-protected-resource', destination: '/api/oauth/protected-resource' },
+      { source: '/.well-known/oauth-protected-resource/:path*', destination: '/api/oauth/protected-resource' },
+      { source: '/.well-known/oauth-authorization-server', destination: '/api/oauth/authorization-server' },
+      { source: '/.well-known/oauth-authorization-server/:path*', destination: '/api/oauth/authorization-server' },
     ];
     if (projectId) {
       rewrites.push({

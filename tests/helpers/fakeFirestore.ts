@@ -32,13 +32,20 @@ export function createFakeDb() {
       store.set(path, next);
     },
     delete: async () => { store.delete(path); },
+    collection: (name: string) => collection(`${path}/${name}`),
   });
 
   const inCollection = (name: string, path: string) =>
     path.startsWith(`${name}/`) && path.split('/').length === name.split('/').length + 1;
 
-  const collection = (name: string) => ({
-    doc: (id: string) => docRef(`${name}/${id}`),
+  let autoId = 0;
+  const collection = (name: string): any => ({
+    doc: (id?: string) => docRef(`${name}/${id ?? `auto${++autoId}`}`),
+    add: async (data: Record<string, any>) => {
+      const ref = docRef(`${name}/auto${++autoId}`);
+      await ref.set(data);
+      return ref;
+    },
     get: async () => {
       const docs = Array.from(store.keys()).filter(path => inCollection(name, path)).map(path => ({ ...snapshot(path), ref: docRef(path) }));
       return { empty: docs.length === 0, docs };
@@ -77,6 +84,7 @@ export function createFakeDb() {
     batch: () => {
       const ops: Array<() => Promise<void>> = [];
       return {
+        set: (ref: any, data: any, options?: any) => { ops.push(() => ref.set(data, options)); },
         update: (ref: any, data: any) => { ops.push(() => ref.update(data)); },
         delete: (ref: any) => { ops.push(() => ref.delete()); },
         commit: async () => { for (const op of ops) await op(); },

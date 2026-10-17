@@ -650,7 +650,8 @@ Gli allegati AI Hub vengono caricati in Storage, contano nello spazio workspace 
 
 - Gemini cloud: consuma crediti AI;
 - Gemini Nano/WebLLM locale: non consuma crediti cloud;
-- MCP: il pulsante «Collega un assistente AI» mostra che la funzione è in arrivo. Il collegamento simulato e il comando `npx @unfract/mcp-server` (pacchetto mai pubblicato) sono stati tolti; Unfract diventerà un server MCP remoto con login OAuth.
+- MCP: Unfract è un server MCP remoto (`/api/mcp`). Il pulsante «Collega un assistente AI» mostra l'indirizzo da aggiungere come connettore in Claude, ChatGPT o Cursor. L'utente entra (email o Google), sceglie **un** workspace e conferma (`/oauth/authorize`); l'assistente può solo leggere progetti, task, bacheche, documenti, riunioni e il calendario dell'utente, con gli stessi permessi dell'app e senza CRM. I collegamenti si vedono e si revocano in Impostazioni profilo → «Assistenti AI collegati». Dettagli tecnici in `lib/server/mcp/`.
+- MCP è acceso in sviluppo e su quality; in prod solo con la variabile `MCP_ENABLED=true`. Spento, le route rispondono 404 e il modale dice che la funzione non è attiva.
 
 > **Sicurezza:** la chiave Gemini pubblica è utilizzata da alcune funzioni client. Per un ambiente pubblico è preferibile spostare le chiamate cloud dietro route server autenticate.
 

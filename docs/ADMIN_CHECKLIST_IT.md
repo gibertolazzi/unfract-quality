@@ -150,7 +150,10 @@ Checklist interna per preparare un Workspace e verificare che le sezioni princip
 - [ ] Gemini cloud incrementa i crediti.
 - [ ] Gemini Nano/WebLLM locale non incrementa i crediti cloud.
 - [ ] Eliminazione chat libera gli allegati tracciati.
-- [ ] Il modale MCP dice «in arrivo» e non simula connessioni né propone comandi da eseguire.
+- [ ] MCP: un assistente (es. Claude) si collega con l'indirizzo mostrato nell'AI Hub, chiede login e scelta del workspace, e vede solo i progetti di quel workspace.
+- [ ] MCP: un membro senza permesso «Task» o «Documenti» non li vede nemmeno dall'assistente.
+- [ ] MCP: «Scollega» in Impostazioni ferma subito l'assistente.
+- [ ] MCP in prod: acceso solo dopo l'OK, con `MCP_ENABLED=true`.
 
 ## 12. Quote e cleanup
 
