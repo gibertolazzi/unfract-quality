@@ -43,6 +43,7 @@ import { GET as orgMcpGet, POST as orgMcpPost } from '@/app/api/organizations/mc
 import { ClientError, isMetadataClientId, redirectAllowed, redirectKind, resolveClient } from '@/lib/server/mcp/clients';
 import { parseScopes, pkceMatches, resourceMatches } from '@/lib/server/mcp/config';
 import { plainText } from '@/lib/server/mcp/tools';
+import { clientIp } from '@/lib/server/mcp/http';
 
 const BASE = 'http://localhost:3000';
 const REDIRECT = 'http://localhost:5555/callback';
@@ -507,6 +508,13 @@ describe('client', () => {
 });
 
 describe('utilità', () => {
+  it('IP del client: quello di App Hosting, non quello scelto dal client', () => {
+    const request = (headers: Record<string, string>) => new Request(`${BASE}/api/oauth/register`, { headers });
+    expect(clientIp(request({ 'x-fah-client-ip': '81.57.26.7', 'x-forwarded-for': '9.9.9.9, 81.57.26.7, 74.125.208.100' }))).toBe('81.57.26.7');
+    expect(clientIp(request({ 'x-forwarded-for': '10.0.0.5, 74.125.208.100' }))).toBe('10.0.0.5');
+    expect(clientIp(request({}))).toBe('unknown');
+  });
+
   it('permessi, risorsa e PKCE', () => {
     expect(parseScopes(undefined)).toEqual(['read']);
     expect(parseScopes('read')).toEqual(['read']);
