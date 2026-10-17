@@ -650,7 +650,7 @@ Gli allegati AI Hub vengono caricati in Storage, contano nello spazio workspace 
 
 - Gemini cloud: consuma crediti AI;
 - Gemini Nano/WebLLM locale: non consuma crediti cloud;
-- MCP: l'interfaccia è presente, ma il collegamento mostrato è ancora uno stato locale simulato e non una connessione MCP completa.
+- MCP: il pulsante «Collega un assistente AI» mostra che la funzione è in arrivo. Il collegamento simulato e il comando `npx @unfract/mcp-server` (pacchetto mai pubblicato) sono stati tolti; Unfract diventerà un server MCP remoto con login OAuth.
 
 > **Sicurezza:** la chiave Gemini pubblica è utilizzata da alcune funzioni client. Per un ambiente pubblico è preferibile spostare le chiamate cloud dietro route server autenticate.
 

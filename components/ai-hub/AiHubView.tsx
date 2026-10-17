@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu, Copy, Check } from "lucide-react";
+import { Search, Edit3, Plus, Mic, Link as LinkIcon, Cpu, CheckSquare, Calendar, FileText, ChevronRight, Loader2, Send, X, Trash2, Menu } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProject } from "@/contexts/ProjectContext";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -31,31 +31,9 @@ export function AiHubView() {
   const [attachments, setAttachments] = useState<File[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [showMCPModal, setShowMCPModal] = useState(false);
-  const [activeMcpTab, setActiveMcpTab] = useState<"host" | "server">("host");
-  const [mcpUrl, setMcpUrl] = useState("");
-  const [isConnectingMcp, setIsConnectingMcp] = useState(false);
-  const [isMcpConnected, setIsMcpConnected] = useState(false);
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
-
-  const handleConnectMcp = async () => {
-    if (!mcpUrl) return;
-    setIsConnectingMcp(true);
-    // Simulate connection to an external MCP server
-    setTimeout(() => {
-      setIsConnectingMcp(false);
-      setIsMcpConnected(true);
-      setTimeout(() => setShowMCPModal(false), 1000);
-    }, 1500);
-  };
-
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   // Keep task completion and columns live so completed work is never offered as an action.
   useEffect(() => {
@@ -562,71 +540,10 @@ export function AiHubView() {
             </button>
             <h3 className="text-xl font-medium text-white mb-6">{t.aiHub.manageMcp}</h3>
 
-            {/* Custom Tabs */}
-            <div className="flex w-full mb-6 bg-white/5 rounded-xl p-1 border border-white/10">
-              <button
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  activeMcpTab === "host" ? "bg-[#006AFF] text-white" : "text-[#858585] hover:text-white"
-                }`}
-                onClick={() => setActiveMcpTab("host")}
-              >
-                {t.aiHub.externalTools}
-              </button>
-              <button
-                className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
-                  activeMcpTab === "server" ? "bg-[#006AFF] text-white" : "text-[#858585] hover:text-white"
-                }`}
-                onClick={() => setActiveMcpTab("server")}
-              >
-                {t.aiHub.useUnfractElsewhere}
-              </button>
-            </div>
-
-            {activeMcpTab === "host" && (
-              <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[#858585] text-sm mb-4">{t.aiHub.mcpDescription}</p>
-                <input 
-                  type="text" 
-                  value={mcpUrl}
-                  onChange={(e) => setMcpUrl(e.target.value)}
-                  placeholder="https://..." 
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-[#006AFF] mb-4" 
-                />
-                <button 
-                  onClick={handleConnectMcp}
-                  disabled={!mcpUrl || isConnectingMcp || isMcpConnected}
-                  className="w-full flex justify-center items-center gap-2 bg-[#006AFF] hover:bg-[#0055CC] disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium py-3 rounded-xl transition-colors"
-                >
-                  {isConnectingMcp ? (
-                    <><Loader2 className="animate-spin" size={18} /> {t.aiHub.connecting}</>
-                  ) : isMcpConnected ? (
-                    <><Check size={18} /> {t.aiHub.connected}</>
-                  ) : (
-                    t.aiHub.connect
-                  )}
-                </button>
-              </div>
-            )}
-
-            {activeMcpTab === "server" && (
-              <div className="animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[#858585] text-sm mb-4">{t.aiHub.mcpServerDescription}</p>
-                
-                <div className="bg-black border border-white/10 rounded-xl p-4 mb-4 flex items-center justify-between">
-                  <code className="text-[#006AFF] text-sm truncate mr-4">
-                    npx @unfract/mcp-server --token=sk_YOUR_TOKEN
-                  </code>
-                  <button 
-                    onClick={() => copyToClipboard("npx @unfract/mcp-server --token=sk_YOUR_TOKEN")}
-                    className="text-[#858585] hover:text-white transition-colors"
-                  >
-                    {copied ? <Check size={18} className="text-green-500" /> : <Copy size={18} />}
-                  </button>
-                </div>
-                
-                <p className="text-[#858585] text-xs">{t.aiHub.copyCommand} (e.g. <code>claude_desktop_config.json</code>)</p>
-              </div>
-            )}
+            {/* Unfract come server MCP: in arrivo. Il collegamento simulato e il
+                comando npx (pacchetto inesistente) sono stati tolti. */}
+            <p className="text-sm text-white/80 mb-3">{t.aiHub.mcpComingSoon}</p>
+            <p className="text-sm text-[#858585]">{t.aiHub.mcpComingSoonDesc}</p>
           </div>
         </div>
       )}

@@ -150,7 +150,7 @@ Checklist interna per preparare un Workspace e verificare che le sezioni princip
 - [ ] Gemini cloud incrementa i crediti.
 - [ ] Gemini Nano/WebLLM locale non incrementa i crediti cloud.
 - [ ] Eliminazione chat libera gli allegati tracciati.
-- [ ] MCP trattato come funzione sperimentale finché non viene collegato un server reale.
+- [ ] Il modale MCP dice «in arrivo» e non simula connessioni né propone comandi da eseguire.
 
 ## 12. Quote e cleanup
 
